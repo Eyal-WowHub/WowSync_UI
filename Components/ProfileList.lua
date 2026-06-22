@@ -14,6 +14,7 @@ local L = addon.L
         -> self {
             OnSelect(callback),       -- callback(profileName or nil)
             OnSave(callback),         -- callback(name)
+            OnSaveAdvanced(callback), -- callback(name); open the save dialog
             Refresh(),
             GetSelected() -> profileName or nil,
             ClearSelection(),
@@ -29,6 +30,7 @@ local scrollBox
 local selectedProfileName = nil
 local onSelectionChanged = nil
 local onSaveRequested = nil
+local onSaveAdvancedRequested = nil
 
 function ProfileList:Build(region)
     pm = WowSync:GetProfileManager()
@@ -57,6 +59,9 @@ function ProfileList:Build(region)
     SaveBar:Build(saveSlot, {
         onSave = function(name)
             if onSaveRequested then onSaveRequested(name) end
+        end,
+        onSaveAdvanced = function(name)
+            if onSaveAdvancedRequested then onSaveAdvancedRequested(name) end
         end,
     })
 
@@ -102,6 +107,10 @@ end
 
 function ProfileList:OnSave(callback)
     onSaveRequested = callback
+end
+
+function ProfileList:OnSaveAdvanced(callback)
+    onSaveAdvancedRequested = callback
 end
 
 function ProfileList:Refresh()

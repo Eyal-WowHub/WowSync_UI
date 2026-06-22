@@ -18,6 +18,7 @@ local MainFrame = addon:NewObject("MainFrame")
 local TitleBar = addon:GetObject("TitleBar")
 local ProfileList = addon:GetObject("ProfileList")
 local ProfileDetails = addon:GetObject("ProfileDetails")
+local SaveDialog = addon:GetObject("SaveDialog")
 
 local frame
 local profileList, profileDetails
@@ -76,9 +77,11 @@ local function Build()
         profileDetails:SetProfile(profileName)
     end)
 
-    profileList:OnSave(function(name)
+    -- Capture a snapshot (optionally a subset, optionally a note) and reflect it
+    -- in the list. Shared by the quick Save and the Save… dialog.
+    local function DoSave(name, moduleSet, note)
         local pm = WowSync:GetProfileManager()
-        local snapshot, reason = pm:Save(name)
+        local snapshot, reason = pm:Save(name, moduleSet, note)
         if snapshot then
             WowSync:Print(L["Profile 'X' saved."]:format(name))
             profileList:Refresh()
@@ -90,6 +93,19 @@ local function Build()
         elseif reason == "unchanged" then
             WowSync:Print(L["Profile 'X': nothing changed."]:format(name))
         end
+    end
+
+    profileList:OnSave(function(name)
+        DoSave(name)
+    end)
+
+    profileList:OnSaveAdvanced(function(name)
+        SaveDialog:Show({
+            profileName = name,
+            onConfirm = function(moduleSet, note)
+                DoSave(name, moduleSet, note)
+            end,
+        })
     end)
 
     profileDetails:OnRefresh(function()
