@@ -253,7 +253,7 @@ function ProfileDetails:SetProfile(profileName)
     statusLabel:Hide()
 
     header:SetProfile(profileName, latest)
-    snapshotList:SetProfile(profile)
+    snapshotList:SetProfile(profileName)
     ApplyUndoState()
 end
 

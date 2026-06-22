@@ -13,6 +13,12 @@ addon.UI = {
     SnapshotRowHeight = 40,
     SnapshotRowPadding = 2,
     TimelineRailX = 14,
+    SnapshotNodeY = 16,           -- node center, below the row top (aligns with subject)
+    SnapshotSubjectZone = 24,     -- top zone holding subject + tags when a row is expanded
+    SnapshotDetailTopPad = 2,
+    SnapshotDetailNoteHeight = 28,
+    SnapshotDetailLineHeight = 15,
+    SnapshotDetailBottomPad = 8,
 
     -- Brand accent (used for the window title)
     AccentHex = "ff40a5f7",

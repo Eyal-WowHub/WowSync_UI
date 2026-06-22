@@ -10,13 +10,17 @@ local L = addon.L
     scroll box owns the row frames; this module only builds their children once
     and updates their content. Renders a single snapshot on the timeline: a rail
     node, the subject (formatted date), latest/pinned tags, and an optional note
-    preview. The list-level selection state is reached through an injected
+    preview. When the row is expanded it also shows an inline detail panel: the
+    full note plus a per-module change summary against the current setup. The
+    list-level selection and expansion state is reached through an injected
     context.
 
     elementData = { snapshot = <snapshot>, isLatest = bool, isOldest = bool }
 
     ctx = {
         GetSelected() -> hash or nil,
+        IsExpanded(hash) -> bool,
+        GetDetail() -> detail or nil,   -- valid only for the expanded row
         Select(hash),
     }
 
@@ -47,7 +51,7 @@ function SnapshotRow:Build(row, ctx)
     row.node = row:CreateTexture(nil, "OVERLAY")
     row.node:SetTexture("Interface\\COMMON\\Indicator-Gray")
     row.node:SetSize(14, 14)
-    row.node:SetPoint("CENTER", row, "LEFT", UI.TimelineRailX + 1, 0)
+    row.node:SetPoint("CENTER", row, "TOPLEFT", UI.TimelineRailX + 1, -UI.SnapshotNodeY)
 
     local textLeft = UI.TimelineRailX + 16
 
@@ -65,6 +69,33 @@ function SnapshotRow:Build(row, ctx)
     row.noteText:SetJustifyH("LEFT")
     row.noteText:SetWordWrap(false)
 
+    -- Inline detail panel (shown only while expanded). Anchored below the
+    -- subject zone; the scroll box sizes the row tall enough to hold it.
+    local detailTop = -(UI.SnapshotSubjectZone + UI.SnapshotDetailTopPad)
+
+    row.detailNote = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    row.detailNote:SetPoint("RIGHT", -8, 0)
+    row.detailNote:SetJustifyH("LEFT")
+    row.detailNote:SetJustifyV("TOP")
+    row.detailNote:SetHeight(UI.SnapshotDetailNoteHeight)
+    row.detailNote:SetWordWrap(true)
+    row.detailNote:Hide()
+
+    row.detailHeader = row:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    row.detailHeader:SetJustifyH("LEFT")
+    row.detailHeader:Hide()
+
+    row.detailChanges = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    row.detailChanges:SetPoint("RIGHT", -8, 0)
+    row.detailChanges:SetJustifyH("LEFT")
+    row.detailChanges:SetJustifyV("TOP")
+    row.detailChanges:SetWordWrap(false)
+    row.detailChanges:Hide()
+
+    -- Stash anchors used by Update's dynamic detail layout.
+    row.textLeft = textLeft
+    row.detailTop = detailTop
+
     row:EnableMouse(true)
     row:SetScript("OnEnter", function(self)
         if self.snapshotHash ~= ctx.GetSelected() then
@@ -79,6 +110,62 @@ function SnapshotRow:Build(row, ctx)
     row:SetScript("OnMouseDown", function(self)
         ctx.Select(self.snapshotHash)
     end)
+end
+
+-- Lay out and populate the inline detail panel for an expanded row: the full
+-- note (when present) followed by the per-module change summary.
+local function ExpandRow(row, detail)
+    row.noteText:Hide()
+
+    if detail and detail.hasNote then
+        row.detailNote:ClearAllPoints()
+        row.detailNote:SetPoint("TOPLEFT", row, "TOPLEFT", row.textLeft, row.detailTop)
+        row.detailNote:SetPoint("RIGHT", row, "RIGHT", -8, 0)
+        row.detailNote:SetText(detail.note)
+        row.detailNote:Show()
+
+        row.detailHeader:ClearAllPoints()
+        row.detailHeader:SetPoint("TOPLEFT", row.detailNote, "BOTTOMLEFT", 0, -2)
+    else
+        row.detailNote:Hide()
+
+        row.detailHeader:ClearAllPoints()
+        row.detailHeader:SetPoint("TOPLEFT", row, "TOPLEFT", row.textLeft, row.detailTop)
+    end
+
+    row.detailHeader:SetText(L["Changes vs current setup:"])
+    row.detailHeader:Show()
+
+    local lines = {}
+    if detail and #detail.modules > 0 then
+        for _, change in ipairs(detail.modules) do
+            tinsert(lines, L["X: +A ~C -R"]:format(
+                change.name, change.added, change.changed, change.removed))
+        end
+    else
+        tinsert(lines, L["Matches your current setup"])
+    end
+
+    row.detailChanges:ClearAllPoints()
+    row.detailChanges:SetPoint("TOPLEFT", row.detailHeader, "BOTTOMLEFT", 0, -2)
+    row.detailChanges:SetPoint("RIGHT", row, "RIGHT", -8, 0)
+    row.detailChanges:SetText(table.concat(lines, "\n"))
+    row.detailChanges:Show()
+end
+
+-- Restore the compact look: subject, tags, and a one-line note preview; the
+-- inline detail panel is hidden.
+local function CollapseRow(row, snapshot)
+    row.detailNote:Hide()
+    row.detailHeader:Hide()
+    row.detailChanges:Hide()
+
+    if snapshot.Body and snapshot.Body ~= "" then
+        row.noteText:SetText(snapshot.Body)
+        row.noteText:Show()
+    else
+        row.noteText:Hide()
+    end
 end
 
 function SnapshotRow:Update(row, elementData, ctx)
@@ -97,12 +184,10 @@ function SnapshotRow:Update(row, elementData, ctx)
     end
     row.tagText:SetText(table.concat(tags, " "))
 
-    -- Optional body note preview
-    if snapshot.Body and snapshot.Body ~= "" then
-        row.noteText:SetText(snapshot.Body)
-        row.noteText:Show()
+    if ctx.IsExpanded(row.snapshotHash) then
+        ExpandRow(row, ctx.GetDetail())
     else
-        row.noteText:Hide()
+        CollapseRow(row, snapshot)
     end
 
     -- The latest node carries the brand accent; older nodes stay neutral.

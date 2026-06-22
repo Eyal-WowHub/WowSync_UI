@@ -21,6 +21,9 @@ L["Last applied: X"] = "Last applied: %s"
 -- Snapshot timeline
 L["(latest)"] = "(latest)"
 L["(pinned)"] = "(pinned)"
+L["Changes vs current setup:"] = "Changes vs current setup:"
+L["Matches your current setup"] = "Matches your current setup"
+L["X: +A ~C -R"] = "%s:  |cff5fcf5f+%d|r |cffd9c84a~%d|r |cffd96b6b-%d|r"
 
 -- Print feedback
 L["Profile 'X' saved."] = "Profile '%s' saved."
