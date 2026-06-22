@@ -73,10 +73,10 @@ local function DoUndo()
     ApplyUndoState()
 end
 
-local function DoApply()
+local function DoApply(snapshot)
     if not currentProfileName then return end
 
-    local snapshot = snapshotList:GetSelected()
+    snapshot = snapshot or snapshotList:GetSelected()
     if not snapshot then return end
 
     -- Apply the snapshot selected in the timeline (all of its modules).
@@ -134,6 +134,53 @@ local function RequestUndo()
     end
 end
 
+-- Right-click actions for a single snapshot. The list forwards the snapshot,
+-- its display subject, and the row to anchor the menu to.
+local function OpenSnapshotMenu(snapshot, subject, anchor)
+    if not snapshot or not currentProfileName then return end
+    local hash = snapshot.Hash
+
+    MenuUtil.CreateContextMenu(anchor, function(_, rootDescription)
+        rootDescription:CreateTitle(subject)
+
+        rootDescription:CreateButton(L["Apply"], function()
+            DoApply(snapshot)
+        end)
+
+        rootDescription:CreateDivider()
+
+        if snapshot.Pinned then
+            rootDescription:CreateButton(L["Unpin"], function()
+                pm:UnpinSnapshot(currentProfileName, hash)
+                snapshotList:Refresh()
+            end)
+        else
+            rootDescription:CreateButton(L["Pin"], function()
+                pm:PinSnapshot(currentProfileName, hash)
+                snapshotList:Refresh()
+            end)
+        end
+
+        rootDescription:CreateButton(L["Edit note…"], function()
+            Dialogs:PromptEditNote(snapshot.Body or "", function(text)
+                pm:SetSnapshotBody(currentProfileName, hash, text)
+                snapshotList:Refresh()
+            end)
+        end)
+
+        rootDescription:CreateDivider()
+
+        rootDescription:CreateButton(L["Delete snapshot"], function()
+            Dialogs:ConfirmDeleteSnapshot(subject, function()
+                pm:DeleteSnapshot(currentProfileName, hash)
+                -- Deleting the latest snapshot changes what the header shows, so
+                -- refresh the whole panel rather than just the list.
+                ProfileDetails:SetProfile(currentProfileName)
+            end)
+        end)
+    end)
+end
+
 function ProfileDetails:Build(region)
     pm = WowSync:GetProfileManager()
 
@@ -186,6 +233,7 @@ function ProfileDetails:Build(region)
         onSelect = function()
             statusLabel:Hide()
         end,
+        onContext = OpenSnapshotMenu,
     })
 
     -- Action bar region
@@ -209,7 +257,7 @@ function ProfileDetails:Build(region)
     })
 
     actionBar = ActionBar:Build(actionSlot, {
-        onApply = DoApply,
+        onApply = function() DoApply() end,
         onUndo = RequestUndo,
         onRename = function()
             if currentProfileName then

@@ -22,6 +22,7 @@ local L = addon.L
         IsExpanded(hash) -> bool,
         GetDetail() -> detail or nil,   -- valid only for the expanded row
         Select(hash),
+        OpenMenu(hash, anchor),         -- right-click actions for the row
     }
 
     addon:GetObject("SnapshotRow"):Build(row, ctx)
@@ -35,6 +36,12 @@ local function FormatSubject(timestamp)
 end
 
 local SnapshotRow = addon:NewObject("SnapshotRow")
+
+-- Exposed so siblings (e.g. the context menu and its dialogs) can label a
+-- snapshot with the same subject the row shows.
+function SnapshotRow:FormatSubject(timestamp)
+    return FormatSubject(timestamp)
+end
 
 function SnapshotRow:Build(row, ctx)
     row.bg = row:CreateTexture(nil, "BACKGROUND")
@@ -107,8 +114,12 @@ function SnapshotRow:Build(row, ctx)
             self.bg:SetColorTexture(UI.RowNormalColor:GetRGBA())
         end
     end)
-    row:SetScript("OnMouseDown", function(self)
-        ctx.Select(self.snapshotHash)
+    row:SetScript("OnMouseDown", function(self, button)
+        if button == "RightButton" then
+            ctx.OpenMenu(self.snapshotHash, self)
+        else
+            ctx.Select(self.snapshotHash)
+        end
     end)
 end
 

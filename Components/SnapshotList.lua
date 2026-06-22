@@ -10,9 +10,13 @@ local UI = addon.UI
     exposes it through a callback; never leaks its frames. Rows are pooled by
     the scroll box across profile selections.
 
-    addon:GetObject("SnapshotList"):Build(region, { onSelect = function(snapshot or nil) })
+    addon:GetObject("SnapshotList"):Build(region, {
+        onSelect = function(snapshot or nil) end,
+        onContext = function(snapshot, subject, anchor) end,  -- right-click menu
+    })
         -> self {
             SetProfile(profileName),   -- (re)populate; selects the latest snapshot
+            Refresh(),                 -- re-render in place, keeping selection/expansion
             GetSelected() -> snapshot or nil,
             Clear(),
         }
@@ -35,6 +39,7 @@ local selectedHash = nil
 local expandedHash = nil     -- the one open row (accordion), independent of selection
 local expandedDetail = nil   -- cached diff/note for the expanded row
 local onSelectionChanged = nil
+local onContext = nil        -- right-click handler (snapshot, subject, anchor)
 
 -- The extra height an expanded row needs for its detail panel, derived purely
 -- from the cached detail so the scroll box can size elements deterministically.
@@ -95,6 +100,7 @@ end
 function SnapshotList:Build(region, opts)
     opts = opts or {}
     onSelectionChanged = opts.onSelect
+    onContext = opts.onContext
     pm = WowSync:GetProfileManager()
 
     scrollBox = CreateFrame("Frame", nil, region, "WowScrollBoxList")
@@ -117,6 +123,12 @@ function SnapshotList:Build(region, opts)
         end,
         Select = function(hash)
             SnapshotList:Select(hash)
+        end,
+        OpenMenu = function(hash, anchor)
+            local snapshot = snapshotsByHash[hash]
+            if snapshot and onContext then
+                onContext(snapshot, SnapshotRow:FormatSubject(snapshot.Timestamp), anchor)
+            end
         end,
     }
 
@@ -203,6 +215,15 @@ function SnapshotList:Select(hash)
     if onSelectionChanged then
         onSelectionChanged(self:GetSelected())
     end
+end
+
+-- Re-render the visible rows in place after a snapshot was mutated (pinned or
+-- had its note edited) without disturbing the current selection or expansion.
+function SnapshotList:Refresh()
+    if expandedHash then
+        expandedDetail = BuildDetail(expandedHash)
+    end
+    Rebuild()
 end
 
 function SnapshotList:GetSelected()
