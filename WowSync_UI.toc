@@ -1,0 +1,25 @@
+## Interface: 110105
+
+## Title: Wow|cff40a5f7Sync|r: UI
+## Notes: Profile management UI for WowSync.
+## IconTexture: Interface\AddOns\WowSync\Logo
+## Version: @project-version@
+## Author: Eyal Alon
+
+## RequiredDeps: WowSync
+
+Core\Constants.lua
+Locales\enUS.lua
+Main.lua
+Components\Dialogs.lua
+Components\TitleBar.lua
+Components\SaveBar.lua
+Components\ProfileRow.lua
+Components\ProfileHeader.lua
+Components\ModuleRow.lua
+Components\RevertBanner.lua
+Components\ActionBar.lua
+Components\ModuleList.lua
+Components\ProfileList.lua
+Components\ProfileDetails.lua
+Components\MainFrame.lua
