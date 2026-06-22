@@ -10,6 +10,7 @@ local L = addon.L
     payload, so this service is fully decoupled from any single consumer.
 
     addon:GetObject("Dialogs"):ConfirmUndo(subject, onConfirm)
+    addon:GetObject("Dialogs"):ConfirmUndoSteps(count, subject, onConfirm)
     addon:GetObject("Dialogs"):ConfirmDelete(profileName, onConfirm)
     addon:GetObject("Dialogs"):PromptRename(currentName, onAccept)  -- onAccept(trimmedText)
     addon:GetObject("Dialogs"):ConfirmDeleteSnapshot(subject, onConfirm)
@@ -21,6 +22,21 @@ local Dialogs = addon:NewObject("Dialogs")
 
 StaticPopupDialogs["WOWSYNC_UNDO"] = {
     text = L["Undo the last apply (X)?"],
+    button1 = YES,
+    button2 = NO,
+    OnAccept = function(self, data)
+        if data and data.onConfirm then
+            data.onConfirm()
+        end
+    end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,
+}
+
+StaticPopupDialogs["WOWSYNC_UNDO_MULTI"] = {
+    text = L["Undo the last X changes, back to Y?"],
     button1 = YES,
     button2 = NO,
     OnAccept = function(self, data)
@@ -146,6 +162,10 @@ StaticPopupDialogs["WOWSYNC_APPLY_EXACT"] = {
 
 function Dialogs:ConfirmUndo(subject, onConfirm)
     StaticPopup_Show("WOWSYNC_UNDO", subject, nil, { onConfirm = onConfirm })
+end
+
+function Dialogs:ConfirmUndoSteps(count, subject, onConfirm)
+    StaticPopup_Show("WOWSYNC_UNDO_MULTI", count, subject, { onConfirm = onConfirm })
 end
 
 function Dialogs:ConfirmDelete(profileName, onConfirm)

@@ -7,7 +7,7 @@ local L = addon.L
     ProfileDetails object (right panel).
 
     Orchestrates the detail view for a selected profile. Composes ProfileHeader,
-    SnapshotList, ActionBar and UndoBanner, and drives the WowSync actions
+    SnapshotList, ActionBar and UndoList, and drives the WowSync actions
     (apply/undo/delete/rename) routed through the Dialogs object. Holds no
     widget-building code of its own beyond layout regions and the empty state.
 
@@ -25,7 +25,7 @@ local ProfileDetails = addon:NewObject("ProfileDetails")
 local Dialogs = addon:GetObject("Dialogs")
 local ProfileHeader = addon:GetObject("ProfileHeader")
 local SnapshotList = addon:GetObject("SnapshotList")
-local UndoBanner = addon:GetObject("UndoBanner")
+local UndoList = addon:GetObject("UndoList")
 local ActionBar = addon:GetObject("ActionBar")
 local ApplyPreviewDialog = addon:GetObject("ApplyPreviewDialog")
 
@@ -34,7 +34,7 @@ local currentProfileName = nil
 local onRefreshNeeded = nil
 
 local content, emptyLabel, statusLabel
-local header, actionBar, banner, snapshotList
+local header, actionBar, undoList, snapshotList
 
 -- Reflect the current undo point in whichever view is visible
 local function ApplyUndoState()
@@ -42,7 +42,10 @@ local function ApplyUndoState()
     if content:IsShown() then
         actionBar:SetUndoEnabled(hasUndo)
     else
-        banner:SetState(hasUndo, hasUndo and WowSync:GetUndoInfo() or nil)
+        -- Empty state: show the full undo history, or the placeholder when the
+        -- stack is empty.
+        local hasEntries = undoList:Refresh()
+        emptyLabel:SetShown(not hasEntries)
     end
 end
 
@@ -160,6 +163,39 @@ local function RequestUndo()
     end
 end
 
+-- Roll back the most recent `count` applies (a cascade from the undo list).
+local function DoUndoSteps(count, entry)
+    local results = WowSync:UndoSteps(count)
+    if results then
+        if count > 1 then
+            WowSync:Print(L["Undid X changes."]:format(count))
+        else
+            WowSync:Print(L["Undid the last apply (X)."]:format(entry and entry.Subject or L["Unknown"]))
+        end
+        for name, result in pairs(results) do
+            if result.applied then
+                WowSync:Print(L["  X: restored"]:format(name))
+            end
+        end
+    end
+    ApplyUndoState()
+end
+
+-- Clicking an undo-history row rolls back every apply down to and including it.
+local function RequestUndoSteps(count, entry)
+    if not entry then return end
+
+    if count and count > 1 then
+        Dialogs:ConfirmUndoSteps(count, entry.Subject, function()
+            DoUndoSteps(count, entry)
+        end)
+    else
+        Dialogs:ConfirmUndo(entry.Subject, function()
+            DoUndoSteps(1, entry)
+        end)
+    end
+end
+
 -- Right-click actions for a single snapshot. The list forwards the snapshot,
 -- its display subject, and the row to anchor the menu to.
 local function OpenSnapshotMenu(snapshot, subject, anchor)
@@ -230,9 +266,9 @@ function ProfileDetails:Build(region)
     emptyLabel:SetPoint("CENTER", 0, 20)
     emptyLabel:SetText(L["Select a profile"])
 
-    -- Empty-state undo banner (covers the panel; behind the content frame)
-    local bannerSlot = CreateFrame("Frame", nil, root)
-    bannerSlot:SetAllPoints(root)
+    -- Empty-state undo history (covers the panel; behind the content frame)
+    local undoSlot = CreateFrame("Frame", nil, root)
+    undoSlot:SetAllPoints(root)
 
     -- Detail content (hidden until a profile is selected)
     content = CreateFrame("Frame", nil, root)
@@ -282,8 +318,8 @@ function ProfileDetails:Build(region)
 
     -- Composed children
 
-    banner = UndoBanner:Build(bannerSlot, {
-        onUndo = RequestUndo,
+    undoList = UndoList:Build(undoSlot, {
+        onActivate = RequestUndoSteps,
     })
 
     actionBar = ActionBar:Build(actionSlot, {
@@ -300,6 +336,10 @@ function ProfileDetails:Build(region)
             end
         end,
     })
+
+    -- Initialise the empty state (undo history or placeholder) so it is correct
+    -- the moment the panel first appears, before any profile is selected.
+    ApplyUndoState()
 
     return self
 end
@@ -326,7 +366,7 @@ function ProfileDetails:SetProfile(profileName)
     local latest = profile.Snapshots[#profile.Snapshots]
 
     emptyLabel:Hide()
-    banner:SetState(false)
+    undoList:Hide()
     content:Show()
     statusLabel:Hide()
 

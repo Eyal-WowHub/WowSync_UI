@@ -21,6 +21,8 @@ addon.UI = {
     SnapshotDetailNoteHeight = 28,
     SnapshotDetailLineHeight = 15,
     SnapshotDetailBottomPad = 8,
+    UndoRowHeight = 34,
+    UndoRowPadding = 2,
 
     -- Brand accent (used for the window title)
     AccentHex = "ff40a5f7",

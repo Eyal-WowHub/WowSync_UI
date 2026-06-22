@@ -17,11 +17,11 @@ Components\SaveBar.lua
 Components\ProfileRow.lua
 Components\ProfileHeader.lua
 Components\ModuleRow.lua
-Components\UndoBanner.lua
 Components\ActionBar.lua
 Components\ModuleList.lua
 Components\SnapshotRow.lua
 Components\SnapshotList.lua
+Components\UndoList.lua
 Components\ApplyPreviewDialog.lua
 Components\SaveDialog.lua
 Components\ProfileList.lua
