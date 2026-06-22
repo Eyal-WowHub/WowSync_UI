@@ -10,6 +10,9 @@ addon.UI = {
     ListItemPadding = 2,
     ModuleRowHeight = 24,
     ModuleRowPadding = 2,
+    SnapshotRowHeight = 40,
+    SnapshotRowPadding = 2,
+    TimelineRailX = 14,
 
     -- Brand accent (used for the window title)
     AccentHex = "ff40a5f7",
@@ -25,6 +28,11 @@ addon.UI = {
     RowSelectedColor = CreateColor(0.2, 0.4, 0.6, 0.6),
     RowHoverColor = CreateColor(0.3, 0.3, 0.3, 0.4),
     RowNormalColor = CreateColor(0, 0, 0, 0),
+
+    -- Snapshot timeline colors
+    TimelineRailColor = CreateColor(0.35, 0.35, 0.35, 0.8),
+    TimelineNodeColor = CreateColor(0.6, 0.6, 0.6, 1),
+    TimelineNodeLatestColor = CreateColor(0.25, 0.65, 0.95, 1),
 
     -- Status text colors { r, g, b, a }
     SuccessTextColor = { 0.3, 0.85, 0.3, 1 },

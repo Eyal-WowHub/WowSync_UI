@@ -7,9 +7,12 @@ local L = addon.L
     ProfileDetails object (right panel).
 
     Orchestrates the detail view for a selected profile. Composes ProfileHeader,
-    ModuleList, ActionBar and UndoBanner, and drives the WowSync actions
+    SnapshotList, ActionBar and UndoBanner, and drives the WowSync actions
     (apply/undo/delete/rename) routed through the Dialogs object. Holds no
     widget-building code of its own beyond layout regions and the empty state.
+
+    Apply targets the snapshot currently selected in the timeline (the latest by
+    default).
 
     addon:GetObject("ProfileDetails"):Build(region)
         -> self {
@@ -21,7 +24,7 @@ local L = addon.L
 local ProfileDetails = addon:NewObject("ProfileDetails")
 local Dialogs = addon:GetObject("Dialogs")
 local ProfileHeader = addon:GetObject("ProfileHeader")
-local ModuleList = addon:GetObject("ModuleList")
+local SnapshotList = addon:GetObject("SnapshotList")
 local UndoBanner = addon:GetObject("UndoBanner")
 local ActionBar = addon:GetObject("ActionBar")
 
@@ -30,7 +33,7 @@ local currentProfileName = nil
 local onRefreshNeeded = nil
 
 local content, emptyLabel, statusLabel
-local header, moduleList, actionBar, banner, selectAllButton
+local header, actionBar, banner, snapshotList
 
 -- Reflect the current undo point in whichever view is visible
 local function ApplyUndoState()
@@ -39,15 +42,6 @@ local function ApplyUndoState()
         actionBar:SetUndoEnabled(hasUndo)
     else
         banner:SetState(hasUndo, hasUndo and WowSync:GetUndoInfo() or nil)
-    end
-end
-
--- Keep the Select All / Deselect All toggle in sync with the live checkboxes
-local function UpdateSelectAllLabel()
-    if moduleList:AreAllSelectableChecked() then
-        selectAllButton:SetText(L["Deselect All"])
-    else
-        selectAllButton:SetText(L["Select All"])
     end
 end
 
@@ -82,14 +76,11 @@ end
 local function DoApply()
     if not currentProfileName then return end
 
-    local selected = moduleList:GetSelected()
-    if not next(selected) then
-        WowSync:Print(L["No modules selected."])
-        return
-    end
+    local snapshot = snapshotList:GetSelected()
+    if not snapshot then return end
 
-    -- Apply the profile's latest snapshot, limited to the selected modules.
-    local results = pm:Apply(currentProfileName, nil, nil, selected)
+    -- Apply the snapshot selected in the timeline (all of its modules).
+    local results = pm:Apply(currentProfileName, snapshot.Hash, nil, nil)
     if results and next(results) then
         local applied, skipped = 0, 0
         for name, result in pairs(results) do
@@ -185,34 +176,16 @@ function ProfileDetails:Build(region)
     separator:SetHeight(1)
     separator:SetColorTexture(unpack(UI.SeparatorColor))
 
-    -- "Modules to apply" label
-    local modulesLabel = content:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    modulesLabel:SetPoint("TOPLEFT", separator, "BOTTOMLEFT", 2, -8)
-    modulesLabel:SetText(L["Modules to apply:"])
-
-    -- Select All / Deselect All
-    selectAllButton = CreateFrame("Button", nil, content)
-    selectAllButton:SetPoint("TOPRIGHT", separator, "BOTTOMRIGHT", 0, -6)
-    selectAllButton:SetNormalFontObject("GameFontHighlightSmall")
-    selectAllButton:SetHighlightFontObject("GameFontNormalSmall")
-
-    -- Size to the wider of the two labels so the toggled text never overflows
-    -- the clickable area.
-    selectAllButton:SetText(L["Deselect All"])
-    local labelFontString = selectAllButton:GetFontString()
-    local labelWidth = labelFontString:GetStringWidth()
-    selectAllButton:SetText(L["Select All"])
-    labelWidth = math.max(labelWidth, labelFontString:GetStringWidth())
-    selectAllButton:SetSize(labelWidth + 8, 18)
-
-    -- Module list region
-    local moduleSlot = CreateFrame("Frame", nil, content)
-    moduleSlot:SetPoint("TOPLEFT", modulesLabel, "BOTTOMLEFT", 0, -6)
-    moduleSlot:SetPoint("RIGHT", content, "RIGHT", -10, 0)
-    moduleSlot:SetPoint("BOTTOM", content, "BOTTOM", 0, 60)
-    moduleList = ModuleList:Build(moduleSlot, {
-        profileManager = pm,
-        onChanged = UpdateSelectAllLabel,
+    -- Snapshot timeline region
+    local listSlot = CreateFrame("Frame", nil, content)
+    listSlot:SetPoint("TOPLEFT", separator, "BOTTOMLEFT", 2, -8)
+    listSlot:SetPoint("RIGHT", content, "RIGHT", -8, 0)
+    listSlot:SetPoint("BOTTOM", content, "BOTTOM", 0, 60)
+    snapshotList = SnapshotList:Build(listSlot, {
+        -- Switching snapshots clears any stale apply status from the last one.
+        onSelect = function()
+            statusLabel:Hide()
+        end,
     })
 
     -- Action bar region
@@ -250,13 +223,6 @@ function ProfileDetails:Build(region)
         end,
     })
 
-    -- Select All toggle
-    selectAllButton:SetScript("OnClick", function()
-        local check = not moduleList:AreAllSelectableChecked()
-        moduleList:SetAllChecked(check)
-        UpdateSelectAllLabel()
-    end)
-
     return self
 end
 
@@ -278,7 +244,7 @@ function ProfileDetails:SetProfile(profileName)
         return
     end
 
-    -- The detail view reflects the profile's most recent snapshot.
+    -- The detail header reflects the profile's most recent snapshot.
     local latest = profile.Snapshots[#profile.Snapshots]
 
     emptyLabel:Hide()
@@ -287,10 +253,8 @@ function ProfileDetails:SetProfile(profileName)
     statusLabel:Hide()
 
     header:SetProfile(profileName, latest)
-    moduleList:SetSnapshot(latest)
+    snapshotList:SetProfile(profile)
     ApplyUndoState()
-
-    UpdateSelectAllLabel()
 end
 
 function ProfileDetails:OnRefresh(callback)

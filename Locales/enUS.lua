@@ -18,6 +18,10 @@ L["Delete"] = "Delete"
 L["X • Y • Z"] = "%s  •  %s  •  %s"
 L["Last applied: X"] = "Last applied: %s"
 
+-- Snapshot timeline
+L["(latest)"] = "(latest)"
+L["(pinned)"] = "(pinned)"
+
 -- Print feedback
 L["Profile 'X' saved."] = "Profile '%s' saved."
 L["Profile 'X': nothing changed."] = "Profile '%s': nothing changed."

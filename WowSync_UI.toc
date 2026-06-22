@@ -20,6 +20,8 @@ Components\ModuleRow.lua
 Components\UndoBanner.lua
 Components\ActionBar.lua
 Components\ModuleList.lua
+Components\SnapshotRow.lua
+Components\SnapshotList.lua
 Components\ProfileList.lua
 Components\ProfileDetails.lua
 Components\MainFrame.lua
