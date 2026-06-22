@@ -27,6 +27,7 @@ local ProfileHeader = addon:GetObject("ProfileHeader")
 local SnapshotList = addon:GetObject("SnapshotList")
 local UndoBanner = addon:GetObject("UndoBanner")
 local ActionBar = addon:GetObject("ActionBar")
+local ApplyPreviewDialog = addon:GetObject("ApplyPreviewDialog")
 
 local pm
 local currentProfileName = nil
@@ -73,14 +74,16 @@ local function DoUndo()
     ApplyUndoState()
 end
 
-local function DoApply(snapshot)
-    if not currentProfileName then return end
+local function ApplySnapshot(snapshot, moduleSet)
+    if not currentProfileName or not snapshot then return end
 
-    snapshot = snapshot or snapshotList:GetSelected()
-    if not snapshot then return end
+    if not next(moduleSet) then
+        WowSync:Print(L["No modules selected."])
+        return
+    end
 
-    -- Apply the snapshot selected in the timeline (all of its modules).
-    local results = pm:Apply(currentProfileName, snapshot.Hash, nil, nil)
+    -- Apply only the chosen modules of the snapshot.
+    local results = pm:Apply(currentProfileName, snapshot.Hash, nil, moduleSet)
     if results and next(results) then
         local applied, skipped = 0, 0
         for name, result in pairs(results) do
@@ -102,6 +105,23 @@ local function DoApply(snapshot)
     end
 
     ApplyUndoState()
+end
+
+-- Open the preview dialog for a snapshot (defaulting to the selected one), then
+-- apply only the modules the user confirms.
+local function RequestApply(snapshot)
+    if not currentProfileName then return end
+
+    snapshot = snapshot or snapshotList:GetSelected()
+    if not snapshot then return end
+
+    ApplyPreviewDialog:Show({
+        profileName = currentProfileName,
+        snapshot = snapshot,
+        onConfirm = function(moduleSet)
+            ApplySnapshot(snapshot, moduleSet)
+        end,
+    })
 end
 
 local function DoDelete()
@@ -144,7 +164,7 @@ local function OpenSnapshotMenu(snapshot, subject, anchor)
         rootDescription:CreateTitle(subject)
 
         rootDescription:CreateButton(L["Apply"], function()
-            DoApply(snapshot)
+            RequestApply(snapshot)
         end)
 
         rootDescription:CreateDivider()
@@ -257,7 +277,7 @@ function ProfileDetails:Build(region)
     })
 
     actionBar = ActionBar:Build(actionSlot, {
-        onApply = function() DoApply() end,
+        onApply = function() RequestApply() end,
         onUndo = RequestUndo,
         onRename = function()
             if currentProfileName then

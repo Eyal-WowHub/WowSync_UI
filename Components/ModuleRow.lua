@@ -11,7 +11,7 @@ local L = addon.L
     this renderer is stateless.
 
     addon:GetObject("ModuleRow"):Build(parent) -> checkbox frame
-    addon:GetObject("ModuleRow"):Update(checkbox, name, canApply, reason)
+    addon:GetObject("ModuleRow"):Update(checkbox, name, canApply, reason, counts)
 ]]
 
 local ModuleRow = addon:NewObject("ModuleRow")
@@ -26,10 +26,16 @@ function ModuleRow:Build(parent)
     cb.warning = cb:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     cb.warning:SetPoint("LEFT", cb.label, "RIGHT", 6, 0)
 
+    -- Per-module change counts, shown after the name for applicable rows.
+    -- Anchored to the label (not the list) so it tracks the row vertically;
+    -- mutually exclusive with the warning, so they share the same slot.
+    cb.counts = cb:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    cb.counts:SetPoint("LEFT", cb.label, "RIGHT", 8, 0)
+
     return cb
 end
 
-function ModuleRow:Update(cb, name, canApply, reason)
+function ModuleRow:Update(cb, name, canApply, reason, counts)
     cb:SetChecked(canApply)
     cb:SetEnabled(canApply)
     cb.label:SetText(name)
@@ -37,7 +43,13 @@ function ModuleRow:Update(cb, name, canApply, reason)
     if not canApply then
         cb.warning:SetText("(" .. (reason or L["cannot apply"]) .. ")")
         cb.warning:Show()
+        cb.counts:Hide()
+    elseif counts and (counts.added > 0 or counts.changed > 0 or counts.removed > 0) then
+        cb.warning:Hide()
+        cb.counts:SetText(L["+A ~C -R"]:format(counts.added, counts.changed, counts.removed))
+        cb.counts:Show()
     else
         cb.warning:Hide()
+        cb.counts:Hide()
     end
 end

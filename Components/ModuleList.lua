@@ -11,7 +11,7 @@ local UI = addon.UI
 
     addon:GetObject("ModuleList"):Build(region, { profileManager = pm })
         -> self {
-            SetSnapshot(snapshot),   -- (re)build rows from snapshot.Modules
+            SetSnapshot(snapshot, preview),   -- (re)build rows; preview adds counts
             GetSelected() -> { [name] = true },
             SetAllChecked(checked),
         }
@@ -62,11 +62,12 @@ function ModuleList:Build(region, opts)
     return self
 end
 
-function ModuleList:SetSnapshot(snapshot)
+function ModuleList:SetSnapshot(snapshot, preview)
     ReleaseAll()
 
     local modules = snapshot and snapshot.Modules or {}
     local meta = { ClassID = snapshot and snapshot.Source and snapshot.Source.ClassID }
+    local perModule = preview and preview.perModule
 
     -- Sort module names for consistent ordering
     local names = {}
@@ -82,10 +83,20 @@ function ModuleList:SetSnapshot(snapshot)
         local module = pm:GetModule(name)
         local canApply, reason = module:CanApply(meta)
 
+        local counts
+        local moduleDiff = perModule and perModule[name]
+        if moduleDiff then
+            counts = {
+                added = #(moduleDiff.added or {}),
+                changed = #(moduleDiff.changed or {}),
+                removed = #(moduleDiff.removed or {}),
+            }
+        end
+
         local cb = Acquire()
         cb:ClearAllPoints()
         cb:SetPoint("TOPLEFT", 0, -yOffset)
-        ModuleRow:Update(cb, name, canApply, reason)
+        ModuleRow:Update(cb, name, canApply, reason, counts)
         cb:Show()
 
         checkboxes[name] = cb

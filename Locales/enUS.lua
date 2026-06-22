@@ -28,6 +28,9 @@ L["Pin"] = "Pin"
 L["Unpin"] = "Unpin"
 L["Edit note…"] = "Edit note…"
 L["Delete snapshot"] = "Delete snapshot"
+L["Apply snapshot"] = "Apply snapshot"
+L["Cancel"] = "Cancel"
+L["+A ~C -R"] = "|cff5fcf5f+%d|r |cffd9c84a~%d|r |cffd96b6b-%d|r"
 
 -- Print feedback
 L["Profile 'X' saved."] = "Profile '%s' saved."

@@ -22,6 +22,7 @@ Components\ActionBar.lua
 Components\ModuleList.lua
 Components\SnapshotRow.lua
 Components\SnapshotList.lua
+Components\ApplyPreviewDialog.lua
 Components\ProfileList.lua
 Components\ProfileDetails.lua
 Components\MainFrame.lua
