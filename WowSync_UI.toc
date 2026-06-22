@@ -17,7 +17,7 @@ Components\SaveBar.lua
 Components\ProfileRow.lua
 Components\ProfileHeader.lua
 Components\ModuleRow.lua
-Components\RevertBanner.lua
+Components\UndoBanner.lua
 Components\ActionBar.lua
 Components\ModuleList.lua
 Components\ProfileList.lua

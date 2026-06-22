@@ -9,7 +9,7 @@ local L = addon.L
     line (class, last character, last updated).
 
     addon:GetObject("ProfileHeader"):Build(region)
-        -> self { SetProfile(profileName, meta) }
+        -> self { SetProfile(profileName, snapshot) }
 ]]
 
 local ProfileHeader = addon:NewObject("ProfileHeader")
@@ -29,13 +29,14 @@ function ProfileHeader:Build(region)
     return self
 end
 
-function ProfileHeader:SetProfile(profileName, meta)
-    local classInfo = C_CreatureInfo.GetClassInfo(meta.ClassID)
+function ProfileHeader:SetProfile(profileName, snapshot)
+    local source = snapshot and snapshot.Source
+    local classInfo = source and source.ClassID and C_CreatureInfo.GetClassInfo(source.ClassID)
     local className = classInfo and classInfo.className or L["Unknown"]
     titleText:SetText(profileName)
     infoText:SetText(L["X • Y • Z"]:format(
         className,
-        meta.LastCharacter,
-        date("%b %d, %Y %H:%M", meta.LastUpdated or 0)
+        (source and source.Character) or L["Unknown"],
+        date("%b %d, %Y %H:%M", (snapshot and snapshot.Timestamp) or 0)
     ))
 end

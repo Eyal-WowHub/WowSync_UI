@@ -5,19 +5,19 @@ local L = addon.L
 --[[
     ActionBar object.
 
-    Fills an injected region with the profile action buttons: Apply, Revert,
-    Rename, Delete. Each button invokes the matching callback. The Revert button
-    can be enabled/disabled to reflect whether a revert point exists.
+    Fills an injected region with the profile action buttons: Apply, Undo,
+    Rename, Delete. Each button invokes the matching callback. The Undo button
+    can be enabled/disabled to reflect whether an undo point exists.
 
     addon:GetObject("ActionBar"):Build(region, {
-        onApply, onRevert, onRename, onDelete,  -- functions
+        onApply, onUndo, onRename, onDelete,  -- functions
     })
-        -> self { SetRevertEnabled(enabled) }
+        -> self { SetUndoEnabled(enabled) }
 ]]
 
 local ActionBar = addon:NewObject("ActionBar")
 
-local revertButton
+local undoButton
 
 function ActionBar:Build(region, opts)
     opts = opts or {}
@@ -30,13 +30,13 @@ function ActionBar:Build(region, opts)
     applyButton:SetSize(80, 24)
     applyButton:SetText(L["Apply"])
 
-    revertButton = CreateFrame("Button", nil, root, "UIPanelButtonTemplate")
-    revertButton:SetPoint("LEFT", applyButton, "RIGHT", 6, 0)
-    revertButton:SetSize(80, 24)
-    revertButton:SetText(L["Revert"])
+    undoButton = CreateFrame("Button", nil, root, "UIPanelButtonTemplate")
+    undoButton:SetPoint("LEFT", applyButton, "RIGHT", 6, 0)
+    undoButton:SetSize(80, 24)
+    undoButton:SetText(L["Undo"])
 
     local renameButton = CreateFrame("Button", nil, root, "UIPanelButtonTemplate")
-    renameButton:SetPoint("LEFT", revertButton, "RIGHT", 6, 0)
+    renameButton:SetPoint("LEFT", undoButton, "RIGHT", 6, 0)
     renameButton:SetSize(80, 24)
     renameButton:SetText(L["Rename"])
 
@@ -48,8 +48,8 @@ function ActionBar:Build(region, opts)
     applyButton:SetScript("OnClick", function()
         if opts.onApply then opts.onApply() end
     end)
-    revertButton:SetScript("OnClick", function()
-        if opts.onRevert then opts.onRevert() end
+    undoButton:SetScript("OnClick", function()
+        if opts.onUndo then opts.onUndo() end
     end)
     renameButton:SetScript("OnClick", function()
         if opts.onRename then opts.onRename() end
@@ -61,6 +61,6 @@ function ActionBar:Build(region, opts)
     return self
 end
 
-function ActionBar:SetRevertEnabled(enabled)
-    revertButton:SetEnabled(enabled)
+function ActionBar:SetUndoEnabled(enabled)
+    undoButton:SetEnabled(enabled)
 end

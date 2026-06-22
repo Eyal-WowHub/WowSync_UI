@@ -7,8 +7,8 @@ local L = addon.L
     ProfileDetails object (right panel).
 
     Orchestrates the detail view for a selected profile. Composes ProfileHeader,
-    ModuleList, ActionBar and RevertBanner, and drives the WowSync actions
-    (apply/revert/delete/rename) routed through the Dialogs object. Holds no
+    ModuleList, ActionBar and UndoBanner, and drives the WowSync actions
+    (apply/undo/delete/rename) routed through the Dialogs object. Holds no
     widget-building code of its own beyond layout regions and the empty state.
 
     addon:GetObject("ProfileDetails"):Build(region)
@@ -22,7 +22,7 @@ local ProfileDetails = addon:NewObject("ProfileDetails")
 local Dialogs = addon:GetObject("Dialogs")
 local ProfileHeader = addon:GetObject("ProfileHeader")
 local ModuleList = addon:GetObject("ModuleList")
-local RevertBanner = addon:GetObject("RevertBanner")
+local UndoBanner = addon:GetObject("UndoBanner")
 local ActionBar = addon:GetObject("ActionBar")
 
 local pm
@@ -32,13 +32,13 @@ local onRefreshNeeded = nil
 local content, emptyLabel, statusLabel
 local header, moduleList, actionBar, banner, selectAllButton
 
--- Reflect the current revert point in whichever view is visible
-local function ApplyRevertState()
-    local hasRevert = WowSync:HasRevertPoint()
+-- Reflect the current undo point in whichever view is visible
+local function ApplyUndoState()
+    local hasUndo = WowSync:HasUndo()
     if content:IsShown() then
-        actionBar:SetRevertEnabled(hasRevert)
+        actionBar:SetUndoEnabled(hasUndo)
     else
-        banner:SetState(hasRevert, hasRevert and WowSync:GetRevertInfo() or nil)
+        banner:SetState(hasUndo, hasUndo and WowSync:GetUndoInfo() or nil)
     end
 end
 
@@ -65,18 +65,18 @@ end
 
 -- Action handlers
 
-local function DoRevert()
-    local info = WowSync:GetRevertInfo()
-    local results = WowSync:Revert()
+local function DoUndo()
+    local info = WowSync:GetUndoInfo()
+    local results = WowSync:Undo()
     if results then
-        WowSync:Print(L["Reverted changes from profile 'X':"]:format(info and info.ProfileName or L["Unknown"]))
+        WowSync:Print(L["Undid the last apply (X)."]:format(info and info.Subject or L["Unknown"]))
         for name, result in pairs(results) do
             if result.applied then
-                WowSync:Print(L["  X: reverted"]:format(name))
+                WowSync:Print(L["  X: restored"]:format(name))
             end
         end
     end
-    ApplyRevertState()
+    ApplyUndoState()
 end
 
 local function DoApply()
@@ -88,7 +88,8 @@ local function DoApply()
         return
     end
 
-    local results = pm:Apply(currentProfileName, selected)
+    -- Apply the profile's latest snapshot, limited to the selected modules.
+    local results = pm:Apply(currentProfileName, nil, nil, selected)
     if results and next(results) then
         local applied, skipped = 0, 0
         for name, result in pairs(results) do
@@ -109,12 +110,12 @@ local function DoApply()
         WowSync:Print(L["Nothing to apply."])
     end
 
-    ApplyRevertState()
+    ApplyUndoState()
 end
 
 local function DoDelete()
     if currentProfileName then
-        pm:Delete(currentProfileName)
+        pm:DeleteProfile(currentProfileName)
         currentProfileName = nil
         if onRefreshNeeded then
             onRefreshNeeded()
@@ -124,7 +125,7 @@ end
 
 local function DoRename(newName)
     if newName ~= "" and currentProfileName then
-        if pm:Rename(currentProfileName, newName) then
+        if pm:RenameProfile(currentProfileName, newName) then
             currentProfileName = newName
             if onRefreshNeeded then
                 onRefreshNeeded()
@@ -135,10 +136,10 @@ local function DoRename(newName)
     end
 end
 
-local function RequestRevert()
-    local info = WowSync:GetRevertInfo()
+local function RequestUndo()
+    local info = WowSync:GetUndoInfo()
     if info then
-        Dialogs:ConfirmRevert(info.ProfileName, DoRevert)
+        Dialogs:ConfirmUndo(info.Subject, DoUndo)
     end
 end
 
@@ -161,7 +162,7 @@ function ProfileDetails:Build(region)
     emptyLabel:SetPoint("CENTER", 0, 20)
     emptyLabel:SetText(L["Select a profile"])
 
-    -- Empty-state revert banner (covers the panel; behind the content frame)
+    -- Empty-state undo banner (covers the panel; behind the content frame)
     local bannerSlot = CreateFrame("Frame", nil, root)
     bannerSlot:SetAllPoints(root)
 
@@ -230,13 +231,13 @@ function ProfileDetails:Build(region)
 
     -- Composed children
 
-    banner = RevertBanner:Build(bannerSlot, {
-        onRevert = RequestRevert,
+    banner = UndoBanner:Build(bannerSlot, {
+        onUndo = RequestUndo,
     })
 
     actionBar = ActionBar:Build(actionSlot, {
         onApply = DoApply,
-        onRevert = RequestRevert,
+        onUndo = RequestUndo,
         onRename = function()
             if currentProfileName then
                 Dialogs:PromptRename(currentProfileName, DoRename)
@@ -265,7 +266,7 @@ function ProfileDetails:SetProfile(profileName)
     if not profileName then
         content:Hide()
         emptyLabel:Show()
-        ApplyRevertState()
+        ApplyUndoState()
         return
     end
 
@@ -273,18 +274,21 @@ function ProfileDetails:SetProfile(profileName)
     if not profile then
         content:Hide()
         emptyLabel:Show()
-        ApplyRevertState()
+        ApplyUndoState()
         return
     end
+
+    -- The detail view reflects the profile's most recent snapshot.
+    local latest = profile.Snapshots[#profile.Snapshots]
 
     emptyLabel:Hide()
     banner:SetState(false)
     content:Show()
     statusLabel:Hide()
 
-    header:SetProfile(profileName, profile.Meta)
-    moduleList:SetProfile(profile)
-    ApplyRevertState()
+    header:SetProfile(profileName, latest)
+    moduleList:SetSnapshot(latest)
+    ApplyUndoState()
 
     UpdateSelectAllLabel()
 end

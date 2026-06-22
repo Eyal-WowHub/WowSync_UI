@@ -11,7 +11,7 @@ local UI = addon.UI
 
     addon:GetObject("ModuleList"):Build(region, { profileManager = pm })
         -> self {
-            SetProfile(profile),     -- (re)build rows from profile.Modules
+            SetSnapshot(snapshot),   -- (re)build rows from snapshot.Modules
             GetSelected() -> { [name] = true },
             SetAllChecked(checked),
         }
@@ -62,13 +62,16 @@ function ModuleList:Build(region, opts)
     return self
 end
 
-function ModuleList:SetProfile(profile)
+function ModuleList:SetSnapshot(snapshot)
     ReleaseAll()
+
+    local modules = snapshot and snapshot.Modules or {}
+    local meta = { ClassID = snapshot and snapshot.Source and snapshot.Source.ClassID }
 
     -- Sort module names for consistent ordering
     local names = {}
     for name in pm:IterableModules() do
-        if profile.Modules[name] then
+        if modules[name] then
             tinsert(names, name)
         end
     end
@@ -77,7 +80,7 @@ function ModuleList:SetProfile(profile)
     local yOffset = 0
     for _, name in ipairs(names) do
         local module = pm:GetModule(name)
-        local canApply, reason = module:CanApply(profile.Meta)
+        local canApply, reason = module:CanApply(meta)
 
         local cb = Acquire()
         cb:ClearAllPoints()

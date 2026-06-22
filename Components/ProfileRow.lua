@@ -63,12 +63,11 @@ end
 
 function ProfileRow:Update(row, elementData, ctx)
     local profileName = elementData.name
-    local meta = elementData.meta
 
     row.profileName = profileName
 
     -- Class icon and class-colored name
-    local classInfo = C_CreatureInfo.GetClassInfo(meta.ClassID)
+    local classInfo = elementData.classID and C_CreatureInfo.GetClassInfo(elementData.classID)
     if classInfo then
         local coords = CLASS_ICON_TCOORDS[classInfo.classFile]
         if coords then
@@ -86,7 +85,7 @@ function ProfileRow:Update(row, elementData, ctx)
     end
 
     -- Info line
-    row.infoText:SetText(meta.LastCharacter .. "  " .. FormatDate(meta.LastUpdated))
+    row.infoText:SetText((elementData.character or "") .. "  " .. FormatDate(elementData.timestamp))
 
     -- Selection highlight
     if profileName == ctx.GetSelected() then

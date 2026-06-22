@@ -78,7 +78,8 @@ local function Build()
 
     profileList:OnSave(function(name)
         local pm = WowSync:GetProfileManager()
-        if pm:Save(name) then
+        local snapshot, reason = pm:Save(name)
+        if snapshot then
             WowSync:Print(L["Profile 'X' saved."]:format(name))
             profileList:Refresh()
 
@@ -86,6 +87,8 @@ local function Build()
             -- the detail panel updates through the selection callback.
             profileList:Select(name)
             profileList:ScrollToProfile(name)
+        elseif reason == "unchanged" then
+            WowSync:Print(L["Profile 'X': nothing changed."]:format(name))
         end
     end)
 

@@ -111,7 +111,16 @@ function ProfileList:Refresh()
     local sorted = {}
 
     for name, profile in pairs(profiles) do
-        tinsert(sorted, { name = name, meta = profile.Meta })
+        -- The profile's display identity (class, character, date) comes from its
+        -- most recent snapshot; an empty profile falls back to name only.
+        local latest = profile.Snapshots[#profile.Snapshots]
+        local source = latest and latest.Source
+        tinsert(sorted, {
+            name = name,
+            classID = source and source.ClassID,
+            character = source and source.Character,
+            timestamp = latest and latest.Timestamp,
+        })
     end
 
     table.sort(sorted, function(a, b)

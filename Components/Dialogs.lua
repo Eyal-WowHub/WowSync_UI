@@ -9,15 +9,15 @@ local L = addon.L
     once at load; callers pass their own callbacks through the popup `data`
     payload, so this service is fully decoupled from any single consumer.
 
-    addon:GetObject("Dialogs"):ConfirmRevert(profileName, onConfirm)
+    addon:GetObject("Dialogs"):ConfirmUndo(subject, onConfirm)
     addon:GetObject("Dialogs"):ConfirmDelete(profileName, onConfirm)
     addon:GetObject("Dialogs"):PromptRename(currentName, onAccept)  -- onAccept(trimmedText)
 ]]
 
 local Dialogs = addon:NewObject("Dialogs")
 
-StaticPopupDialogs["WOWSYNC_REVERT"] = {
-    text = L["Revert all changes made by profile 'X'?"],
+StaticPopupDialogs["WOWSYNC_UNDO"] = {
+    text = L["Undo the last apply (X)?"],
     button1 = YES,
     button2 = NO,
     OnAccept = function(self, data)
@@ -72,8 +72,8 @@ StaticPopupDialogs["WOWSYNC_RENAME_PROFILE"] = {
     preferredIndex = 3,
 }
 
-function Dialogs:ConfirmRevert(profileName, onConfirm)
-    StaticPopup_Show("WOWSYNC_REVERT", profileName, nil, { onConfirm = onConfirm })
+function Dialogs:ConfirmUndo(subject, onConfirm)
+    StaticPopup_Show("WOWSYNC_UNDO", subject, nil, { onConfirm = onConfirm })
 end
 
 function Dialogs:ConfirmDelete(profileName, onConfirm)
