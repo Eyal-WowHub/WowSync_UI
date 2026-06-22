@@ -85,6 +85,7 @@ local function Build()
             -- Select the freshly saved profile so the list highlights it and
             -- the detail panel updates through the selection callback.
             profileList:Select(name)
+            profileList:ScrollToProfile(name)
         end
     end)
 

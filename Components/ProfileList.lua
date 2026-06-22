@@ -149,6 +149,14 @@ function ProfileList:GetSelected()
     return selectedProfileName
 end
 
+-- Scroll the list so the named profile is visible (no-op if already on screen).
+function ProfileList:ScrollToProfile(name)
+    if not name then return end
+    scrollBox:ScrollToElementDataByPredicate(function(data)
+        return data.name == name
+    end, ScrollBoxConstants.AlignNearest)
+end
+
 function ProfileList:ClearSelection()
     self:Select(nil)
 end

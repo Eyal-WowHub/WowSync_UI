@@ -28,9 +28,8 @@ local ActionBar = addon:GetObject("ActionBar")
 local pm
 local currentProfileName = nil
 local onRefreshNeeded = nil
-local allSelected = true
 
-local content, emptyLabel
+local content, emptyLabel, statusLabel
 local header, moduleList, actionBar, banner, selectAllButton
 
 -- Reflect the current revert point in whichever view is visible
@@ -41,6 +40,27 @@ local function ApplyRevertState()
     else
         banner:SetState(hasRevert, hasRevert and WowSync:GetRevertInfo() or nil)
     end
+end
+
+-- Keep the Select All / Deselect All toggle in sync with the live checkboxes
+local function UpdateSelectAllLabel()
+    if moduleList:AreAllSelectableChecked() then
+        selectAllButton:SetText(L["Deselect All"])
+    else
+        selectAllButton:SetText(L["Select All"])
+    end
+end
+
+-- Show a one-line summary of the last apply inside the panel
+local function SetApplyStatus(applied, skipped)
+    if skipped > 0 then
+        statusLabel:SetText(L["Applied X, skipped Y (see chat)"]:format(applied, skipped))
+        statusLabel:SetTextColor(unpack(UI.WarningTextColor))
+    else
+        statusLabel:SetText(L["Applied X modules"]:format(applied))
+        statusLabel:SetTextColor(unpack(UI.SuccessTextColor))
+    end
+    statusLabel:Show()
 end
 
 -- Action handlers
@@ -70,17 +90,21 @@ local function DoApply()
 
     local results = pm:Apply(currentProfileName, selected)
     if results and next(results) then
+        local applied, skipped = 0, 0
         for name, result in pairs(results) do
             if result.applied then
+                applied = applied + 1
                 local msg = L["X: applied"]:format(name)
                 if result.warning then
                     msg = L["X (Y)"]:format(msg, result.warning)
                 end
                 WowSync:Print(msg)
             else
+                skipped = skipped + 1
                 WowSync:Print(L["X: skipped - Y"]:format(name, result.reason or L["unknown"]))
             end
         end
+        SetApplyStatus(applied, skipped)
     else
         WowSync:Print(L["Nothing to apply."])
     end
@@ -184,14 +208,25 @@ function ProfileDetails:Build(region)
     local moduleSlot = CreateFrame("Frame", nil, content)
     moduleSlot:SetPoint("TOPLEFT", modulesLabel, "BOTTOMLEFT", 0, -6)
     moduleSlot:SetPoint("RIGHT", content, "RIGHT", -10, 0)
-    moduleSlot:SetPoint("BOTTOM", content, "BOTTOM", 0, 44)
-    moduleList = ModuleList:Build(moduleSlot, { profileManager = pm })
+    moduleSlot:SetPoint("BOTTOM", content, "BOTTOM", 0, 60)
+    moduleList = ModuleList:Build(moduleSlot, {
+        profileManager = pm,
+        onChanged = UpdateSelectAllLabel,
+    })
 
     -- Action bar region
     local actionSlot = CreateFrame("Frame", nil, content)
     actionSlot:SetPoint("BOTTOMLEFT", 10, 10)
     actionSlot:SetPoint("BOTTOMRIGHT", -10, 10)
     actionSlot:SetHeight(24)
+
+    -- One-line apply status, shown just above the action bar
+    statusLabel = content:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    statusLabel:SetPoint("BOTTOMLEFT", actionSlot, "TOPLEFT", 2, 4)
+    statusLabel:SetPoint("BOTTOMRIGHT", actionSlot, "TOPRIGHT", -2, 4)
+    statusLabel:SetJustifyH("LEFT")
+    statusLabel:SetWordWrap(false)
+    statusLabel:Hide()
 
     -- Composed children
 
@@ -216,9 +251,9 @@ function ProfileDetails:Build(region)
 
     -- Select All toggle
     selectAllButton:SetScript("OnClick", function()
-        allSelected = not allSelected
-        moduleList:SetAllChecked(allSelected)
-        selectAllButton:SetText(allSelected and L["Deselect All"] or L["Select All"])
+        local check = not moduleList:AreAllSelectableChecked()
+        moduleList:SetAllChecked(check)
+        UpdateSelectAllLabel()
     end)
 
     return self
@@ -245,13 +280,13 @@ function ProfileDetails:SetProfile(profileName)
     emptyLabel:Hide()
     banner:SetState(false)
     content:Show()
+    statusLabel:Hide()
 
     header:SetProfile(profileName, profile.Meta)
     moduleList:SetProfile(profile)
     ApplyRevertState()
 
-    allSelected = true
-    selectAllButton:SetText(L["Deselect All"])
+    UpdateSelectAllLabel()
 end
 
 function ProfileDetails:OnRefresh(callback)

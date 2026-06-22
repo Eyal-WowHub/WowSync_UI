@@ -25,4 +25,8 @@ addon.UI = {
     RowSelectedColor = CreateColor(0.2, 0.4, 0.6, 0.6),
     RowHoverColor = CreateColor(0.3, 0.3, 0.3, 0.4),
     RowNormalColor = CreateColor(0, 0, 0, 0),
+
+    -- Status text colors { r, g, b, a }
+    SuccessTextColor = { 0.3, 0.85, 0.3, 1 },
+    WarningTextColor = { 0.95, 0.75, 0.2, 1 },
 }

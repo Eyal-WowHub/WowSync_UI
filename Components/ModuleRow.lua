@@ -1,5 +1,7 @@
 local _, addon = ...
 
+local L = addon.L
+
 --[[
     ModuleRow object (row renderer).
 
@@ -32,8 +34,8 @@ function ModuleRow:Update(cb, name, canApply, reason)
     cb:SetEnabled(canApply)
     cb.label:SetText(name)
 
-    if not canApply and reason then
-        cb.warning:SetText("(" .. reason .. ")")
+    if not canApply then
+        cb.warning:SetText("(" .. (reason or L["cannot apply"]) .. ")")
         cb.warning:Show()
     else
         cb.warning:Hide()

@@ -24,6 +24,7 @@ local pm
 local root
 local checkboxes = {}   -- name -> active checkbox
 local pool = {}
+local onChanged
 
 local function Acquire()
     for _, cb in ipairs(pool) do
@@ -34,6 +35,9 @@ local function Acquire()
     end
 
     local cb = ModuleRow:Build(root)
+    cb:HookScript("OnClick", function()
+        if onChanged then onChanged() end
+    end)
     cb.inUse = true
     tinsert(pool, cb)
     return cb
@@ -50,6 +54,7 @@ end
 function ModuleList:Build(region, opts)
     opts = opts or {}
     pm = opts.profileManager or WowSync:GetProfileManager()
+    onChanged = opts.onChanged
 
     root = CreateFrame("Frame", nil, region)
     root:SetAllPoints(region)
@@ -101,4 +106,19 @@ function ModuleList:SetAllChecked(checked)
             cb:SetChecked(checked)
         end
     end
+end
+
+-- True only when there is at least one selectable row and every selectable
+-- row is currently checked.
+function ModuleList:AreAllSelectableChecked()
+    local hasSelectable = false
+    for _, cb in pairs(checkboxes) do
+        if cb:IsEnabled() then
+            hasSelectable = true
+            if not cb:GetChecked() then
+                return false
+            end
+        end
+    end
+    return hasSelectable
 end
