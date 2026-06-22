@@ -1,0 +1,3 @@
+package-as: WowSync_UI
+
+enable-nolib-creation: no
