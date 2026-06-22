@@ -14,6 +14,7 @@ local L = addon.L
     addon:GetObject("Dialogs"):PromptRename(currentName, onAccept)  -- onAccept(trimmedText)
     addon:GetObject("Dialogs"):ConfirmDeleteSnapshot(subject, onConfirm)
     addon:GetObject("Dialogs"):PromptEditNote(currentText, onAccept)  -- onAccept(trimmedText)
+    addon:GetObject("Dialogs"):ConfirmApply(mode, onConfirm)  -- mode = "merge"|"exact"
 ]]
 
 local Dialogs = addon:NewObject("Dialogs")
@@ -112,6 +113,37 @@ StaticPopupDialogs["WOWSYNC_EDIT_NOTE"] = {
     preferredIndex = 3,
 }
 
+StaticPopupDialogs["WOWSYNC_APPLY_MERGE"] = {
+    text = L["Apply the selected modules from this snapshot?\n\nNew and changed entries will be added or updated. Nothing will be removed."],
+    button1 = ACCEPT,
+    button2 = CANCEL,
+    OnAccept = function(self, data)
+        if data and data.onConfirm then
+            data.onConfirm()
+        end
+    end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,
+}
+
+StaticPopupDialogs["WOWSYNC_APPLY_EXACT"] = {
+    text = L["Apply the selected modules in Exact mode?\n\nThey will be made to match this snapshot exactly — entries that aren't in it (such as extra macros, keybindings, chat tabs, or addons) will be removed. You can Undo afterward."],
+    button1 = ACCEPT,
+    button2 = CANCEL,
+    showAlert = true,
+    OnAccept = function(self, data)
+        if data and data.onConfirm then
+            data.onConfirm()
+        end
+    end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,
+}
+
 function Dialogs:ConfirmUndo(subject, onConfirm)
     StaticPopup_Show("WOWSYNC_UNDO", subject, nil, { onConfirm = onConfirm })
 end
@@ -136,4 +168,9 @@ function Dialogs:PromptEditNote(currentText, onAccept)
         currentText = currentText,
         onAccept = onAccept,
     })
+end
+
+function Dialogs:ConfirmApply(mode, onConfirm)
+    local popup = (mode == "exact") and "WOWSYNC_APPLY_EXACT" or "WOWSYNC_APPLY_MERGE"
+    StaticPopup_Show(popup, nil, nil, { onConfirm = onConfirm })
 end

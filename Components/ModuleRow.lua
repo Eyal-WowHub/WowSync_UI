@@ -44,12 +44,23 @@ function ModuleRow:Update(cb, name, canApply, reason, counts)
         cb.warning:SetText("(" .. (reason or L["cannot apply"]) .. ")")
         cb.warning:Show()
         cb.counts:Hide()
-    elseif counts and (counts.added > 0 or counts.changed > 0 or counts.removed > 0) then
-        cb.warning:Hide()
-        cb.counts:SetText(L["+A ~C -R"]:format(counts.added, counts.changed, counts.removed))
+        return
+    end
+
+    cb.warning:Hide()
+
+    local added = counts and counts.added or 0
+    local changed = counts and counts.changed or 0
+    local removed = counts and counts.removed or 0
+
+    if added > 0 or changed > 0 or removed > 0 then
+        if removed > 0 then
+            cb.counts:SetText(L["+A ~C -R"]:format(added, changed, removed))
+        else
+            cb.counts:SetText(L["+A ~C"]:format(added, changed))
+        end
         cb.counts:Show()
     else
-        cb.warning:Hide()
         cb.counts:Hide()
     end
 end

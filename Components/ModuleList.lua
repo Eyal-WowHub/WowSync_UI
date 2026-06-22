@@ -11,7 +11,7 @@ local UI = addon.UI
 
     addon:GetObject("ModuleList"):Build(region, { profileManager = pm })
         -> self {
-            SetSnapshot(snapshot, preview),   -- (re)build rows; preview adds counts
+            SetSnapshot(snapshot, preview, mode),   -- (re)build rows; preview adds counts
             GetSelected() -> { [name] = true },
             SetAllChecked(checked),
         }
@@ -62,12 +62,14 @@ function ModuleList:Build(region, opts)
     return self
 end
 
-function ModuleList:SetSnapshot(snapshot, preview)
+function ModuleList:SetSnapshot(snapshot, preview, mode)
     ReleaseAll()
 
     local modules = snapshot and snapshot.Modules or {}
     local meta = { ClassID = snapshot and snapshot.Source and snapshot.Source.ClassID }
     local perModule = preview and preview.perModule
+    local exact = (mode == "exact")
+    local applyModes = WowSync.Models and WowSync.Models.SnapshotApplyMode
 
     -- Sort module names for consistent ordering
     local names = {}
@@ -86,10 +88,15 @@ function ModuleList:SetSnapshot(snapshot, preview)
         local counts
         local moduleDiff = perModule and perModule[name]
         if moduleDiff then
+            -- Merge never removes, and Exact removes only for modules whose apply
+            -- mode supports it; surface a removal figure only when the apply will
+            -- actually act on it, so the preview never overstates the change.
+            local showRemovals = exact and applyModes
+                and applyModes.CanExact(pm:GetModuleSnapshotApplyMode(name))
             counts = {
                 added = #(moduleDiff.added or {}),
                 changed = #(moduleDiff.changed or {}),
-                removed = #(moduleDiff.removed or {}),
+                removed = showRemovals and #(moduleDiff.removed or {}) or 0,
             }
         end
 

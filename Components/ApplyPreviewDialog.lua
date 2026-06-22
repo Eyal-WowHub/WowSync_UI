@@ -16,6 +16,7 @@ local L = addon.L
     addon:GetObject("ApplyPreviewDialog"):Show({
         profileName = string,
         snapshot    = <snapshot>,
+        mode        = "merge" | "exact",         -- shapes the title and counts
         onConfirm   = function(moduleSet) end,   -- { [name] = true }
     })
 ]]
@@ -26,8 +27,9 @@ local SnapshotRow = addon:GetObject("SnapshotRow")
 
 local pm
 local frame
-local subjectLabel, moduleList, toggleButton
+local titleLabel, subjectLabel, moduleList, toggleButton
 local onConfirm
+local currentMode
 
 -- Keep the select-all toggle's label in sync with the current checkbox state.
 local function RefreshToggle()
@@ -53,9 +55,9 @@ local function Build()
     frame:SetBackdropBorderColor(unpack(UI.MainBorderColor))
     frame:EnableMouse(true)
 
-    local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    title:SetPoint("TOPLEFT", 14, -12)
-    title:SetText(L["Apply snapshot"])
+    titleLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    titleLabel:SetPoint("TOPLEFT", 14, -12)
+    titleLabel:SetText(L["Apply snapshot"])
 
     local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
     close:SetPoint("TOPRIGHT", 2, -2)
@@ -115,10 +117,12 @@ function ApplyPreviewDialog:Show(opts)
     Build()
 
     onConfirm = opts.onConfirm
+    currentMode = opts.mode or "merge"
+    titleLabel:SetText(currentMode == "exact" and L["Apply snapshot — Exact"] or L["Apply snapshot — Merge"])
     subjectLabel:SetText(SnapshotRow:FormatSubject(opts.snapshot.Timestamp))
 
     local preview = pm:PreviewApply(opts.profileName, opts.snapshot.Hash)
-    moduleList:SetSnapshot(opts.snapshot, preview)
+    moduleList:SetSnapshot(opts.snapshot, preview, currentMode)
     RefreshToggle()
 
     frame:Show()

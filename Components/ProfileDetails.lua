@@ -74,7 +74,7 @@ local function DoUndo()
     ApplyUndoState()
 end
 
-local function ApplySnapshot(snapshot, moduleSet)
+local function ApplySnapshot(snapshot, moduleSet, mode)
     if not currentProfileName or not snapshot then return end
 
     if not next(moduleSet) then
@@ -82,8 +82,9 @@ local function ApplySnapshot(snapshot, moduleSet)
         return
     end
 
-    -- Apply only the chosen modules of the snapshot.
-    local results = pm:Apply(currentProfileName, snapshot.Hash, nil, moduleSet)
+    -- Apply only the chosen modules of the snapshot, in the requested mode.
+    local strategy = { default = mode or "merge" }
+    local results = pm:Apply(currentProfileName, snapshot.Hash, strategy, moduleSet)
     if results and next(results) then
         local applied, skipped = 0, 0
         for name, result in pairs(results) do
@@ -107,19 +108,24 @@ local function ApplySnapshot(snapshot, moduleSet)
     ApplyUndoState()
 end
 
--- Open the preview dialog for a snapshot (defaulting to the selected one), then
--- apply only the modules the user confirms.
-local function RequestApply(snapshot)
+-- Open the preview dialog for a snapshot (defaulting to the selected one) in the
+-- given mode. Once the user picks a module subset, a final mode-aware prompt
+-- spells out what will happen and gives one last chance to confirm or cancel.
+local function RequestApply(snapshot, mode)
     if not currentProfileName then return end
 
     snapshot = snapshot or snapshotList:GetSelected()
     if not snapshot then return end
 
+    mode = mode or "merge"
     ApplyPreviewDialog:Show({
         profileName = currentProfileName,
         snapshot = snapshot,
+        mode = mode,
         onConfirm = function(moduleSet)
-            ApplySnapshot(snapshot, moduleSet)
+            Dialogs:ConfirmApply(mode, function()
+                ApplySnapshot(snapshot, moduleSet, mode)
+            end)
         end,
     })
 end
@@ -163,8 +169,12 @@ local function OpenSnapshotMenu(snapshot, subject, anchor)
     MenuUtil.CreateContextMenu(anchor, function(_, rootDescription)
         rootDescription:CreateTitle(subject)
 
-        rootDescription:CreateButton(L["Apply"], function()
-            RequestApply(snapshot)
+        local applyMenu = rootDescription:CreateButton(L["Apply"])
+        applyMenu:CreateButton(L["Merge"], function()
+            RequestApply(snapshot, "merge")
+        end)
+        applyMenu:CreateButton(L["Exact"], function()
+            RequestApply(snapshot, "exact")
         end)
 
         rootDescription:CreateDivider()
@@ -277,7 +287,7 @@ function ProfileDetails:Build(region)
     })
 
     actionBar = ActionBar:Build(actionSlot, {
-        onApply = function() RequestApply() end,
+        onApply = function() RequestApply(nil, "merge") end,
         onUndo = RequestUndo,
         onRename = function()
             if currentProfileName then
