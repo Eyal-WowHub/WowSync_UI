@@ -1,4 +1,4 @@
-## Interface: 110105
+## Interface: 120007
 
 ## Title: Wow|cff40a5f7Sync|r: UI
 ## Notes: Profile management UI for WowSync.
