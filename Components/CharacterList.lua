@@ -23,12 +23,43 @@ local L = addon.L
 
 local CharacterList = addon:NewObject("CharacterList")
 local CharacterRow = addon:GetObject("CharacterRow")
+local CharacterGrouping = addon.CharacterGrouping
 
 local pm
 local scrollBox
 local emptyLabel
 local selectedKey = nil
 local onSelectionChanged = nil
+
+-- Build the realm-header label once, alongside the character visuals, so a
+-- pooled row can render either kind. CharacterRow owns the character children.
+local function BuildRow(row, rowContext)
+    CharacterRow:Build(row, rowContext)
+
+    row.headerText = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    row.headerText:SetPoint("BOTTOMLEFT", 8, 4)
+    row.headerText:SetPoint("RIGHT", -6, 0)
+    row.headerText:SetJustifyH("LEFT")
+    row.headerText:SetTextColor(UI.RealmHeaderColor:GetRGB())
+    row.headerText:Hide()
+end
+
+local function RenderHeader(row, elementData)
+    row.kind = "header"
+    row.charKey = nil
+    row:EnableMouse(false)
+    CharacterRow:SetShown(row, false)
+    row.headerText:SetText(elementData.Realm)
+    row.headerText:Show()
+end
+
+local function RenderCharacter(row, elementData, rowContext)
+    row.kind = "character"
+    row:EnableMouse(true)
+    row.headerText:Hide()
+    CharacterRow:SetShown(row, true)
+    CharacterRow:Update(row, elementData, rowContext)
+end
 
 function CharacterList:Build(region)
     pm = WowSync:GetProfileManager()
@@ -78,14 +109,23 @@ function CharacterList:Build(region)
 
     -- List view
     local view = CreateScrollBoxListLinearView()
-    view:SetElementExtent(UI.ListItemHeight)
+    view:SetElementExtentCalculator(function(_, elementData)
+        if elementData.kind == "header" then
+            return UI.RealmHeaderHeight
+        end
+        return UI.ListItemHeight
+    end)
     view:SetPadding(0, 0, 0, 0, UI.ListItemPadding)
     view:SetElementInitializer("Frame", function(row, elementData)
         if not row.initialized then
-            CharacterRow:Build(row, rowContext)
+            BuildRow(row, rowContext)
             row.initialized = true
         end
-        CharacterRow:Update(row, elementData, rowContext)
+        if elementData.kind == "header" then
+            RenderHeader(row, elementData)
+        else
+            RenderCharacter(row, elementData, rowContext)
+        end
     end)
 
     ScrollUtil.InitScrollBoxListWithScrollBar(scrollBox, scrollBar, view)
@@ -99,10 +139,21 @@ end
 
 function CharacterList:Refresh()
     local characters = pm:GetOtherCharacters()
+    local sections, grouped = CharacterGrouping:Group(characters)
+
+    -- Headers add realm context. They are pointless for a single own-realm list
+    -- (the realm is implicit), but a lone foreign realm still needs its label.
+    local showHeaders = grouped or (sections[1] ~= nil and not sections[1].IsOwnRealm)
 
     local dataProvider = CreateDataProvider()
-    for _, entry in ipairs(characters) do
-        dataProvider:Insert(entry)
+    for _, section in ipairs(sections) do
+        if showHeaders then
+            dataProvider:Insert({ kind = "header", Realm = section.Realm })
+        end
+        for _, entry in ipairs(section.Characters) do
+            entry.kind = "character"
+            dataProvider:Insert(entry)
+        end
     end
     scrollBox:SetDataProvider(dataProvider)
 
@@ -129,6 +180,10 @@ end
 function CharacterList:Select(elementData)
     selectedKey = elementData and elementData.Key or nil
     scrollBox:ForEachFrame(function(frame)
+        -- Realm headers are inert and carry no charKey; skip their highlight.
+        if frame.kind ~= "character" then
+            return
+        end
         if frame.charKey == selectedKey then
             frame.bg:SetColorTexture(UI.RowSelectedColor:GetRGBA())
         else

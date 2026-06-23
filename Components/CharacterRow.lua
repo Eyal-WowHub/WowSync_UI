@@ -64,8 +64,20 @@ function CharacterRow:Build(row, ctx)
     end)
 end
 
+-- Toggle the character visuals so a pooled frame can be reused as an inert
+-- realm header (CharacterList hides these and shows its own header label).
+function CharacterRow:SetShown(row, shown)
+    row.bg:SetShown(shown)
+    row.classIcon:SetShown(shown)
+    row.nameText:SetShown(shown)
+    row.infoText:SetShown(shown)
+end
+
 function CharacterRow:Update(row, elementData, ctx)
     local charKey = elementData.Key
+    -- The realm is conveyed by the section header (or is implicit for a single
+    -- own-realm list), so the row shows just the character name when available.
+    local displayName = elementData.Name or charKey
 
     row.charKey = charKey
     row.elementData = elementData
@@ -82,10 +94,10 @@ function CharacterRow:Update(row, elementData, ctx)
         end
 
         local classColor = C_ClassColor.GetClassColor(classInfo.classFile)
-        row.nameText:SetText(classColor and classColor:WrapTextInColorCode(charKey) or charKey)
+        row.nameText:SetText(classColor and classColor:WrapTextInColorCode(displayName) or displayName)
     else
         row.classIcon:SetTexture(nil)
-        row.nameText:SetText(charKey)
+        row.nameText:SetText(displayName)
     end
 
     -- Info line

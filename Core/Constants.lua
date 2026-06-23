@@ -9,6 +9,7 @@ addon.UI = {
     TabStripHeight = 24,
     ListItemHeight = 44,
     ListItemPadding = 2,
+    RealmHeaderHeight = 20,
     ModuleRowHeight = 24,
     ModuleRowPadding = 2,
     PreviewWidth = 380,
@@ -42,6 +43,9 @@ addon.UI = {
 
     -- Active tab underline accent
     TabUnderlineColor = CreateColor(0.25, 0.65, 0.95, 1),
+
+    -- Realm header label in the grouped character list
+    RealmHeaderColor = CreateColor(0.55, 0.7, 0.95, 1),
 
     -- Snapshot timeline colors
     TimelineRailColor = CreateColor(0.35, 0.35, 0.35, 0.8),

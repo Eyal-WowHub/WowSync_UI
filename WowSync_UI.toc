@@ -9,6 +9,7 @@
 ## RequiredDeps: WowSync
 
 Core\Constants.lua
+Core\CharacterGrouping.lua
 Locales\enUS.lua
 Main.lua
 Components\Dialogs.lua
