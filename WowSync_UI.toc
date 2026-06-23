@@ -9,7 +9,10 @@
 ## LoadOnDemand: 1
 ## RequiredDeps: WowSync
 
+## SavedVariables: WowSyncUIDB
+
 Core\Constants.lua
+Core\Settings.lua
 Core\CharacterGrouping.lua
 
 Locales\enUS.lua
@@ -17,6 +20,7 @@ Locales\enUS.lua
 Main.lua
 
 Components\Dialogs.lua
+Components\LockButton.lua
 Components\TitleBar.lua
 Components\SaveBar.lua
 Components\ProfileRow.lua
@@ -34,4 +38,7 @@ Components\ProfileDetails.lua
 Components\CharacterRow.lua
 Components\CharacterList.lua
 Components\CharacterDetails.lua
+Components\DragTracker.lua
+Components\Splitter.lua
+Components\ResizeGrip.lua
 Components\MainFrame.lua

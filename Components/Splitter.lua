@@ -1,0 +1,83 @@
+local _, addon = ...
+
+local UI = addon.UI
+local DragTracker = addon:GetObject("DragTracker")
+
+--[[
+    Splitter object.
+
+    A thin draggable handle that lives in the gap between a pane's two panels.
+    Dragging it reports the raw left-panel ratio (0..1 of the pane width, taken
+    straight from the cursor) through onResize(ratio) on every frame of the drag,
+    and onCommit() once on release so the owner can persist. Clamping is the
+    owner's job; the handle only maps the cursor to a fraction of the pane.
+
+    A pane is any frame ("view") containing a left slot frame; the handle anchors
+    to the right edge of that slot and spans the pane's height.
+
+    addon:GetObject("Splitter"):Build(pane, {
+        onResize = function(ratio),
+        onCommit = function(),
+    }) -> Button { SetLocked(locked) }
+
+    where pane = { view = Frame, leftSlot = Frame }.
+]]
+
+local Splitter = addon:NewObject("Splitter")
+
+function Splitter:Build(pane, opts)
+    opts = opts or {}
+
+    local view = pane.view
+    local locked = false
+
+    local handle = CreateFrame("Button", nil, view)
+    handle:SetWidth(UI.SplitterWidth)
+    handle:SetPoint("TOPLEFT", pane.leftSlot, "TOPRIGHT", 0, 0)
+    handle:SetPoint("BOTTOMLEFT", pane.leftSlot, "BOTTOMRIGHT", 0, 0)
+    handle:SetFrameLevel(view:GetFrameLevel() + 5)
+    handle:EnableMouse(true)
+
+    handle.line = handle:CreateTexture(nil, "OVERLAY")
+    handle.line:SetPoint("TOP")
+    handle.line:SetPoint("BOTTOM")
+    handle.line:SetWidth(2)
+    handle.line:SetColorTexture(unpack(UI.SplitterColor))
+
+    handle:SetScript("OnEnter", function(self)
+        if not locked then
+            self.line:SetColorTexture(unpack(UI.SplitterHoverColor))
+        end
+    end)
+    handle:SetScript("OnLeave", function(self)
+        self.line:SetColorTexture(unpack(UI.SplitterColor))
+    end)
+
+    DragTracker:Attach(handle, {
+        enabled = function() return not locked end,
+        onUpdate = function()
+            local viewWidth = view:GetWidth()
+            local viewLeft = view:GetLeft()
+            if viewLeft and viewWidth and viewWidth > 0 then
+                local cursorX = GetCursorPosition() / view:GetEffectiveScale()
+                if opts.onResize then
+                    opts.onResize((cursorX - viewLeft) / viewWidth)
+                end
+            end
+        end,
+        onStop = function()
+            if opts.onCommit then
+                opts.onCommit()
+            end
+        end,
+    })
+
+    -- When locked the handle ignores the mouse and drops back to its idle colour.
+    function handle:SetLocked(value)
+        locked = value and true or false
+        self:EnableMouse(not locked)
+        self.line:SetColorTexture(unpack(UI.SplitterColor))
+    end
+
+    return handle
+end

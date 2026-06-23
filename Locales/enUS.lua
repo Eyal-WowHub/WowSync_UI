@@ -16,6 +16,8 @@ L["Save…"] = "Save…"
 L["Undo"] = "Undo"
 L["Rename"] = "Rename"
 L["Delete"] = "Delete"
+L["Lock window"] = "Lock window"
+L["Unlock window"] = "Unlock window"
 
 -- Profile detail header
 L["X • Y • Z"] = "%s  •  %s  •  %s"
