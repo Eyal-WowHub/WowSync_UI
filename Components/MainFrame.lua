@@ -255,7 +255,7 @@ local function Build()
     tabStrip:SetHeight(TAB_STRIP_HEIGHT)
 
     local profilesTab = CreateTab(tabStrip, L["Profiles"], function() showView("profiles") end)
-    profilesTab:SetPoint("LEFT", 0, 0)
+    profilesTab:SetPoint("LEFT", 2, 0)
 
     local charactersTab = CreateTab(tabStrip, L["Characters"], function() showView("characters") end)
     charactersTab:SetPoint("LEFT", profilesTab, "RIGHT", TAB_GAP, 0)
