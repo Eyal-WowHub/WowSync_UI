@@ -60,7 +60,7 @@ local EDGE_INSET = 8
 -- Tab strip metrics.
 local TAB_WIDTH = 110
 local TAB_GAP = 4
-local TAB_UNDERLINE_INSET = 4
+local TAB_UNDERLINE_INSET = 0
 local TAB_UNDERLINE_THICKNESS = 2
 
 -- Colour escape applied to the window title.
