@@ -33,7 +33,8 @@ function TitleBar:Build(region, opts)
     titleText:SetText(opts.title or "")
 
     local closeButton = CreateFrame("Button", nil, root, "UIPanelCloseButton")
-    closeButton:SetPoint("RIGHT", 2, 0)
+    closeButton:SetSize(24, 24)
+    closeButton:SetPoint("RIGHT", -3, -1)
     closeButton:SetScript("OnClick", function()
         if opts.onClose then
             opts.onClose()
