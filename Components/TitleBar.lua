@@ -3,9 +3,10 @@ local _, addon = ...
 --[[
     TitleBar object.
 
-    Fills an injected region with a title label, a lock toggle, and a close
-    button. The lock toggle (a composed LockButton) sits immediately left of the
-    close button; clicking it reports the new state through onToggleLock(locked)
+    Fills an injected region with a centred title over a header banner, a lock
+    toggle, and a close button. A divider separates the header from the content
+    beneath it. The lock toggle (a composed LockButton) sits immediately left of
+    the close button; clicking it reports the new state through onToggleLock(locked)
     so the owner can enable or disable window moving, resizing, and the splitter.
 
     addon:GetObject("TitleBar"):Build(region, {
@@ -19,6 +20,12 @@ local _, addon = ...
 local TitleBar = addon:NewObject("TitleBar")
 local LockButton = addon:GetObject("LockButton")
 
+local UI = addon.UI
+
+-- Inset that tucks the header art just inside the window's metal border so the
+-- banner reaches the frame edges.
+local BORDER_INSET = 3
+
 local titleText
 local lockButton
 
@@ -28,8 +35,22 @@ function TitleBar:Build(region, opts)
     local root = CreateFrame("Frame", nil, region)
     root:SetAllPoints(region)
 
+    -- Header strip behind the title, giving the bar a distinct banner like the
+    -- Blizzard Options window.
+    local header = root:CreateTexture(nil, "BACKGROUND")
+    header:SetPoint("TOPLEFT", BORDER_INSET, -BORDER_INSET)
+    header:SetPoint("BOTTOMRIGHT", -BORDER_INSET, 0)
+    header:SetColorTexture(unpack(UI.Backdrop.Header))
+
+    -- Divider separating the header from the content beneath it.
+    local divider = root:CreateTexture(nil, "ARTWORK")
+    divider:SetPoint("BOTTOMLEFT", BORDER_INSET, 0)
+    divider:SetPoint("BOTTOMRIGHT", -BORDER_INSET, 0)
+    divider:SetHeight(1)
+    divider:SetColorTexture(unpack(UI.Backdrop.Separator))
+
     titleText = root:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    titleText:SetPoint("LEFT", 12, 0)
+    titleText:SetPoint("CENTER", 0, 0)
     titleText:SetText(opts.title or "")
 
     local closeButton = CreateFrame("Button", nil, root, "UIPanelCloseButton")
