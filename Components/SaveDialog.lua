@@ -7,18 +7,29 @@ local L = addon.L
     SaveDialog object.
 
     A modal window for saving a snapshot to a profile with an optional note and
-    an optional module subset. It lists every module as a checkbox (all checked
-    by default) plus a note field, and hands the chosen module set and note back
-    through onConfirm so the caller runs the actual save. The dialog is "dumb"
-    about saving itself.
+    an optional module subset. It hands the chosen module set and note (and, in
+    cross-character mode, the chosen profile name) back through onConfirm so the
+    caller runs the actual save. The dialog is "dumb" about saving itself.
+
+    Two modes:
+      * Fixed profile (default): the target profile is given up front and shown
+        as a static label; every registered module is offered.
+        onConfirm(moduleSet, note)
+      * Cross-character (pickProfile): the caller is saving another character's
+        captured setup, so a profile-name field is shown (type a new name or
+        pick an existing one) and only the given modules are offered.
+        onConfirm(profileName, moduleSet, note)
 
     Unlike the apply preview, this dialog owns its own (non-pooled) checkbox
     rows rather than the shared ModuleList object, because that list is a
     singleton already used by ApplyPreviewDialog.
 
     addon:GetObject("SaveDialog"):Show({
-        profileName = string,
-        onConfirm   = function(moduleSet, note) end,   -- moduleSet = { [name] = true }, note = string|nil
+        profileName      = string,        -- fixed mode: the target profile
+        pickProfile      = boolean,       -- cross-char: show a profile-name field
+        moduleNames      = { name, ... }, -- restrict the offered modules (cross-char)
+        existingProfiles = { name, ... }, -- suggestions for the pick-existing menu
+        onConfirm        = function(...) end,
     })
 ]]
 
@@ -27,20 +38,30 @@ local ModuleRow = addon:GetObject("ModuleRow")
 
 local pm
 local frame
-local nameLabel, noteBox, toggleButton
-local rows = {}   -- name -> checkbox
+local title, nameLabel, nameBox, pickButton, noteBox, toggleButton
+local rows = {}          -- name -> checkbox (one per registered module, created once)
+local activeNames = {}   -- names currently offered/shown (a subset of rows)
+local pickProfile = false
+local existingProfiles = nil
 local onConfirm
 
--- True only when there is at least one row and every row is checked.
+local function IsActive(name)
+    for _, n in ipairs(activeNames) do
+        if n == name then return true end
+    end
+    return false
+end
+
+-- True only when there is at least one offered row and every offered row is
+-- checked.
 local function AreAllChecked()
-    local any = false
-    for _, cb in pairs(rows) do
-        any = true
-        if not cb:GetChecked() then
+    if #activeNames == 0 then return false end
+    for _, name in ipairs(activeNames) do
+        if not rows[name]:GetChecked() then
             return false
         end
     end
-    return any
+    return true
 end
 
 local function RefreshToggle()
@@ -49,13 +70,14 @@ local function RefreshToggle()
 end
 
 local function SetAllChecked(checked)
-    for _, cb in pairs(rows) do
-        cb:SetChecked(checked)
+    for _, name in ipairs(activeNames) do
+        rows[name]:SetChecked(checked)
     end
 end
 
--- Build one checkbox per registered module. The module set is fixed at runtime,
--- so the rows are created once and only their checked state is reset on Show.
+-- Build one checkbox per registered module. The registered set is fixed at
+-- runtime, so the rows are created once; which of them are offered (and their
+-- checked state) is decided per Show.
 local function BuildRows(listParent)
     local names = {}
     for name in pm:IterableModules() do
@@ -63,15 +85,45 @@ local function BuildRows(listParent)
     end
     table.sort(names)
 
-    local yOffset = 0
     for _, name in ipairs(names) do
         local cb = ModuleRow:Build(listParent)
-        cb:SetPoint("TOPLEFT", 0, -yOffset)
         cb:HookScript("OnClick", RefreshToggle)
-        ModuleRow:Update(cb, name, true, nil, nil)
         rows[name] = cb
+        cb:Hide()
+    end
+end
+
+-- Stack the offered rows top-to-bottom (reset to checked) and hide the rest.
+local function LayoutActiveRows()
+    local yOffset = 0
+    for _, name in ipairs(activeNames) do
+        local cb = rows[name]
+        cb:ClearAllPoints()
+        cb:SetPoint("TOPLEFT", 0, -yOffset)
+        ModuleRow:Update(cb, name, true, nil, nil)
+        cb:Show()
         yOffset = yOffset + UI.ModuleRowHeight + UI.ModuleRowPadding
     end
+
+    for name, cb in pairs(rows) do
+        if not IsActive(name) then
+            cb:Hide()
+        end
+    end
+end
+
+-- Offer the existing profile names in a menu; choosing one fills the name box.
+local function OpenExistingMenu()
+    if not existingProfiles or #existingProfiles == 0 then return end
+    MenuUtil.CreateContextMenu(pickButton, function(_, rootDescription)
+        rootDescription:CreateTitle(L["Existing profiles"])
+        for _, name in ipairs(existingProfiles) do
+            rootDescription:CreateButton(name, function()
+                nameBox:SetText(name)
+                nameBox:SetCursorPosition(0)
+            end)
+        end
+    end)
 end
 
 local function Build()
@@ -94,7 +146,7 @@ local function Build()
     frame:SetBackdropBorderColor(unpack(UI.MainBorderColor))
     frame:EnableMouse(true)
 
-    local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", 14, -12)
     title:SetText(L["Save snapshot"])
 
@@ -102,10 +154,27 @@ local function Build()
     close:SetPoint("TOPRIGHT", 2, -2)
     close:SetScript("OnClick", function() SaveDialog:Hide() end)
 
+    -- Target profile: a static label (fixed mode) or an editable name field with
+    -- a pick-existing menu (cross-character mode). They share the same row.
     nameLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     nameLabel:SetPoint("TOPLEFT", 14, -38)
     nameLabel:SetPoint("TOPRIGHT", -14, -38)
     nameLabel:SetJustifyH("LEFT")
+
+    pickButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    pickButton:SetSize(24, 20)
+    pickButton:SetPoint("TOPRIGHT", -14, -36)
+    pickButton:SetText("▼")
+    pickButton:SetScript("OnClick", OpenExistingMenu)
+    pickButton:Hide()
+
+    nameBox = CreateFrame("EditBox", nil, frame, "InputBoxTemplate")
+    nameBox:SetPoint("TOPLEFT", 16, -36)
+    nameBox:SetPoint("RIGHT", pickButton, "LEFT", -6, 0)
+    nameBox:SetHeight(20)
+    nameBox:SetAutoFocus(false)
+    nameBox:SetMaxLetters(50)
+    nameBox:Hide()
 
     local noteHeader = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     noteHeader:SetPoint("TOPLEFT", 14, -60)
@@ -142,8 +211,8 @@ local function Build()
     saveButton:SetText(L["Save"])
     saveButton:SetScript("OnClick", function()
         local moduleSet = {}
-        for name, cb in pairs(rows) do
-            if cb:GetChecked() then
+        for _, name in ipairs(activeNames) do
+            if rows[name]:GetChecked() then
                 moduleSet[name] = true
             end
         end
@@ -157,9 +226,21 @@ local function Build()
             note = nil
         end
 
-        SaveDialog:Hide()
-        if onConfirm then
-            onConfirm(moduleSet, note)
+        if pickProfile then
+            local profileName = strtrim(nameBox:GetText())
+            if profileName == "" then
+                WowSync:Print(L["Enter a profile name."])
+                return
+            end
+            SaveDialog:Hide()
+            if onConfirm then
+                onConfirm(profileName, moduleSet, note)
+            end
+        else
+            SaveDialog:Hide()
+            if onConfirm then
+                onConfirm(moduleSet, note)
+            end
         end
     end)
 
@@ -179,13 +260,42 @@ function SaveDialog:Show(opts)
     Build()
 
     onConfirm = opts.onConfirm
-    nameLabel:SetText(L["Saving to: X"]:format(opts.profileName))
+    pickProfile = opts.pickProfile or false
+    existingProfiles = opts.existingProfiles
+
+    -- Decide which modules to offer: a given subset, or every registered module.
+    wipe(activeNames)
+    if opts.moduleNames then
+        for _, name in ipairs(opts.moduleNames) do
+            if rows[name] then
+                tinsert(activeNames, name)
+            end
+        end
+    else
+        for name in pairs(rows) do
+            tinsert(activeNames, name)
+        end
+    end
+    table.sort(activeNames)
+
+    -- Target profile field
+    if pickProfile then
+        title:SetText(L["Save to profile"])
+        nameLabel:Hide()
+        nameBox:SetText("")
+        nameBox:Show()
+        pickButton:SetShown(existingProfiles ~= nil and #existingProfiles > 0)
+    else
+        title:SetText(L["Save snapshot"])
+        nameLabel:SetText(L["Saving to: X"]:format(opts.profileName or ""))
+        nameLabel:Show()
+        nameBox:Hide()
+        pickButton:Hide()
+    end
+
     noteBox:SetText("")
 
-    -- Default to capturing everything each time the dialog opens.
-    for name, cb in pairs(rows) do
-        ModuleRow:Update(cb, name, true, nil, nil)
-    end
+    LayoutActiveRows()
     RefreshToggle()
 
     frame:Show()

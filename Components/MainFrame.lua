@@ -7,9 +7,10 @@ local L = addon.L
     MainFrame object.
 
     The top-level movable window shell and composition root. Owns the backdrop,
-    title bar, drag and escape handling, lays out the left/right panel regions,
-    builds the ProfileList and ProfileDetails objects into them, and wires them
-    together. Built lazily on the first Toggle().
+    title bar, drag and escape handling, and a tab strip that switches between
+    two top-level views: Profiles (ProfileList + ProfileDetails) and Characters
+    (CharacterList + CharacterDetails). Builds and wires those panels, and is
+    built lazily on the first Toggle().
 
     addon:GetObject("MainFrame"):Toggle()
 ]]
@@ -18,10 +19,59 @@ local MainFrame = addon:NewObject("MainFrame")
 local TitleBar = addon:GetObject("TitleBar")
 local ProfileList = addon:GetObject("ProfileList")
 local ProfileDetails = addon:GetObject("ProfileDetails")
+local CharacterList = addon:GetObject("CharacterList")
+local CharacterDetails = addon:GetObject("CharacterDetails")
 local SaveDialog = addon:GetObject("SaveDialog")
 
 local frame
 local profileList, profileDetails
+local characterList, characterDetails
+local showView
+
+-- A slim tab that switches the active top-level view. Active tabs show an accent
+-- underline and a highlighted background; inactive tabs are dimmed.
+local function CreateTab(parent, label, onClick)
+    local tab = CreateFrame("Button", nil, parent)
+    tab:SetSize(110, UI.TabStripHeight)
+
+    tab.bg = tab:CreateTexture(nil, "BACKGROUND")
+    tab.bg:SetAllPoints()
+    tab.bg:SetColorTexture(UI.RowNormalColor:GetRGBA())
+
+    tab.text = tab:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    tab.text:SetPoint("CENTER")
+    tab.text:SetText(label)
+
+    tab.underline = tab:CreateTexture(nil, "ARTWORK")
+    tab.underline:SetPoint("BOTTOMLEFT", 4, 0)
+    tab.underline:SetPoint("BOTTOMRIGHT", -4, 0)
+    tab.underline:SetHeight(2)
+    tab.underline:SetColorTexture(UI.TabUnderlineColor:GetRGBA())
+    tab.underline:Hide()
+
+    tab.active = false
+
+    function tab:SetActive(active)
+        self.active = active
+        self.underline:SetShown(active)
+        self.text:SetFontObject(active and "GameFontNormal" or "GameFontDisable")
+        self.bg:SetColorTexture((active and UI.RowSelectedColor or UI.RowNormalColor):GetRGBA())
+    end
+
+    tab:SetScript("OnEnter", function(self)
+        if not self.active then
+            self.bg:SetColorTexture(UI.RowHoverColor:GetRGBA())
+        end
+    end)
+    tab:SetScript("OnLeave", function(self)
+        if not self.active then
+            self.bg:SetColorTexture(UI.RowNormalColor:GetRGBA())
+        end
+    end)
+    tab:SetScript("OnClick", onClick)
+
+    return tab
+end
 
 local function Build()
     if frame then return end
@@ -58,18 +108,34 @@ local function Build()
         onClose = function() frame:Hide() end,
     })
 
-    -- Left panel region
-    local leftSlot = CreateFrame("Frame", nil, frame)
-    leftSlot:SetPoint("TOPLEFT", 8, -28)
-    leftSlot:SetPoint("BOTTOMLEFT", 8, 8)
+    -- Tab strip (Profiles | Characters)
+    local tabStrip = CreateFrame("Frame", nil, frame)
+    tabStrip:SetPoint("TOPLEFT", 8, -28)
+    tabStrip:SetPoint("TOPRIGHT", -8, -28)
+    tabStrip:SetHeight(UI.TabStripHeight)
+
+    local profilesTab = CreateTab(tabStrip, L["Profiles"], function() showView("profiles") end)
+    profilesTab:SetPoint("LEFT", 0, 0)
+
+    local charactersTab = CreateTab(tabStrip, L["Characters"], function() showView("characters") end)
+    charactersTab:SetPoint("LEFT", profilesTab, "RIGHT", 4, 0)
+
+    local contentTop = -(28 + UI.TabStripHeight)
+
+    -- Profiles view: profile list (left) + profile details (right)
+    local profilesView = CreateFrame("Frame", nil, frame)
+    profilesView:SetPoint("TOPLEFT", 8, contentTop)
+    profilesView:SetPoint("BOTTOMRIGHT", -8, 8)
+
+    local leftSlot = CreateFrame("Frame", nil, profilesView)
+    leftSlot:SetPoint("TOPLEFT", 0, 0)
+    leftSlot:SetPoint("BOTTOMLEFT", 0, 0)
     leftSlot:SetWidth(UI.LeftPanelWidth)
 
-    -- Right panel region
-    local rightSlot = CreateFrame("Frame", nil, frame)
+    local rightSlot = CreateFrame("Frame", nil, profilesView)
     rightSlot:SetPoint("TOPLEFT", leftSlot, "TOPRIGHT", 6, 0)
-    rightSlot:SetPoint("BOTTOMRIGHT", -8, 8)
+    rightSlot:SetPoint("BOTTOMRIGHT", 0, 0)
 
-    -- Build and wire the panels
     profileList = ProfileList:Build(leftSlot)
     profileDetails = ProfileDetails:Build(rightSlot)
 
@@ -114,6 +180,51 @@ local function Build()
         profileDetails:SetProfile(nil)
     end)
 
+    -- Characters view: character list (left) + character details (right)
+    local charactersView = CreateFrame("Frame", nil, frame)
+    charactersView:SetPoint("TOPLEFT", 8, contentTop)
+    charactersView:SetPoint("BOTTOMRIGHT", -8, 8)
+    charactersView:Hide()
+
+    local charLeftSlot = CreateFrame("Frame", nil, charactersView)
+    charLeftSlot:SetPoint("TOPLEFT", 0, 0)
+    charLeftSlot:SetPoint("BOTTOMLEFT", 0, 0)
+    charLeftSlot:SetWidth(UI.LeftPanelWidth)
+
+    local charRightSlot = CreateFrame("Frame", nil, charactersView)
+    charRightSlot:SetPoint("TOPLEFT", charLeftSlot, "TOPRIGHT", 6, 0)
+    charRightSlot:SetPoint("BOTTOMRIGHT", 0, 0)
+
+    characterList = CharacterList:Build(charLeftSlot)
+    characterDetails = CharacterDetails:Build(charRightSlot)
+
+    characterList:OnSelect(function(entry)
+        characterDetails:SetCharacter(entry)
+    end)
+
+    -- A cross-character save creates or updates a profile, so refresh the
+    -- profile list to reflect it the next time that view is shown.
+    characterDetails:OnSaved(function()
+        profileList:Refresh()
+    end)
+
+    -- Switch the active top-level view and reflect it in the tab visuals.
+    showView = function(which)
+        if which == "characters" then
+            profilesView:Hide()
+            charactersView:Show()
+            characterList:Refresh()
+            characterList:ClearSelection()
+        else
+            which = "profiles"
+            charactersView:Hide()
+            profilesView:Show()
+            profileList:Refresh()
+        end
+        profilesTab:SetActive(which == "profiles")
+        charactersTab:SetActive(which == "characters")
+    end
+
     -- CreateFrame leaves the window shown; start hidden so the first Toggle()
     -- reveals it instead of hiding it.
     frame:Hide()
@@ -125,7 +236,7 @@ function MainFrame:Toggle()
     if frame:IsShown() then
         frame:Hide()
     else
-        profileList:Refresh()
+        showView("profiles")
         frame:Show()
     end
 end

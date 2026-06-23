@@ -26,4 +26,7 @@ Components\ApplyPreviewDialog.lua
 Components\SaveDialog.lua
 Components\ProfileList.lua
 Components\ProfileDetails.lua
+Components\CharacterRow.lua
+Components\CharacterList.lua
+Components\CharacterDetails.lua
 Components\MainFrame.lua

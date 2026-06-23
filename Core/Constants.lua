@@ -6,6 +6,7 @@ addon.UI = {
     FrameHeight = 440,
     LeftPanelWidth = 220,
     TitleBarHeight = 28,
+    TabStripHeight = 24,
     ListItemHeight = 44,
     ListItemPadding = 2,
     ModuleRowHeight = 24,
@@ -38,6 +39,9 @@ addon.UI = {
     RowSelectedColor = CreateColor(0.2, 0.4, 0.6, 0.6),
     RowHoverColor = CreateColor(0.3, 0.3, 0.3, 0.4),
     RowNormalColor = CreateColor(0, 0, 0, 0),
+
+    -- Active tab underline accent
+    TabUnderlineColor = CreateColor(0.25, 0.65, 0.95, 1),
 
     -- Snapshot timeline colors
     TimelineRailColor = CreateColor(0.35, 0.35, 0.35, 0.8),
