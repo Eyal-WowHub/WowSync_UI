@@ -14,6 +14,7 @@ local _, addon = ...
 
 local MainFrame = addon:NewObject("MainFrame")
 local TitleBar = addon:GetObject("TitleBar")
+local TabStrip = addon:GetObject("TabStrip")
 local ProfileList = addon:GetObject("ProfileList")
 local ProfileDetails = addon:GetObject("ProfileDetails")
 local CharacterList = addon:GetObject("CharacterList")
@@ -57,62 +58,8 @@ local TAB_STRIP_HEIGHT = 24
 -- Inset between the frame edge and its content on every side.
 local EDGE_INSET = 8
 
--- Tab strip metrics.
-local TAB_WIDTH = 110
-local TAB_GAP = 4
-local TAB_UNDERLINE_INSET = 0
-local TAB_UNDERLINE_THICKNESS = 2
-
 -- Colour escape applied to the window title.
 local ACCENT_HEX = "ff40a5f7"
-
--- Underline drawn beneath the active tab.
-local TAB_UNDERLINE_COLOR = CreateColor(0.25, 0.65, 0.95, 1)
-
--- A slim tab that switches the active top-level view. Active tabs show an accent
--- underline and a highlighted background; inactive tabs are dimmed.
-local function CreateTab(parent, label, onClick)
-    local tab = CreateFrame("Button", nil, parent)
-    tab:SetSize(TAB_WIDTH, TAB_STRIP_HEIGHT)
-
-    tab.bg = tab:CreateTexture(nil, "BACKGROUND")
-    tab.bg:SetAllPoints()
-    tab.bg:SetColorTexture(UI.Row.Normal:GetRGBA())
-
-    tab.text = tab:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    tab.text:SetPoint("CENTER")
-    tab.text:SetText(label)
-
-    tab.underline = tab:CreateTexture(nil, "ARTWORK")
-    tab.underline:SetPoint("BOTTOMLEFT", TAB_UNDERLINE_INSET, 0)
-    tab.underline:SetPoint("BOTTOMRIGHT", -TAB_UNDERLINE_INSET, 0)
-    tab.underline:SetHeight(TAB_UNDERLINE_THICKNESS)
-    tab.underline:SetColorTexture(TAB_UNDERLINE_COLOR:GetRGBA())
-    tab.underline:Hide()
-
-    tab.active = false
-
-    function tab:SetActive(active)
-        self.active = active
-        self.underline:SetShown(active)
-        self.text:SetFontObject(active and "GameFontNormal" or "GameFontDisable")
-        self.bg:SetColorTexture((active and UI.Row.Selected or UI.Row.Normal):GetRGBA())
-    end
-
-    tab:SetScript("OnEnter", function(self)
-        if not self.active then
-            self.bg:SetColorTexture(UI.Row.Hover:GetRGBA())
-        end
-    end)
-    tab:SetScript("OnLeave", function(self)
-        if not self.active then
-            self.bg:SetColorTexture(UI.Row.Normal:GetRGBA())
-        end
-    end)
-    tab:SetScript("OnClick", onClick)
-
-    return tab
-end
 
 local function Build()
     if frame then return end
@@ -249,16 +196,16 @@ local function Build()
     })
 
     -- Tab strip (Profiles | Characters)
-    local tabStrip = CreateFrame("Frame", nil, frame)
+    local tabStrip = TabStrip:Build(frame, {
+        height = TAB_STRIP_HEIGHT,
+        tabs = {
+            { key = "profiles", label = L["Profiles"] },
+            { key = "characters", label = L["Characters"] },
+        },
+        onSelect = function(which) showView(which) end,
+    })
     tabStrip:SetPoint("TOPLEFT", EDGE_INSET, -TITLE_BAR_HEIGHT)
     tabStrip:SetPoint("TOPRIGHT", -EDGE_INSET, -TITLE_BAR_HEIGHT)
-    tabStrip:SetHeight(TAB_STRIP_HEIGHT)
-
-    local profilesTab = CreateTab(tabStrip, L["Profiles"], function() showView("profiles") end)
-    profilesTab:SetPoint("LEFT", 2, 0)
-
-    local charactersTab = CreateTab(tabStrip, L["Characters"], function() showView("characters") end)
-    charactersTab:SetPoint("LEFT", profilesTab, "RIGHT", TAB_GAP, 0)
 
     local contentTop = -(TITLE_BAR_HEIGHT + TAB_STRIP_HEIGHT)
 
@@ -365,8 +312,7 @@ local function Build()
             profilesView:Show()
             profileList:Refresh()
         end
-        profilesTab:SetActive(which == "profiles")
-        charactersTab:SetActive(which == "characters")
+        tabStrip:Select(which)
     end
 
     -- Resize grip in the bottom-right corner; hidden while the window is locked.

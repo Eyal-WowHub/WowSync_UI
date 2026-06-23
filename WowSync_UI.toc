@@ -22,6 +22,7 @@ Main.lua
 Components\Dialogs.lua
 Components\LockButton.lua
 Components\TitleBar.lua
+Components\TabStrip.lua
 Components\SaveBar.lua
 Components\ProfileRow.lua
 Components\ProfileHeader.lua
