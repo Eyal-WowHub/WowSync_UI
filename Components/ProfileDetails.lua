@@ -33,8 +33,48 @@ local pm
 local currentProfileName = nil
 local onRefreshNeeded = nil
 
-local content, emptyLabel, statusLabel
+local content, emptyLabel, statusLabel, syncLabel
 local header, actionBar, undoList, snapshotList
+
+-- Refresh the live "unsaved changes" badge for the selected profile: compare the
+-- logged-in character's Current against the profile's latest snapshot. Hidden
+-- when no profile is shown or the profile has no snapshot to compare against.
+local function RefreshSyncStatus()
+    if not currentProfileName or not content:IsVisible() then
+        syncLabel:Hide()
+        return
+    end
+
+    local preview = pm:PreviewApply(currentProfileName)
+    if not preview then
+        syncLabel:Hide()
+        return
+    end
+
+    local totals = preview.totals
+    if totals.added + totals.changed + totals.removed == 0 then
+        syncLabel:SetText(L["Up to date"])
+        syncLabel:SetTextColor(unpack(UI.SuccessTextColor))
+    else
+        syncLabel:SetText(L["Unsaved changes"] .. "  "
+            .. L["+A ~C -R"]:format(totals.added, totals.changed, totals.removed))
+        syncLabel:SetTextColor(unpack(UI.WarningTextColor))
+    end
+    syncLabel:Show()
+end
+
+-- Coalesce bursts of live Current changes (the watcher flushes several modules
+-- at once) into a single badge refresh.
+local syncRefreshToken = 0
+local function ScheduleSyncRefresh()
+    syncRefreshToken = syncRefreshToken + 1
+    local token = syncRefreshToken
+    C_Timer.After(0.1, function()
+        if token == syncRefreshToken then
+            RefreshSyncStatus()
+        end
+    end)
+end
 
 -- Reflect the current undo point in whichever view is visible
 local function ApplyUndoState()
@@ -47,6 +87,7 @@ local function ApplyUndoState()
         local hasEntries = undoList:Refresh()
         emptyLabel:SetShown(not hasEntries)
     end
+    RefreshSyncStatus()
 end
 
 -- Show a one-line summary of the last apply inside the panel
@@ -309,6 +350,23 @@ function ProfileDetails:Build(region)
     statusLabel:SetJustifyH("LEFT")
     statusLabel:SetWordWrap(false)
     statusLabel:Hide()
+
+    -- Live "unsaved changes" badge, top-right of the header. Refreshed on
+    -- selection, after apply/undo, and live as the watcher mirrors changes.
+    syncLabel = content:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    syncLabel:SetPoint("TOPRIGHT", content, "TOPRIGHT", -10, -12)
+    syncLabel:SetJustifyH("RIGHT")
+    syncLabel:SetWordWrap(false)
+    syncLabel:Hide()
+
+    -- The core fires this whenever a character's live setup changes (the watcher
+    -- mirroring edits into Current); refresh the badge to match.
+    WowSync:RegisterEvent("WOWSYNC_CURRENT_CHANGED", ScheduleSyncRefresh)
+
+    -- While the panel is hidden the badge ignores live changes (see
+    -- RefreshSyncStatus); recompute when it becomes visible again, which covers
+    -- reopening the window and switching back to the Profiles tab.
+    content:HookScript("OnShow", RefreshSyncStatus)
 
     -- Composed children
 
