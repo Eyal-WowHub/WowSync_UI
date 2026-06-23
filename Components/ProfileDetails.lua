@@ -65,13 +65,11 @@ end
 
 local function DoUndo()
     local info = WowSync:GetUndoInfo()
-    local results = WowSync:Undo()
-    if results then
+    local result = WowSync:Undo()
+    if result then
         WowSync:Print(L["Undid the last apply (X)."]:format(info and info.Subject or L["Unknown"]))
-        for name, result in pairs(results) do
-            if result.applied then
-                WowSync:Print(L["  X: restored"]:format(name))
-            end
+        for _, name in ipairs(result:Applied()) do
+            WowSync:Print(L["  X: restored"]:format(name))
         end
     end
     ApplyUndoState()
@@ -87,22 +85,20 @@ local function ApplySnapshot(snapshot, moduleSet, mode)
 
     -- Apply only the chosen modules of the snapshot, in the requested mode.
     local strategy = { default = mode or "merge" }
-    local results = pm:Apply(currentProfileName, snapshot.Hash, strategy, moduleSet)
-    if results and next(results) then
-        local applied, skipped = 0, 0
-        for name, result in pairs(results) do
-            if result.applied then
-                applied = applied + 1
-                local msg = L["X: applied"]:format(name)
-                if result.warning then
-                    msg = L["X (Y)"]:format(msg, result.warning)
-                end
-                WowSync:Print(msg)
-            else
-                skipped = skipped + 1
-                WowSync:Print(L["X: skipped - Y"]:format(name, result.reason or L["unknown"]))
+    local result = pm:Apply(currentProfileName, snapshot.Hash, strategy, moduleSet)
+    if result and result:Any() then
+        for _, name in ipairs(result:Applied()) do
+            local outcome = result:Get(name)
+            local msg = L["X: applied"]:format(name)
+            if outcome.warning then
+                msg = L["X (Y)"]:format(msg, outcome.warning)
             end
+            WowSync:Print(msg)
         end
+        for _, name in ipairs(result:Skipped()) do
+            WowSync:Print(L["X: skipped - Y"]:format(name, result:Get(name).reason or L["unknown"]))
+        end
+        local applied, skipped = result:Counts()
         SetApplyStatus(applied, skipped)
     else
         WowSync:Print(L["Nothing to apply."])
@@ -165,17 +161,15 @@ end
 
 -- Roll back the most recent `count` applies (a cascade from the undo list).
 local function DoUndoSteps(count, entry)
-    local results = WowSync:UndoSteps(count)
-    if results then
+    local result = WowSync:UndoSteps(count)
+    if result then
         if count > 1 then
             WowSync:Print(L["Undid X changes."]:format(count))
         else
             WowSync:Print(L["Undid the last apply (X)."]:format(entry and entry.Subject or L["Unknown"]))
         end
-        for name, result in pairs(results) do
-            if result.applied then
-                WowSync:Print(L["  X: restored"]:format(name))
-            end
+        for _, name in ipairs(result:Applied()) do
+            WowSync:Print(L["  X: restored"]:format(name))
         end
     end
     ApplyUndoState()
