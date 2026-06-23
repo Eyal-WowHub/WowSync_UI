@@ -1,7 +1,5 @@
 local _, addon = ...
 
-local L = addon.L
-
 --[[
     Dialogs object.
 
@@ -19,6 +17,8 @@ local L = addon.L
 ]]
 
 local Dialogs = addon:NewObject("Dialogs")
+
+local L = addon.L
 
 StaticPopupDialogs["WOWSYNC_UNDO"] = {
     text = L["Undo the last apply (X)?"],

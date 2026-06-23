@@ -1,7 +1,5 @@
 local _, addon = ...
 
-local L = addon.L
-
 --[[
     ModuleRow object (row renderer).
 
@@ -15,6 +13,8 @@ local L = addon.L
 ]]
 
 local ModuleRow = addon:NewObject("ModuleRow")
+
+local L = addon.L
 
 function ModuleRow:Build(parent)
     local cb = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")

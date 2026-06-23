@@ -1,9 +1,5 @@
 local _, addon = ...
 
-local UI = addon.UI
-local L = addon.L
-local Settings = addon.Settings
-
 --[[
     MainFrame object.
 
@@ -25,6 +21,10 @@ local CharacterDetails = addon:GetObject("CharacterDetails")
 local SaveDialog = addon:GetObject("SaveDialog")
 local Splitter = addon:GetObject("Splitter")
 local ResizeGrip = addon:GetObject("ResizeGrip")
+
+local L = addon.L
+local UI = addon.UI
+local Settings = addon.Settings
 
 local frame
 local profileList, profileDetails

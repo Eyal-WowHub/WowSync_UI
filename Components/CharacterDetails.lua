@@ -1,8 +1,5 @@
 local _, addon = ...
 
-local UI = addon.UI
-local L = addon.L
-
 --[[
     CharacterDetails object (right panel, Characters view).
 
@@ -21,6 +18,9 @@ local L = addon.L
 
 local CharacterDetails = addon:NewObject("CharacterDetails")
 local SaveDialog = addon:GetObject("SaveDialog")
+
+local L = addon.L
+local UI = addon.UI
 
 local pm
 local currentEntry = nil

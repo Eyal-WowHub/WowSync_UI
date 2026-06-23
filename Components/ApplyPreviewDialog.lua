@@ -1,8 +1,5 @@
 local _, addon = ...
 
-local UI = addon.UI
-local L = addon.L
-
 --[[
     ApplyPreviewDialog object.
 
@@ -24,6 +21,9 @@ local L = addon.L
 local ApplyPreviewDialog = addon:NewObject("ApplyPreviewDialog")
 local ModuleList = addon:GetObject("ModuleList")
 local SnapshotRow = addon:GetObject("SnapshotRow")
+
+local L = addon.L
+local UI = addon.UI
 
 local pm
 local frame

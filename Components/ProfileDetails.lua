@@ -1,8 +1,5 @@
 local _, addon = ...
 
-local UI = addon.UI
-local L = addon.L
-
 --[[
     ProfileDetails object (right panel).
 
@@ -28,6 +25,9 @@ local SnapshotList = addon:GetObject("SnapshotList")
 local UndoList = addon:GetObject("UndoList")
 local ActionBar = addon:GetObject("ActionBar")
 local ApplyPreviewDialog = addon:GetObject("ApplyPreviewDialog")
+
+local L = addon.L
+local UI = addon.UI
 
 -- Status text colours { r, g, b, a } for in-sync/saved and out-of-sync states.
 local SUCCESS_TEXT_COLOR = { 0.3, 0.85, 0.3, 1 }

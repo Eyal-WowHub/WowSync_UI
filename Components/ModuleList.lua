@@ -1,7 +1,5 @@
 local _, addon = ...
 
-local UI = addon.UI
-
 --[[
     ModuleList object.
 
@@ -19,6 +17,8 @@ local UI = addon.UI
 
 local ModuleList = addon:NewObject("ModuleList")
 local ModuleRow = addon:GetObject("ModuleRow")
+
+local UI = addon.UI
 
 local pm
 local root

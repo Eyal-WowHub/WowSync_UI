@@ -1,7 +1,5 @@
 local _, addon = ...
 
-local UI = addon.UI
-
 --[[
     SnapshotList object (right-panel timeline).
 
@@ -29,6 +27,8 @@ local UI = addon.UI
 
 local SnapshotList = addon:NewObject("SnapshotList")
 local SnapshotRow = addon:GetObject("SnapshotRow")
+
+local UI = addon.UI
 
 -- Height of a collapsed snapshot row.
 local SNAPSHOT_ROW_HEIGHT = 40

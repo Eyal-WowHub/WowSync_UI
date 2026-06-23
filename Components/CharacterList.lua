@@ -1,8 +1,5 @@
 local _, addon = ...
 
-local UI = addon.UI
-local L = addon.L
-
 --[[
     CharacterList object (left panel, Characters view).
 
@@ -23,6 +20,9 @@ local L = addon.L
 
 local CharacterList = addon:NewObject("CharacterList")
 local CharacterRow = addon:GetObject("CharacterRow")
+
+local L = addon.L
+local UI = addon.UI
 local CharacterGrouping = addon.CharacterGrouping
 
 -- Height of a realm group header row.

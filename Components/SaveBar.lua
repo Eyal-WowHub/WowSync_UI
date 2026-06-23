@@ -1,7 +1,5 @@
 local _, addon = ...
 
-local L = addon.L
-
 --[[
     SaveBar object.
 
@@ -17,6 +15,8 @@ local L = addon.L
 ]]
 
 local SaveBar = addon:NewObject("SaveBar")
+
+local L = addon.L
 
 function SaveBar:Build(region, opts)
     opts = opts or {}

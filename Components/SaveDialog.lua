@@ -1,8 +1,5 @@
 local _, addon = ...
 
-local UI = addon.UI
-local L = addon.L
-
 --[[
     SaveDialog object.
 
@@ -35,6 +32,9 @@ local L = addon.L
 
 local SaveDialog = addon:NewObject("SaveDialog")
 local ModuleRow = addon:GetObject("ModuleRow")
+
+local L = addon.L
+local UI = addon.UI
 
 -- Extra height added to the preview size to fit the note field this dialog adds.
 local NOTE_FIELD_HEIGHT = 60

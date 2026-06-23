@@ -1,8 +1,5 @@
 local _, addon = ...
 
-local UI = addon.UI
-local L = addon.L
-
 --[[
     SnapshotRow object (row renderer).
 
@@ -29,13 +26,16 @@ local L = addon.L
     addon:GetObject("SnapshotRow"):Update(row, elementData, ctx)
 ]]
 
+local SnapshotRow = addon:NewObject("SnapshotRow")
+
+local L = addon.L
+local UI = addon.UI
+
 -- The shared subject format, mirroring the backend's Time:ToShortDisplay.
 local function FormatSubject(timestamp)
     if not timestamp then return "" end
     return date("%d %b %Y %H:%M", timestamp)
 end
-
-local SnapshotRow = addon:NewObject("SnapshotRow")
 
 -- X position of the timeline rail within a row.
 local TIMELINE_RAIL_X = 14

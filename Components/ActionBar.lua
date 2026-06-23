@@ -1,7 +1,5 @@
 local _, addon = ...
 
-local L = addon.L
-
 --[[
     ActionBar object.
 
@@ -16,6 +14,8 @@ local L = addon.L
 ]]
 
 local ActionBar = addon:NewObject("ActionBar")
+
+local L = addon.L
 
 local undoButton
 

@@ -1,8 +1,5 @@
 local _, addon = ...
 
-local UI = addon.UI
-local L = addon.L
-
 --[[
     CharacterRow object (row renderer).
 
@@ -22,12 +19,15 @@ local L = addon.L
     addon:GetObject("CharacterRow"):Update(row, elementData, ctx)
 ]]
 
+local CharacterRow = addon:NewObject("CharacterRow")
+
+local L = addon.L
+local UI = addon.UI
+
 local function FormatLastSeen(timestamp)
     if not timestamp then return "" end
     return L["Last seen: X"]:format(date("%b %d, %Y", timestamp))
 end
-
-local CharacterRow = addon:NewObject("CharacterRow")
 
 function CharacterRow:Build(row, ctx)
     row.bg = row:CreateTexture(nil, "BACKGROUND")

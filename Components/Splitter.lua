@@ -1,8 +1,5 @@
 local _, addon = ...
 
-local UI = addon.UI
-local DragTracker = addon:GetObject("DragTracker")
-
 --[[
     Splitter object.
 
@@ -24,6 +21,9 @@ local DragTracker = addon:GetObject("DragTracker")
 ]]
 
 local Splitter = addon:NewObject("Splitter")
+local DragTracker = addon:GetObject("DragTracker")
+
+local UI = addon.UI
 
 -- Idle and hover colours of the handle's centre line { r, g, b, a }.
 local SPLITTER_COLOR = { 0.35, 0.35, 0.35, 0.7 }

@@ -1,7 +1,5 @@
 local _, addon = ...
 
-local L = addon.L
-
 --[[
     LockButton object.
 
@@ -17,6 +15,8 @@ local L = addon.L
 ]]
 
 local LockButton = addon:NewObject("LockButton")
+
+local L = addon.L
 
 function LockButton:Build(parent, anchorTo, opts)
     opts = opts or {}

@@ -1,7 +1,5 @@
 local _, addon = ...
 
-local DragTracker = addon:GetObject("DragTracker")
-
 --[[
     ResizeGrip object.
 
@@ -18,6 +16,7 @@ local DragTracker = addon:GetObject("DragTracker")
 ]]
 
 local ResizeGrip = addon:NewObject("ResizeGrip")
+local DragTracker = addon:GetObject("DragTracker")
 
 -- Size of the square grab handle.
 local RESIZE_GRIP_SIZE = 16

@@ -1,8 +1,5 @@
 local _, addon = ...
 
-local UI = addon.UI
-local L = addon.L
-
 --[[
     UndoList object (right-panel empty-state undo history).
 
@@ -22,6 +19,9 @@ local L = addon.L
 ]]
 
 local UndoList = addon:NewObject("UndoList")
+
+local L = addon.L
+local UI = addon.UI
 
 -- Height of an undo history row and the gap between rows.
 local UNDO_ROW_HEIGHT = 34

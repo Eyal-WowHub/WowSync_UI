@@ -1,7 +1,5 @@
 local _, addon = ...
 
-local UI = addon.UI
-
 --[[
     ProfileRow object (row renderer).
 
@@ -19,12 +17,14 @@ local UI = addon.UI
     addon:GetObject("ProfileRow"):Update(row, elementData, ctx)
 ]]
 
+local ProfileRow = addon:NewObject("ProfileRow")
+
+local UI = addon.UI
+
 local function FormatDate(timestamp)
     if not timestamp then return "" end
     return date("%b %d, %Y", timestamp)
 end
-
-local ProfileRow = addon:NewObject("ProfileRow")
 
 function ProfileRow:Build(row, ctx)
     row.bg = row:CreateTexture(nil, "BACKGROUND")

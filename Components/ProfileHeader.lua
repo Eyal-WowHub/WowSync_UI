@@ -1,7 +1,5 @@
 local _, addon = ...
 
-local L = addon.L
-
 --[[
     ProfileHeader object.
 
@@ -13,6 +11,8 @@ local L = addon.L
 ]]
 
 local ProfileHeader = addon:NewObject("ProfileHeader")
+
+local L = addon.L
 
 local titleText, infoText
 

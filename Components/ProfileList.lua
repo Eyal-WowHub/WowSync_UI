@@ -1,8 +1,5 @@
 local _, addon = ...
 
-local UI = addon.UI
-local L = addon.L
-
 --[[
     ProfileList object (left panel).
 
@@ -24,6 +21,9 @@ local L = addon.L
 local ProfileList = addon:NewObject("ProfileList")
 local SaveBar = addon:GetObject("SaveBar")
 local ProfileRow = addon:GetObject("ProfileRow")
+
+local L = addon.L
+local UI = addon.UI
 
 local pm
 local scrollBox
