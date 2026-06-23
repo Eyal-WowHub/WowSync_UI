@@ -25,6 +25,12 @@ local CharacterList = addon:NewObject("CharacterList")
 local CharacterRow = addon:GetObject("CharacterRow")
 local CharacterGrouping = addon.CharacterGrouping
 
+-- Height of a realm group header row.
+local REALM_HEADER_HEIGHT = 20
+
+-- Colour of a realm group header label.
+local REALM_HEADER_COLOR = CreateColor(0.55, 0.7, 0.95, 1)
+
 local pm
 local scrollBox
 local emptyLabel
@@ -40,7 +46,7 @@ local function BuildRow(row, rowContext)
     row.headerText:SetPoint("BOTTOMLEFT", 8, 4)
     row.headerText:SetPoint("RIGHT", -6, 0)
     row.headerText:SetJustifyH("LEFT")
-    row.headerText:SetTextColor(UI.RealmHeaderColor:GetRGB())
+    row.headerText:SetTextColor(REALM_HEADER_COLOR:GetRGB())
     row.headerText:Hide()
 end
 
@@ -72,8 +78,8 @@ function CharacterList:Build(region)
         tile = true, tileSize = 8, edgeSize = 12,
         insets = { left = 2, right = 2, top = 2, bottom = 2 },
     })
-    root:SetBackdropColor(unpack(UI.PanelBackdropColor))
-    root:SetBackdropBorderColor(unpack(UI.PanelBorderColor))
+    root:SetBackdropColor(unpack(UI.Backdrop.Panel))
+    root:SetBackdropBorderColor(unpack(UI.Backdrop.PanelBorder))
 
     -- Title
     local title = root:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
@@ -111,11 +117,11 @@ function CharacterList:Build(region)
     local view = CreateScrollBoxListLinearView()
     view:SetElementExtentCalculator(function(_, elementData)
         if elementData.kind == "header" then
-            return UI.RealmHeaderHeight
+            return REALM_HEADER_HEIGHT
         end
-        return UI.ListItemHeight
+        return UI.List.ItemHeight
     end)
-    view:SetPadding(0, 0, 0, 0, UI.ListItemPadding)
+    view:SetPadding(0, 0, 0, 0, UI.List.ItemPadding)
     view:SetElementInitializer("Frame", function(row, elementData)
         if not row.initialized then
             BuildRow(row, rowContext)
@@ -188,9 +194,9 @@ function CharacterList:Select(elementData)
             return
         end
         if frame.charKey == selectedKey then
-            frame.bg:SetColorTexture(UI.RowSelectedColor:GetRGBA())
+            frame.bg:SetColorTexture(UI.Row.Selected:GetRGBA())
         else
-            frame.bg:SetColorTexture(UI.RowNormalColor:GetRGBA())
+            frame.bg:SetColorTexture(UI.Row.Normal:GetRGBA())
         end
     end)
     if onSelectionChanged then onSelectionChanged(elementData) end

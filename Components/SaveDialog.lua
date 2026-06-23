@@ -36,6 +36,9 @@ local L = addon.L
 local SaveDialog = addon:NewObject("SaveDialog")
 local ModuleRow = addon:GetObject("ModuleRow")
 
+-- Extra height added to the preview size to fit the note field this dialog adds.
+local NOTE_FIELD_HEIGHT = 60
+
 local pm
 local frame
 local title, nameLabel, nameBox, pickButton, noteBox, toggleButton
@@ -102,7 +105,7 @@ local function LayoutActiveRows()
         cb:SetPoint("TOPLEFT", 0, -yOffset)
         ModuleRow:Update(cb, name, true, nil, nil)
         cb:Show()
-        yOffset = yOffset + UI.ModuleRowHeight + UI.ModuleRowPadding
+        yOffset = yOffset + UI.ModuleRow.Height + UI.ModuleRow.Padding
     end
 
     for name, cb in pairs(rows) do
@@ -133,7 +136,7 @@ local function Build()
     -- Taller than the apply preview to keep room for the full module list below
     -- the extra name and note rows.
     frame = CreateFrame("Frame", "WowSyncSaveDialog", UIParent, "BackdropTemplate")
-    frame:SetSize(UI.PreviewWidth, UI.PreviewHeight + 60)
+    frame:SetSize(UI.Preview.Width, UI.Preview.Height + NOTE_FIELD_HEIGHT)
     frame:SetPoint("CENTER")
     frame:SetFrameStrata("FULLSCREEN_DIALOG")
     frame:SetBackdrop({
@@ -142,8 +145,8 @@ local function Build()
         tile = true, tileSize = 16, edgeSize = 16,
         insets = { left = 4, right = 4, top = 4, bottom = 4 },
     })
-    frame:SetBackdropColor(unpack(UI.MainBackdropColor))
-    frame:SetBackdropBorderColor(unpack(UI.MainBorderColor))
+    frame:SetBackdropColor(unpack(UI.Backdrop.Main))
+    frame:SetBackdropBorderColor(unpack(UI.Backdrop.MainBorder))
     frame:EnableMouse(true)
 
     title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")

@@ -30,6 +30,18 @@ local UI = addon.UI
 local SnapshotList = addon:NewObject("SnapshotList")
 local SnapshotRow = addon:GetObject("SnapshotRow")
 
+-- Height of a collapsed snapshot row.
+local SNAPSHOT_ROW_HEIGHT = 40
+
+-- Vertical gap between snapshot rows.
+local SNAPSHOT_ROW_PADDING = 2
+
+-- Height of a single text line in an expanded row's detail panel.
+local SNAPSHOT_DETAIL_LINE_HEIGHT = 15
+
+-- Padding below the last line of an expanded row's detail panel.
+local SNAPSHOT_DETAIL_BOTTOM_PAD = 8
+
 local pm
 local scrollBox
 local entries = {}           -- ordered newest-first { snapshot, isLatest, isOldest }
@@ -46,15 +58,15 @@ local onContext = nil        -- right-click handler (snapshot, subject, anchor)
 local function DetailExtent(detail)
     if not detail then return 0 end
 
-    local height = UI.SnapshotDetailTopPad
+    local height = UI.SnapshotDetail.TopPad
     if detail.hasNote then
-        height = height + UI.SnapshotDetailNoteHeight
+        height = height + UI.SnapshotDetail.NoteHeight
     end
     -- The "Changes vs current setup:" header, then one line per changed module
     -- (or a single "matches" line when there is nothing to show).
-    height = height + UI.SnapshotDetailLineHeight
-    height = height + math.max(1, #detail.modules) * UI.SnapshotDetailLineHeight
-    height = height + UI.SnapshotDetailBottomPad
+    height = height + SNAPSHOT_DETAIL_LINE_HEIGHT
+    height = height + math.max(1, #detail.modules) * SNAPSHOT_DETAIL_LINE_HEIGHT
+    height = height + SNAPSHOT_DETAIL_BOTTOM_PAD
     return height
 end
 
@@ -136,11 +148,11 @@ function SnapshotList:Build(region, opts)
     -- Variable extents: the one expanded row is taller by its detail panel.
     view:SetElementExtentCalculator(function(_, elementData)
         if elementData.snapshot.Hash == expandedHash then
-            return UI.SnapshotSubjectZone + DetailExtent(expandedDetail)
+            return UI.SnapshotDetail.SubjectZone + DetailExtent(expandedDetail)
         end
-        return UI.SnapshotRowHeight
+        return SNAPSHOT_ROW_HEIGHT
     end)
-    view:SetPadding(0, 0, 0, 0, UI.SnapshotRowPadding)
+    view:SetPadding(0, 0, 0, 0, SNAPSHOT_ROW_PADDING)
     view:SetElementInitializer("Frame", function(row, elementData)
         if not row.initialized then
             SnapshotRow:Build(row, rowContext)

@@ -43,8 +43,8 @@ function ProfileList:Build(region)
         tile = true, tileSize = 8, edgeSize = 12,
         insets = { left = 2, right = 2, top = 2, bottom = 2 },
     })
-    root:SetBackdropColor(unpack(UI.PanelBackdropColor))
-    root:SetBackdropBorderColor(unpack(UI.PanelBorderColor))
+    root:SetBackdropColor(unpack(UI.Backdrop.Panel))
+    root:SetBackdropBorderColor(unpack(UI.Backdrop.PanelBorder))
 
     -- Title
     local title = root:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
@@ -86,8 +86,8 @@ function ProfileList:Build(region)
 
     -- List view
     local view = CreateScrollBoxListLinearView()
-    view:SetElementExtent(UI.ListItemHeight)
-    view:SetPadding(0, 0, 0, 0, UI.ListItemPadding)
+    view:SetElementExtent(UI.List.ItemHeight)
+    view:SetPadding(0, 0, 0, 0, UI.List.ItemPadding)
     view:SetElementInitializer("Frame", function(row, elementData)
         if not row.initialized then
             ProfileRow:Build(row, rowContext)
@@ -158,9 +158,9 @@ function ProfileList:Select(profileName)
     selectedProfileName = profileName
     scrollBox:ForEachFrame(function(frame)
         if frame.profileName == selectedProfileName then
-            frame.bg:SetColorTexture(UI.RowSelectedColor:GetRGBA())
+            frame.bg:SetColorTexture(UI.Row.Selected:GetRGBA())
         else
-            frame.bg:SetColorTexture(UI.RowNormalColor:GetRGBA())
+            frame.bg:SetColorTexture(UI.Row.Normal:GetRGBA())
         end
     end)
     if onSelectionChanged then onSelectionChanged(selectedProfileName) end

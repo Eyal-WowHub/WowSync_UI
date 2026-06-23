@@ -92,8 +92,8 @@ function CharacterDetails:Build(region)
         tile = true, tileSize = 8, edgeSize = 12,
         insets = { left = 2, right = 2, top = 2, bottom = 2 },
     })
-    root:SetBackdropColor(unpack(UI.PanelBackdropColor))
-    root:SetBackdropBorderColor(unpack(UI.PanelBorderColor))
+    root:SetBackdropColor(unpack(UI.Backdrop.Panel))
+    root:SetBackdropBorderColor(unpack(UI.Backdrop.PanelBorder))
 
     -- Empty state label
     emptyLabel = root:CreateFontString(nil, "OVERLAY", "GameFontDisableLarge")
@@ -121,7 +121,7 @@ function CharacterDetails:Build(region)
     separator:SetPoint("TOPLEFT", 10, -52)
     separator:SetPoint("RIGHT", content, "RIGHT", -10, 0)
     separator:SetHeight(1)
-    separator:SetColorTexture(unpack(UI.SeparatorColor))
+    separator:SetColorTexture(unpack(UI.Backdrop.Separator))
 
     local listHeader = content:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     listHeader:SetPoint("TOPLEFT", separator, "BOTTOMLEFT", 2, -8)
@@ -138,8 +138,8 @@ function CharacterDetails:Build(region)
     scrollBar:SetPoint("BOTTOMLEFT", moduleScrollBox, "BOTTOMRIGHT", 4, 2)
 
     local view = CreateScrollBoxListLinearView()
-    view:SetElementExtent(UI.ModuleRowHeight)
-    view:SetPadding(0, 0, 0, 0, UI.ModuleRowPadding)
+    view:SetElementExtent(UI.ModuleRow.Height)
+    view:SetPadding(0, 0, 0, 0, UI.ModuleRow.Padding)
     view:SetElementInitializer("Frame", function(row, elementData)
         if not row.text then
             row.text = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")

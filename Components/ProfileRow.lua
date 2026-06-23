@@ -48,12 +48,12 @@ function ProfileRow:Build(row, ctx)
     row:EnableMouse(true)
     row:SetScript("OnEnter", function(self)
         if self.profileName ~= ctx.GetSelected() then
-            self.bg:SetColorTexture(UI.RowHoverColor:GetRGBA())
+            self.bg:SetColorTexture(UI.Row.Hover:GetRGBA())
         end
     end)
     row:SetScript("OnLeave", function(self)
         if self.profileName ~= ctx.GetSelected() then
-            self.bg:SetColorTexture(UI.RowNormalColor:GetRGBA())
+            self.bg:SetColorTexture(UI.Row.Normal:GetRGBA())
         end
     end)
     row:SetScript("OnMouseDown", function(self)
@@ -89,8 +89,8 @@ function ProfileRow:Update(row, elementData, ctx)
 
     -- Selection highlight
     if profileName == ctx.GetSelected() then
-        row.bg:SetColorTexture(UI.RowSelectedColor:GetRGBA())
+        row.bg:SetColorTexture(UI.Row.Selected:GetRGBA())
     else
-        row.bg:SetColorTexture(UI.RowNormalColor:GetRGBA())
+        row.bg:SetColorTexture(UI.Row.Normal:GetRGBA())
     end
 end

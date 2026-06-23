@@ -37,6 +37,27 @@ end
 
 local SnapshotRow = addon:NewObject("SnapshotRow")
 
+-- X position of the timeline rail within a row.
+local TIMELINE_RAIL_X = 14
+
+-- Y offset of a node dot's centre below the row top, aligning it with the subject.
+local SNAPSHOT_NODE_Y = 16
+
+-- Thickness of the timeline rail and diameter of a node dot.
+local RAIL_THICKNESS = 2
+local NODE_SIZE = 14
+
+-- Horizontal nudge centring a node dot on the rail.
+local NODE_RAIL_NUDGE = 1
+
+-- Gap from the rail to the start of the row text.
+local TEXT_INDENT = 16
+
+-- Timeline rail and node colours.
+local TIMELINE_RAIL_COLOR = CreateColor(0.35, 0.35, 0.35, 0.8)
+local TIMELINE_NODE_COLOR = CreateColor(0.6, 0.6, 0.6, 1)
+local TIMELINE_NODE_LATEST_COLOR = CreateColor(0.25, 0.65, 0.95, 1)
+
 -- Exposed so siblings (e.g. the context menu and its dialogs) can label a
 -- snapshot with the same subject the row shows.
 function SnapshotRow:FormatSubject(timestamp)
@@ -50,17 +71,17 @@ function SnapshotRow:Build(row, ctx)
 
     -- Timeline rail: a vertical line down the row with a node dot on it.
     row.rail = row:CreateTexture(nil, "ARTWORK")
-    row.rail:SetColorTexture(UI.TimelineRailColor:GetRGBA())
-    row.rail:SetWidth(2)
-    row.rail:SetPoint("TOPLEFT", row, "TOPLEFT", UI.TimelineRailX, 0)
-    row.rail:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", UI.TimelineRailX, 0)
+    row.rail:SetColorTexture(TIMELINE_RAIL_COLOR:GetRGBA())
+    row.rail:SetWidth(RAIL_THICKNESS)
+    row.rail:SetPoint("TOPLEFT", row, "TOPLEFT", TIMELINE_RAIL_X, 0)
+    row.rail:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", TIMELINE_RAIL_X, 0)
 
     row.node = row:CreateTexture(nil, "OVERLAY")
     row.node:SetTexture("Interface\\COMMON\\Indicator-Gray")
-    row.node:SetSize(14, 14)
-    row.node:SetPoint("CENTER", row, "TOPLEFT", UI.TimelineRailX + 1, -UI.SnapshotNodeY)
+    row.node:SetSize(NODE_SIZE, NODE_SIZE)
+    row.node:SetPoint("CENTER", row, "TOPLEFT", TIMELINE_RAIL_X + NODE_RAIL_NUDGE, -SNAPSHOT_NODE_Y)
 
-    local textLeft = UI.TimelineRailX + 16
+    local textLeft = TIMELINE_RAIL_X + TEXT_INDENT
 
     row.subjectText = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     row.subjectText:SetPoint("TOPLEFT", textLeft, -6)
@@ -78,13 +99,13 @@ function SnapshotRow:Build(row, ctx)
 
     -- Inline detail panel (shown only while expanded). Anchored below the
     -- subject zone; the scroll box sizes the row tall enough to hold it.
-    local detailTop = -(UI.SnapshotSubjectZone + UI.SnapshotDetailTopPad)
+    local detailTop = -(UI.SnapshotDetail.SubjectZone + UI.SnapshotDetail.TopPad)
 
     row.detailNote = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     row.detailNote:SetPoint("RIGHT", -8, 0)
     row.detailNote:SetJustifyH("LEFT")
     row.detailNote:SetJustifyV("TOP")
-    row.detailNote:SetHeight(UI.SnapshotDetailNoteHeight)
+    row.detailNote:SetHeight(UI.SnapshotDetail.NoteHeight)
     row.detailNote:SetWordWrap(true)
     row.detailNote:Hide()
 
@@ -106,12 +127,12 @@ function SnapshotRow:Build(row, ctx)
     row:EnableMouse(true)
     row:SetScript("OnEnter", function(self)
         if self.snapshotHash ~= ctx.GetSelected() then
-            self.bg:SetColorTexture(UI.RowHoverColor:GetRGBA())
+            self.bg:SetColorTexture(UI.Row.Hover:GetRGBA())
         end
     end)
     row:SetScript("OnLeave", function(self)
         if self.snapshotHash ~= ctx.GetSelected() then
-            self.bg:SetColorTexture(UI.RowNormalColor:GetRGBA())
+            self.bg:SetColorTexture(UI.Row.Normal:GetRGBA())
         end
     end)
     row:SetScript("OnMouseDown", function(self, button)
@@ -203,15 +224,15 @@ function SnapshotRow:Update(row, elementData, ctx)
 
     -- The latest node carries the brand accent; older nodes stay neutral.
     if elementData.isLatest then
-        row.node:SetVertexColor(UI.TimelineNodeLatestColor:GetRGB())
+        row.node:SetVertexColor(TIMELINE_NODE_LATEST_COLOR:GetRGB())
     else
-        row.node:SetVertexColor(UI.TimelineNodeColor:GetRGB())
+        row.node:SetVertexColor(TIMELINE_NODE_COLOR:GetRGB())
     end
 
     -- Selection highlight
     if row.snapshotHash == ctx.GetSelected() then
-        row.bg:SetColorTexture(UI.RowSelectedColor:GetRGBA())
+        row.bg:SetColorTexture(UI.Row.Selected:GetRGBA())
     else
-        row.bg:SetColorTexture(UI.RowNormalColor:GetRGBA())
+        row.bg:SetColorTexture(UI.Row.Normal:GetRGBA())
     end
 end

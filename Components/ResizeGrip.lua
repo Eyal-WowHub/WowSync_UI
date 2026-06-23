@@ -1,6 +1,5 @@
 local _, addon = ...
 
-local UI = addon.UI
 local DragTracker = addon:GetObject("DragTracker")
 
 --[[
@@ -20,22 +19,37 @@ local DragTracker = addon:GetObject("DragTracker")
 
 local ResizeGrip = addon:NewObject("ResizeGrip")
 
+-- Size of the square grab handle.
+local RESIZE_GRIP_SIZE = 16
+
+-- Inset of the grip from the frame's bottom-right corner.
+local GRIP_INSET = 4
+
+-- Frame levels the grip sits above its frame so it stays clickable.
+local GRIP_FRAME_LEVEL_OFFSET = 10
+
+-- A click that ends without the frame changing size, shortly after a previous
+-- such click, is treated as a double-click (reset) rather than a resize.
+local DOUBLE_CLICK_SECONDS = 0.3
+
+-- Pixels of size change below which a drag counts as a click rather than a resize.
+local RESIZE_EPSILON = 1
+
 function ResizeGrip:Build(frame, opts)
     opts = opts or {}
 
     local locked = false
 
     local grip = CreateFrame("Button", nil, frame)
-    grip:SetSize(UI.ResizeGripSize, UI.ResizeGripSize)
-    grip:SetPoint("BOTTOMRIGHT", -4, 4)
-    grip:SetFrameLevel(frame:GetFrameLevel() + 10)
+    grip:SetSize(RESIZE_GRIP_SIZE, RESIZE_GRIP_SIZE)
+    grip:SetPoint("BOTTOMRIGHT", -GRIP_INSET, GRIP_INSET)
+    grip:SetFrameLevel(frame:GetFrameLevel() + GRIP_FRAME_LEVEL_OFFSET)
     grip:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
     grip:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
     grip:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
 
-    -- A click that ends without the frame changing size, shortly after a previous
-    -- such click, is treated as a double-click (reset) rather than a resize.
-    local DOUBLE_CLICK_SECONDS = 0.3
+    -- Click-tracking state: the time of the last non-resizing click and the frame
+    -- size when the current drag began, used to tell a resize from a double-click.
     local lastClickTime = 0
     local widthAtDown, heightAtDown = 0, 0
 
@@ -77,7 +91,7 @@ function ResizeGrip:Build(frame, opts)
         end,
         onStop = function()
             local width, height = frame:GetWidth(), frame:GetHeight()
-            if math.abs(width - widthAtDown) > 1 or math.abs(height - heightAtDown) > 1 then
+            if math.abs(width - widthAtDown) > RESIZE_EPSILON or math.abs(height - heightAtDown) > RESIZE_EPSILON then
                 -- An actual resize: persist it and clear any pending double-click
                 -- so a quick click afterwards isn't mistaken for a reset.
                 lastClickTime = 0

@@ -42,7 +42,7 @@ local function Build()
     pm = WowSync:GetProfileManager()
 
     frame = CreateFrame("Frame", "WowSyncApplyPreview", UIParent, "BackdropTemplate")
-    frame:SetSize(UI.PreviewWidth, UI.PreviewHeight)
+    frame:SetSize(UI.Preview.Width, UI.Preview.Height)
     frame:SetPoint("CENTER")
     frame:SetFrameStrata("FULLSCREEN_DIALOG")
     frame:SetBackdrop({
@@ -51,8 +51,8 @@ local function Build()
         tile = true, tileSize = 16, edgeSize = 16,
         insets = { left = 4, right = 4, top = 4, bottom = 4 },
     })
-    frame:SetBackdropColor(unpack(UI.MainBackdropColor))
-    frame:SetBackdropBorderColor(unpack(UI.MainBorderColor))
+    frame:SetBackdropColor(unpack(UI.Backdrop.Main))
+    frame:SetBackdropBorderColor(unpack(UI.Backdrop.MainBorder))
     frame:EnableMouse(true)
 
     titleLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")

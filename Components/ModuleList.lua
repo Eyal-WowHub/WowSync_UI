@@ -107,7 +107,7 @@ function ModuleList:SetSnapshot(snapshot, preview, mode)
         cb:Show()
 
         checkboxes[name] = cb
-        yOffset = yOffset + UI.ModuleRowHeight + UI.ModuleRowPadding
+        yOffset = yOffset + UI.ModuleRow.Height + UI.ModuleRow.Padding
     end
 end
 

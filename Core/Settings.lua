@@ -30,8 +30,8 @@ local UI = addon.UI
 -- should stay nil until first set (anchor, splitRatio) are intentionally absent.
 local DEFAULTS = {
     profile = {
-        frameWidth = UI.FrameWidth,
-        frameHeight = UI.FrameHeight,
+        frameWidth = UI.Window.Width,
+        frameHeight = UI.Window.Height,
         locked = false,
     },
 }

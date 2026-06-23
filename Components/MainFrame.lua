@@ -35,25 +35,59 @@ local showView
 -- panel always keeps the majority.
 local MAX_LEFT_PANEL_RATIO = 0.4
 
+-- Default width of the left panel; the starting split ratio is derived from it.
+local LEFT_PANEL_WIDTH = 220
+
+-- Largest size the window may be resized to.
+local MAX_FRAME_WIDTH = 1600
+local MAX_FRAME_HEIGHT = 1100
+
+-- Smallest width each panel may shrink to.
+local MIN_LEFT_PANEL_WIDTH = 200
+local MIN_RIGHT_PANEL_WIDTH = 600
+
+-- Slack kept between the two panel minimums so the splitter always has room to
+-- move, even at the smallest window.
+local MIN_SPLIT_TRAVEL = 120
+
+-- Heights of the title bar and the tab strip beneath it.
+local TITLE_BAR_HEIGHT = 28
+local TAB_STRIP_HEIGHT = 24
+
+-- Inset between the frame edge and its content on every side.
+local EDGE_INSET = 8
+
+-- Tab strip metrics.
+local TAB_WIDTH = 110
+local TAB_GAP = 4
+local TAB_UNDERLINE_INSET = 4
+local TAB_UNDERLINE_THICKNESS = 2
+
+-- Colour escape applied to the window title.
+local ACCENT_HEX = "ff40a5f7"
+
+-- Underline drawn beneath the active tab.
+local TAB_UNDERLINE_COLOR = CreateColor(0.25, 0.65, 0.95, 1)
+
 -- A slim tab that switches the active top-level view. Active tabs show an accent
 -- underline and a highlighted background; inactive tabs are dimmed.
 local function CreateTab(parent, label, onClick)
     local tab = CreateFrame("Button", nil, parent)
-    tab:SetSize(110, UI.TabStripHeight)
+    tab:SetSize(TAB_WIDTH, TAB_STRIP_HEIGHT)
 
     tab.bg = tab:CreateTexture(nil, "BACKGROUND")
     tab.bg:SetAllPoints()
-    tab.bg:SetColorTexture(UI.RowNormalColor:GetRGBA())
+    tab.bg:SetColorTexture(UI.Row.Normal:GetRGBA())
 
     tab.text = tab:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     tab.text:SetPoint("CENTER")
     tab.text:SetText(label)
 
     tab.underline = tab:CreateTexture(nil, "ARTWORK")
-    tab.underline:SetPoint("BOTTOMLEFT", 4, 0)
-    tab.underline:SetPoint("BOTTOMRIGHT", -4, 0)
-    tab.underline:SetHeight(2)
-    tab.underline:SetColorTexture(UI.TabUnderlineColor:GetRGBA())
+    tab.underline:SetPoint("BOTTOMLEFT", TAB_UNDERLINE_INSET, 0)
+    tab.underline:SetPoint("BOTTOMRIGHT", -TAB_UNDERLINE_INSET, 0)
+    tab.underline:SetHeight(TAB_UNDERLINE_THICKNESS)
+    tab.underline:SetColorTexture(TAB_UNDERLINE_COLOR:GetRGBA())
     tab.underline:Hide()
 
     tab.active = false
@@ -62,17 +96,17 @@ local function CreateTab(parent, label, onClick)
         self.active = active
         self.underline:SetShown(active)
         self.text:SetFontObject(active and "GameFontNormal" or "GameFontDisable")
-        self.bg:SetColorTexture((active and UI.RowSelectedColor or UI.RowNormalColor):GetRGBA())
+        self.bg:SetColorTexture((active and UI.Row.Selected or UI.Row.Normal):GetRGBA())
     end
 
     tab:SetScript("OnEnter", function(self)
         if not self.active then
-            self.bg:SetColorTexture(UI.RowHoverColor:GetRGBA())
+            self.bg:SetColorTexture(UI.Row.Hover:GetRGBA())
         end
     end)
     tab:SetScript("OnLeave", function(self)
         if not self.active then
-            self.bg:SetColorTexture(UI.RowNormalColor:GetRGBA())
+            self.bg:SetColorTexture(UI.Row.Normal:GetRGBA())
         end
     end)
     tab:SetScript("OnClick", onClick)
@@ -93,19 +127,19 @@ local function Build()
     -- MaxFrame* caps are treated as preferences and clamped into a feasible range.
     -- This keeps the UI valid for ANY combination of values in Constants.lua:
     -- nothing edited there can invert the resize bounds or starve a panel.
-    local contentInset = 16  -- each view is inset 8px on both sides of the frame
+    local contentInset = EDGE_INSET * 2
     -- The minimum width carries both panel minimums plus a reserved band of travel
-    -- (MinSplitTravel), so the splitter is never pinned even at the smallest window.
-    local minFrameWidth = UI.MinLeftPanelWidth + UI.SplitterWidth + UI.MinRightPanelWidth
-        + UI.MinSplitTravel + contentInset
-    local minFrameHeight = UI.FrameHeight
-    local maxFrameWidth = math.max(UI.MaxFrameWidth, minFrameWidth)
-    local maxFrameHeight = math.max(UI.MaxFrameHeight, minFrameHeight)
-    local defaultFrameWidth = Clamp(UI.FrameWidth, minFrameWidth, maxFrameWidth)
-    local defaultFrameHeight = Clamp(UI.FrameHeight, minFrameHeight, maxFrameHeight)
+    -- so the splitter is never pinned even at the smallest window.
+    local minFrameWidth = MIN_LEFT_PANEL_WIDTH + UI.Splitter.Width + MIN_RIGHT_PANEL_WIDTH
+        + MIN_SPLIT_TRAVEL + contentInset
+    local minFrameHeight = UI.Window.Height
+    local maxFrameWidth = math.max(MAX_FRAME_WIDTH, minFrameWidth)
+    local maxFrameHeight = math.max(MAX_FRAME_HEIGHT, minFrameHeight)
+    local defaultFrameWidth = Clamp(UI.Window.Width, minFrameWidth, maxFrameWidth)
+    local defaultFrameHeight = Clamp(UI.Window.Height, minFrameHeight, maxFrameHeight)
 
     local defaultContentWidth = defaultFrameWidth - contentInset
-    local splitRatio = Settings:GetSplitRatio() or (UI.LeftPanelWidth / defaultContentWidth)
+    local splitRatio = Settings:GetSplitRatio() or (LEFT_PANEL_WIDTH / defaultContentWidth)
     local resizeGrip
     local setLocked
 
@@ -113,10 +147,10 @@ local function Build()
     -- panel may drop below its minimum, and the left panel never passes
     -- MAX_LEFT_PANEL_RATIO of the pane so the right panel keeps the majority.
     local function ClampLeftWidth(leftWidth, viewWidth)
-        local maxLeft = math.max(UI.MinLeftPanelWidth,
-            math.min(viewWidth - UI.SplitterWidth - UI.MinRightPanelWidth,
+        local maxLeft = math.max(MIN_LEFT_PANEL_WIDTH,
+            math.min(viewWidth - UI.Splitter.Width - MIN_RIGHT_PANEL_WIDTH,
                 viewWidth * MAX_LEFT_PANEL_RATIO))
-        return Clamp(leftWidth, UI.MinLeftPanelWidth, maxLeft)
+        return Clamp(leftWidth, MIN_LEFT_PANEL_WIDTH, maxLeft)
     end
 
     -- Apply the current split ratio to every view. Re-run whenever the window or
@@ -164,8 +198,8 @@ local function Build()
         tile = true, tileSize = 16, edgeSize = 16,
         insets = { left = 4, right = 4, top = 4, bottom = 4 },
     })
-    frame:SetBackdropColor(unpack(UI.MainBackdropColor))
-    frame:SetBackdropBorderColor(unpack(UI.MainBorderColor))
+    frame:SetBackdropColor(unpack(UI.Backdrop.Main))
+    frame:SetBackdropBorderColor(unpack(UI.Backdrop.MainBorder))
     frame:SetMovable(true)
     frame:SetResizable(true)
     frame:SetResizeBounds(minFrameWidth, minFrameHeight, maxFrameWidth, maxFrameHeight)
@@ -207,39 +241,39 @@ local function Build()
     local titleSlot = CreateFrame("Frame", nil, frame)
     titleSlot:SetPoint("TOPLEFT", 0, 0)
     titleSlot:SetPoint("TOPRIGHT", 0, 0)
-    titleSlot:SetHeight(UI.TitleBarHeight)
+    titleSlot:SetHeight(TITLE_BAR_HEIGHT)
     TitleBar:Build(titleSlot, {
-        title = "|c" .. UI.AccentHex .. "WowSync|r",
+        title = "|c" .. ACCENT_HEX .. "WowSync|r",
         onClose = function() frame:Hide() end,
         onToggleLock = function(value) setLocked(value) end,
     })
 
     -- Tab strip (Profiles | Characters)
     local tabStrip = CreateFrame("Frame", nil, frame)
-    tabStrip:SetPoint("TOPLEFT", 8, -28)
-    tabStrip:SetPoint("TOPRIGHT", -8, -28)
-    tabStrip:SetHeight(UI.TabStripHeight)
+    tabStrip:SetPoint("TOPLEFT", EDGE_INSET, -TITLE_BAR_HEIGHT)
+    tabStrip:SetPoint("TOPRIGHT", -EDGE_INSET, -TITLE_BAR_HEIGHT)
+    tabStrip:SetHeight(TAB_STRIP_HEIGHT)
 
     local profilesTab = CreateTab(tabStrip, L["Profiles"], function() showView("profiles") end)
     profilesTab:SetPoint("LEFT", 0, 0)
 
     local charactersTab = CreateTab(tabStrip, L["Characters"], function() showView("characters") end)
-    charactersTab:SetPoint("LEFT", profilesTab, "RIGHT", 4, 0)
+    charactersTab:SetPoint("LEFT", profilesTab, "RIGHT", TAB_GAP, 0)
 
-    local contentTop = -(28 + UI.TabStripHeight)
+    local contentTop = -(TITLE_BAR_HEIGHT + TAB_STRIP_HEIGHT)
 
     -- Profiles view: profile list (left) + profile details (right)
     local profilesView = CreateFrame("Frame", nil, frame)
-    profilesView:SetPoint("TOPLEFT", 8, contentTop)
-    profilesView:SetPoint("BOTTOMRIGHT", -8, 8)
+    profilesView:SetPoint("TOPLEFT", EDGE_INSET, contentTop)
+    profilesView:SetPoint("BOTTOMRIGHT", -EDGE_INSET, EDGE_INSET)
 
     local leftSlot = CreateFrame("Frame", nil, profilesView)
     leftSlot:SetPoint("TOPLEFT", 0, 0)
     leftSlot:SetPoint("BOTTOMLEFT", 0, 0)
-    leftSlot:SetWidth(UI.LeftPanelWidth)
+    leftSlot:SetWidth(LEFT_PANEL_WIDTH)
 
     local rightSlot = CreateFrame("Frame", nil, profilesView)
-    rightSlot:SetPoint("TOPLEFT", leftSlot, "TOPRIGHT", UI.SplitterWidth, 0)
+    rightSlot:SetPoint("TOPLEFT", leftSlot, "TOPRIGHT", UI.Splitter.Width, 0)
     rightSlot:SetPoint("BOTTOMRIGHT", 0, 0)
 
     profileList = ProfileList:Build(leftSlot)
@@ -290,17 +324,17 @@ local function Build()
 
     -- Characters view: character list (left) + character details (right)
     local charactersView = CreateFrame("Frame", nil, frame)
-    charactersView:SetPoint("TOPLEFT", 8, contentTop)
-    charactersView:SetPoint("BOTTOMRIGHT", -8, 8)
+    charactersView:SetPoint("TOPLEFT", EDGE_INSET, contentTop)
+    charactersView:SetPoint("BOTTOMRIGHT", -EDGE_INSET, EDGE_INSET)
     charactersView:Hide()
 
     local charLeftSlot = CreateFrame("Frame", nil, charactersView)
     charLeftSlot:SetPoint("TOPLEFT", 0, 0)
     charLeftSlot:SetPoint("BOTTOMLEFT", 0, 0)
-    charLeftSlot:SetWidth(UI.LeftPanelWidth)
+    charLeftSlot:SetWidth(LEFT_PANEL_WIDTH)
 
     local charRightSlot = CreateFrame("Frame", nil, charactersView)
-    charRightSlot:SetPoint("TOPLEFT", charLeftSlot, "TOPRIGHT", UI.SplitterWidth, 0)
+    charRightSlot:SetPoint("TOPLEFT", charLeftSlot, "TOPRIGHT", UI.Splitter.Width, 0)
     charRightSlot:SetPoint("BOTTOMRIGHT", 0, 0)
 
     characterList = CharacterList:Build(charLeftSlot)

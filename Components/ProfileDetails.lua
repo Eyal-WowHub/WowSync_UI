@@ -29,6 +29,10 @@ local UndoList = addon:GetObject("UndoList")
 local ActionBar = addon:GetObject("ActionBar")
 local ApplyPreviewDialog = addon:GetObject("ApplyPreviewDialog")
 
+-- Status text colours { r, g, b, a } for in-sync/saved and out-of-sync states.
+local SUCCESS_TEXT_COLOR = { 0.3, 0.85, 0.3, 1 }
+local WARNING_TEXT_COLOR = { 0.95, 0.75, 0.2, 1 }
+
 local pm
 local currentProfileName = nil
 local onRefreshNeeded = nil
@@ -54,11 +58,11 @@ local function RefreshSyncStatus()
     local totals = preview.totals
     if totals.added + totals.changed + totals.removed == 0 then
         syncLabel:SetText(L["Up to date"])
-        syncLabel:SetTextColor(unpack(UI.SuccessTextColor))
+        syncLabel:SetTextColor(unpack(SUCCESS_TEXT_COLOR))
     else
         syncLabel:SetText(L["Unsaved changes"] .. "  "
             .. L["+A ~C -R"]:format(totals.added, totals.changed, totals.removed))
-        syncLabel:SetTextColor(unpack(UI.WarningTextColor))
+        syncLabel:SetTextColor(unpack(WARNING_TEXT_COLOR))
     end
     syncLabel:Show()
 end
@@ -94,10 +98,10 @@ end
 local function SetApplyStatus(applied, skipped)
     if skipped > 0 then
         statusLabel:SetText(L["Applied X, skipped Y (see chat)"]:format(applied, skipped))
-        statusLabel:SetTextColor(unpack(UI.WarningTextColor))
+        statusLabel:SetTextColor(unpack(WARNING_TEXT_COLOR))
     else
         statusLabel:SetText(L["Applied X modules"]:format(applied))
-        statusLabel:SetTextColor(unpack(UI.SuccessTextColor))
+        statusLabel:SetTextColor(unpack(SUCCESS_TEXT_COLOR))
     end
     statusLabel:Show()
 end
@@ -293,8 +297,8 @@ function ProfileDetails:Build(region)
         tile = true, tileSize = 8, edgeSize = 12,
         insets = { left = 2, right = 2, top = 2, bottom = 2 },
     })
-    root:SetBackdropColor(unpack(UI.PanelBackdropColor))
-    root:SetBackdropBorderColor(unpack(UI.PanelBorderColor))
+    root:SetBackdropColor(unpack(UI.Backdrop.Panel))
+    root:SetBackdropBorderColor(unpack(UI.Backdrop.PanelBorder))
 
     -- Empty state label
     emptyLabel = root:CreateFontString(nil, "OVERLAY", "GameFontDisableLarge")
@@ -322,7 +326,7 @@ function ProfileDetails:Build(region)
     separator:SetPoint("TOPLEFT", headerSlot, "BOTTOMLEFT", -2, -6)
     separator:SetPoint("RIGHT", content, "RIGHT", -10, 0)
     separator:SetHeight(1)
-    separator:SetColorTexture(unpack(UI.SeparatorColor))
+    separator:SetColorTexture(unpack(UI.Backdrop.Separator))
 
     -- Snapshot timeline region
     local listSlot = CreateFrame("Frame", nil, content)

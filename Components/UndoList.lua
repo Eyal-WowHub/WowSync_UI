@@ -23,6 +23,10 @@ local L = addon.L
 
 local UndoList = addon:NewObject("UndoList")
 
+-- Height of an undo history row and the gap between rows.
+local UNDO_ROW_HEIGHT = 34
+local UNDO_ROW_PADDING = 2
+
 local pm
 local root
 local scrollBox
@@ -33,7 +37,7 @@ local function BuildRow(row)
 
     row.highlight = row:CreateTexture(nil, "HIGHLIGHT")
     row.highlight:SetAllPoints()
-    row.highlight:SetColorTexture(UI.RowHoverColor:GetRGBA())
+    row.highlight:SetColorTexture(UI.Row.Hover:GetRGBA())
 
     row.subjectText = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     row.subjectText:SetPoint("TOPLEFT", 8, -4)
@@ -85,8 +89,8 @@ function UndoList:Build(region, opts)
     scrollBar:SetPoint("BOTTOMLEFT", scrollBox, "BOTTOMRIGHT", 4, 2)
 
     local view = CreateScrollBoxListLinearView()
-    view:SetElementExtent(UI.UndoRowHeight)
-    view:SetPadding(0, 0, 0, 0, UI.UndoRowPadding)
+    view:SetElementExtent(UNDO_ROW_HEIGHT)
+    view:SetPadding(0, 0, 0, 0, UNDO_ROW_PADDING)
     view:SetElementInitializer("Button", function(row, elementData)
         if not row.initialized then
             BuildRow(row)
