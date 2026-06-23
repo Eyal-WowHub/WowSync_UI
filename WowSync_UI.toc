@@ -6,6 +6,7 @@
 ## Version: @project-version@
 ## Author: Eyal Alon
 
+## LoadOnDemand: 1
 ## RequiredDeps: WowSync
 
 Core\Constants.lua
