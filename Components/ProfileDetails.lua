@@ -38,7 +38,7 @@ local header, actionBar, undoList, snapshotList
 
 -- Reflect the current undo point in whichever view is visible
 local function ApplyUndoState()
-    local hasUndo = WowSync:HasUndo()
+    local hasUndo = pm:HasUndo()
     if content:IsShown() then
         actionBar:SetUndoEnabled(hasUndo)
     else
@@ -64,8 +64,8 @@ end
 -- Action handlers
 
 local function DoUndo()
-    local info = WowSync:GetUndoInfo()
-    local result = WowSync:Undo()
+    local info = pm:GetUndoInfo()
+    local result = pm:Undo()
     if result then
         WowSync:Print(L["Undid the last apply (X)."]:format(info and info.Subject or L["Unknown"]))
         for _, name in ipairs(result:Applied()) do
@@ -153,7 +153,7 @@ local function DoRename(newName)
 end
 
 local function RequestUndo()
-    local info = WowSync:GetUndoInfo()
+    local info = pm:GetUndoInfo()
     if info then
         Dialogs:ConfirmUndo(info.Subject, DoUndo)
     end
@@ -161,7 +161,7 @@ end
 
 -- Roll back the most recent `count` applies (a cascade from the undo list).
 local function DoUndoSteps(count, entry)
-    local result = WowSync:UndoSteps(count)
+    local result = pm:UndoSteps(count)
     if result then
         if count > 1 then
             WowSync:Print(L["Undid X changes."]:format(count))

@@ -23,6 +23,7 @@ local L = addon.L
 
 local UndoList = addon:NewObject("UndoList")
 
+local pm
 local root
 local scrollBox
 local onActivate
@@ -62,6 +63,7 @@ end
 function UndoList:Build(region, opts)
     opts = opts or {}
     onActivate = opts.onActivate
+    pm = WowSync:GetProfileManager()
 
     root = CreateFrame("Frame", nil, region)
     root:SetAllPoints(region)
@@ -102,7 +104,7 @@ end
 -- Repopulate from the live undo stack (newest first) and show the list only
 -- when there is something to undo. Returns whether any entries exist.
 function UndoList:Refresh()
-    local stack = WowSync:GetUndoStack()
+    local stack = pm:GetUndoStack()
 
     local dataProvider = CreateDataProvider()
     for i, entry in ipairs(stack) do
