@@ -152,6 +152,9 @@ function CharacterDetails:Build(region)
 
     ScrollUtil.InitScrollBoxListWithScrollBar(moduleScrollBox, scrollBar, view)
 
+    -- Only show the scrollbar when the list actually overflows.
+    scrollBar:SetHideIfUnscrollable(true)
+
     -- Save action
     saveButton = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
     saveButton:SetSize(150, 22)

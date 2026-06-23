@@ -130,6 +130,9 @@ function CharacterList:Build(region)
 
     ScrollUtil.InitScrollBoxListWithScrollBar(scrollBox, scrollBar, view)
 
+    -- Only show the scrollbar when the list actually overflows.
+    scrollBar:SetHideIfUnscrollable(true)
+
     return self
 end
 
