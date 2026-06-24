@@ -3,18 +3,21 @@ local _, addon = ...
 --[[
     ProfileDetails object (right panel).
 
-    Orchestrates the detail view for a selected profile. Composes ProfileHeader,
+    Orchestrates the detail view for a selected character. Composes ProfileHeader,
     SnapshotList, ActionBar and UndoList, and drives the WowSync actions
-    (apply/undo/delete/rename) routed through the Dialogs object. Holds no
+    (apply/save/undo/delete) routed through the Dialogs object. Holds no
     widget-building code of its own beyond layout regions and the empty state.
 
-    Apply targets the snapshot currently selected in the timeline (the latest by
-    default).
+    The timeline shows the character's current head on top followed by its saved
+    history. Apply targets the selected entry (the head by default); Save freezes
+    the head into a new snapshot.
 
     addon:GetObject("ProfileDetails"):Build(region)
         -> self {
-            SetProfile(profileName or nil),
-            OnRefresh(callback),   -- called after delete/rename
+            SetProfile(charKey or nil),
+            RequestSave(charKey or nil),  -- nil = logged-in character
+            OnSaved(callback),            -- called after a successful save
+            OnRefresh(callback),          -- called after delete
         }
 ]]
 
@@ -22,9 +25,11 @@ local ProfileDetails = addon:NewObject("ProfileDetails")
 local Dialogs = addon:GetObject("Dialogs")
 local ProfileHeader = addon:GetObject("ProfileHeader")
 local SnapshotList = addon:GetObject("SnapshotList")
+local SnapshotRow = addon:GetObject("SnapshotRow")
 local UndoList = addon:GetObject("UndoList")
 local ActionBar = addon:GetObject("ActionBar")
 local ApplyPreviewDialog = addon:GetObject("ApplyPreviewDialog")
+local SaveDialog = addon:GetObject("SaveDialog")
 
 local C = LibStub("Contracts-1.0")
 local L = addon.L
@@ -37,6 +42,7 @@ local WARNING_TEXT_COLOR = { 0.95, 0.75, 0.2, 1 }
 local pm
 local currentProfileName = nil
 local onRefreshNeeded = nil
+local onSaved = nil
 
 local content, emptyLabel, statusLabel, syncLabel
 local header, actionBar, undoList, snapshotList
@@ -129,9 +135,15 @@ local function ApplySnapshot(snapshot, moduleSet, mode)
         return
     end
 
-    -- Apply only the chosen modules of the snapshot, in the requested mode.
+    -- Apply only the chosen modules of the snapshot, in the requested mode. The
+    -- current head is not a stored snapshot, so it routes through ApplyCurrentOf.
     local strategy = { default = mode or "merge" }
-    local result = pm:Apply(currentProfileName, snapshot.Hash, strategy, moduleSet)
+    local result
+    if snapshot.IsHead then
+        result = pm:ApplyCurrentOf(snapshot.CharKey, strategy, moduleSet)
+    else
+        result = pm:Apply(currentProfileName, WowSync:GetSnapshotSelector(snapshot), strategy, moduleSet)
+    end
     if result and result:Any() then
         for _, name in ipairs(result:Applied()) do
             local outcome = result:Get(name)
@@ -153,6 +165,18 @@ local function ApplySnapshot(snapshot, moduleSet, mode)
     ApplyUndoState()
 end
 
+-- Apply is a no-op when the chosen entry already matches the logged-in
+-- character's current setup (same content hash) -- its own head, or its latest
+-- save when nothing has changed. It is meaningful for anything that would change
+-- the live setup (an alt's head, an older save, a differing snapshot).
+local function CanApplySnapshot(snapshot)
+    if not snapshot then
+        return false
+    end
+    local myHead = pm:GetCurrentHead()
+    return not (myHead and snapshot.Hash == myHead.Hash)
+end
+
 -- Open the preview dialog for a snapshot (defaulting to the selected one) in the
 -- given mode. Once the user picks a module subset, a final mode-aware prompt
 -- spells out what will happen and gives one last chance to confirm or cancel.
@@ -161,6 +185,11 @@ local function RequestApply(snapshot, mode)
 
     snapshot = snapshot or snapshotList:GetSelected()
     if not snapshot then return end
+
+    if not CanApplySnapshot(snapshot) then
+        WowSync:Print(L["Already matches your current setup."])
+        return
+    end
 
     mode = mode or "merge"
     ApplyPreviewDialog:Show({
@@ -181,19 +210,6 @@ local function DoDelete()
         currentProfileName = nil
         if onRefreshNeeded then
             onRefreshNeeded()
-        end
-    end
-end
-
-local function DoRename(newName)
-    if newName ~= "" and currentProfileName then
-        if pm:RenameProfile(currentProfileName, newName) then
-            currentProfileName = newName
-            if onRefreshNeeded then
-                onRefreshNeeded()
-            end
-        else
-            WowSync:Print(L["Rename failed — name may already exist."])
         end
     end
 end
@@ -237,10 +253,36 @@ local function RequestUndoSteps(count, entry)
 end
 
 -- Right-click actions for a single snapshot. The list forwards the snapshot,
--- its display subject, and the row to anchor the menu to.
-local function OpenSnapshotMenu(snapshot, subject, anchor)
+-- its display subject, the row to anchor the menu to, and whether the row is
+-- the current head.
+local function OpenSnapshotMenu(snapshot, subject, anchor, isHead)
     if not snapshot or not currentProfileName then return end
-    local hash = snapshot.Hash
+
+    -- The current head is a live view, not a stored snapshot: it can be applied
+    -- (when it differs from the logged-in setup) and frozen via "Save now".
+    if isHead then
+        MenuUtil.CreateContextMenu(anchor, function(_, rootDescription)
+            rootDescription:CreateTitle(L["Current"])
+
+            if CanApplySnapshot(snapshot) then
+                local applyMenu = rootDescription:CreateButton(L["Apply"])
+                applyMenu:CreateButton(L["Merge"], function()
+                    RequestApply(snapshot, "merge")
+                end)
+                applyMenu:CreateButton(L["Exact"], function()
+                    RequestApply(snapshot, "exact")
+                end)
+                rootDescription:CreateDivider()
+            end
+
+            rootDescription:CreateButton(L["Save now"], function()
+                ProfileDetails:RequestSave(snapshot.CharKey or currentProfileName)
+            end)
+        end)
+        return
+    end
+
+    local selector = WowSync:GetSnapshotSelector(snapshot)
 
     MenuUtil.CreateContextMenu(anchor, function(_, rootDescription)
         rootDescription:CreateTitle(subject)
@@ -257,19 +299,19 @@ local function OpenSnapshotMenu(snapshot, subject, anchor)
 
         if snapshot.Pinned then
             rootDescription:CreateButton(L["Unpin"], function()
-                pm:UnpinSnapshot(currentProfileName, hash)
+                pm:UnpinSnapshot(currentProfileName, selector)
                 snapshotList:Refresh()
             end)
         else
             rootDescription:CreateButton(L["Pin"], function()
-                pm:PinSnapshot(currentProfileName, hash)
+                pm:PinSnapshot(currentProfileName, selector)
                 snapshotList:Refresh()
             end)
         end
 
         rootDescription:CreateButton(L["Edit note…"], function()
             Dialogs:PromptEditNote(snapshot.Body or "", function(text)
-                pm:SetSnapshotBody(currentProfileName, hash, text)
+                pm:SetSnapshotBody(currentProfileName, selector, text)
                 snapshotList:Refresh()
             end)
         end)
@@ -278,7 +320,7 @@ local function OpenSnapshotMenu(snapshot, subject, anchor)
 
         rootDescription:CreateButton(L["Delete snapshot"], function()
             Dialogs:ConfirmDeleteSnapshot(subject, function()
-                pm:DeleteSnapshot(currentProfileName, hash)
+                pm:DeleteSnapshot(currentProfileName, selector)
                 -- Deleting the latest snapshot changes what the header shows, so
                 -- refresh the whole panel rather than just the list.
                 ProfileDetails:SetProfile(currentProfileName)
@@ -306,7 +348,7 @@ function ProfileDetails:Build(region)
     -- Empty state label
     emptyLabel = root:CreateFontString(nil, "OVERLAY", "GameFontDisableLarge")
     emptyLabel:SetPoint("CENTER", 0, 20)
-    emptyLabel:SetText(L["Select a profile"])
+    emptyLabel:SetText(L["Select a character"])
 
     -- Empty-state undo history (covers the panel; behind the content frame)
     local undoSlot = CreateFrame("Frame", nil, root)
@@ -337,9 +379,11 @@ function ProfileDetails:Build(region)
     listSlot:SetPoint("RIGHT", content, "RIGHT", -8, 0)
     listSlot:SetPoint("BOTTOM", content, "BOTTOM", 0, 60)
     snapshotList = SnapshotList:Build(listSlot, {
-        -- Switching snapshots clears any stale apply status from the last one.
-        onSelect = function()
+        -- Switching snapshots clears any stale apply status and re-gates the
+        -- Apply button against the newly selected entry.
+        onSelect = function(snapshot)
             statusLabel:Hide()
+            actionBar:SetApplyEnabled(CanApplySnapshot(snapshot))
         end,
         onContext = OpenSnapshotMenu,
     })
@@ -384,14 +428,12 @@ function ProfileDetails:Build(region)
     actionBar = ActionBar:Build(actionSlot, {
         onApply = function() RequestApply(nil, "merge") end,
         onUndo = RequestUndo,
-        onRename = function()
-            if currentProfileName then
-                Dialogs:PromptRename(currentProfileName, DoRename)
-            end
-        end,
         onDelete = function()
             if currentProfileName then
-                Dialogs:ConfirmDelete(currentProfileName, DoDelete)
+                local profile = pm:GetProfile(currentProfileName)
+                local latest = profile and profile.Snapshots[#profile.Snapshots]
+                local label = (latest and latest.Source and latest.Source.Character) or currentProfileName
+                Dialogs:ConfirmDelete(label, DoDelete)
             end
         end,
     })
@@ -413,25 +455,109 @@ function ProfileDetails:SetProfile(profileName)
         return
     end
 
+    local head = pm:GetCurrentHead(profileName)
     local profile = pm:GetProfile(profileName)
-    if not profile then
+    local latest = profile and profile.Snapshots[#profile.Snapshots]
+
+    -- A listed character always has a head and/or saved history; guard anyway.
+    if not head and not latest then
         content:Hide()
         emptyLabel:Show()
         ApplyUndoState()
         return
     end
 
-    -- The detail header reflects the profile's most recent snapshot.
-    local latest = profile.Snapshots[#profile.Snapshots]
-
     emptyLabel:Hide()
     undoList:Hide()
     content:Show()
     statusLabel:Hide()
 
-    header:SetProfile(profileName, latest)
+    -- The header headlines the character's CURRENT setup (its head); fall back
+    -- to the latest saved snapshot for a character with history but no capture.
+    local headline
+    if head then
+        headline = {
+            Source = { Character = profileName, ClassID = head.ClassID },
+            Timestamp = head.LastSeen,
+        }
+    else
+        headline = latest
+    end
+    header:SetProfile(profileName, headline)
+
     snapshotList:SetProfile(profileName)
+
+    -- Delete removes the saved history, so it only applies when some exists.
+    actionBar:SetDeleteEnabled(profile ~= nil)
+
     ApplyUndoState()
+end
+
+-- Freeze a character's current setup into a new saved snapshot. The logged-in
+-- character saves its live Current (every registered module is selectable); an
+-- alt saves its last-captured Current (limited to the modules it captured). On
+-- success the head collapses into the new latest snapshot and onSaved fires so
+-- the list can refresh and re-select the character.
+function ProfileDetails:RequestSave(charKey)
+    charKey = charKey or pm:GetCurrentCharacterKey()
+    local isOwn = charKey == pm:GetCurrentCharacterKey()
+
+    local head = pm:GetCurrentHead(charKey)
+    if not head then
+        WowSync:Print(L["That character has nothing captured yet."])
+        return
+    end
+
+    local moduleNames
+    if not isOwn then
+        moduleNames = {}
+        for name in pairs(head.Modules) do
+            tinsert(moduleNames, name)
+        end
+        table.sort(moduleNames)
+    end
+
+    SaveDialog:Show({
+        moduleNames = moduleNames,
+        onConfirm = function(moduleSet, note)
+            local evicted = pm:PreviewSave(moduleSet, charKey)
+
+            local function commit()
+                local snapshot, reason
+                if isOwn then
+                    local _id
+                    _id, snapshot, reason = pm:Save(note, moduleSet)
+                else
+                    snapshot, reason = pm:SaveFromCharacter(charKey, moduleSet, note)
+                end
+
+                if snapshot then
+                    WowSync:Print(L["Snapshot saved."])
+                    if evicted then
+                        WowSync:Print(L["Reached the snapshot limit — removed the oldest (X)."]:format(
+                            SnapshotRow:FormatSubject(evicted.Timestamp)))
+                    end
+                    ProfileDetails:SetProfile(charKey)
+                    if onSaved then
+                        onSaved(charKey)
+                    end
+                else
+                    WowSync:Print(L["Could not save from that character."])
+                end
+            end
+
+            if evicted then
+                Dialogs:ConfirmSaveAtLimit(pm:GetMaxSnapshots(),
+                    SnapshotRow:FormatSubject(evicted.Timestamp), commit)
+            else
+                commit()
+            end
+        end,
+    })
+end
+
+function ProfileDetails:OnSaved(callback)
+    onSaved = callback
 end
 
 function ProfileDetails:OnRefresh(callback)

@@ -20,6 +20,7 @@ local _, addon = ...
 local ProfileRow = addon:NewObject("ProfileRow")
 
 local C = LibStub("Contracts-1.0")
+local L = addon.L
 local UI = addon.UI
 
 local function FormatDate(timestamp)
@@ -73,11 +74,12 @@ function ProfileRow:Update(row, elementData, ctx)
     C:IsTable(elementData, 3)
     C:IsTable(ctx, 4)
 
-    local profileName = elementData.name
+    local id = elementData.id
+    local character = elementData.character or ""
 
-    row.profileName = profileName
+    row.profileName = id
 
-    -- Class icon and class-colored name
+    -- Class icon and class-colored character name
     local classInfo = elementData.classID and C_CreatureInfo.GetClassInfo(elementData.classID)
     if classInfo then
         local coords = CLASS_ICON_TCOORDS[classInfo.classFile]
@@ -89,17 +91,21 @@ function ProfileRow:Update(row, elementData, ctx)
         end
 
         local classColor = C_ClassColor.GetClassColor(classInfo.classFile)
-        row.nameText:SetText(classColor and classColor:WrapTextInColorCode(profileName) or profileName)
+        row.nameText:SetText(classColor and classColor:WrapTextInColorCode(character) or character)
     else
         row.classIcon:SetTexture(nil)
-        row.nameText:SetText(profileName)
+        row.nameText:SetText(character)
     end
 
-    -- Info line
-    row.infoText:SetText((elementData.character or "") .. "  " .. FormatDate(elementData.timestamp))
+    -- Info line: when the character was last seen (its setup last captured).
+    if elementData.timestamp then
+        row.infoText:SetText(L["Last seen: X"]:format(FormatDate(elementData.timestamp)))
+    else
+        row.infoText:SetText("")
+    end
 
     -- Selection highlight
-    if profileName == ctx.GetSelected() then
+    if id == ctx.GetSelected() then
         row.bg:SetColorTexture(UI.Row.Selected:GetRGBA())
     else
         row.bg:SetColorTexture(UI.Row.Normal:GetRGBA())

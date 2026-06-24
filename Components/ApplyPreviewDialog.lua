@@ -126,9 +126,14 @@ function ApplyPreviewDialog:Show(opts)
     onConfirm = opts.onConfirm
     currentMode = opts.mode or "merge"
     titleLabel:SetText(currentMode == "exact" and L["Apply snapshot — Exact"] or L["Apply snapshot — Merge"])
-    subjectLabel:SetText(SnapshotRow:FormatSubject(opts.snapshot.Timestamp))
+    subjectLabel:SetText(opts.snapshot.IsHead and L["Current"] or SnapshotRow:FormatSubject(opts.snapshot.Timestamp))
 
-    local preview = pm:PreviewApply(opts.profileName, opts.snapshot.Hash)
+    local preview
+    if opts.snapshot.IsHead then
+        preview = pm:PreviewApplyCurrentOf(opts.snapshot.CharKey)
+    else
+        preview = pm:PreviewApply(opts.profileName, WowSync:GetSnapshotSelector(opts.snapshot))
+    end
     moduleList:SetSnapshot(opts.snapshot, preview, currentMode)
     RefreshToggle()
 

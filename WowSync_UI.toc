@@ -13,7 +13,6 @@
 
 Core\Constants.lua
 Core\Settings.lua
-Core\CharacterGrouping.lua
 
 Locales\enUS.lua
 
@@ -23,7 +22,6 @@ Components\Dialogs.lua
 Components\LockButton.lua
 Components\TitleBar.lua
 Components\TabStrip.lua
-Components\SaveBar.lua
 Components\ProfileRow.lua
 Components\ProfileHeader.lua
 Components\ModuleRow.lua
@@ -36,9 +34,6 @@ Components\ApplyPreviewDialog.lua
 Components\SaveDialog.lua
 Components\ProfileList.lua
 Components\ProfileDetails.lua
-Components\CharacterRow.lua
-Components\CharacterList.lua
-Components\CharacterDetails.lua
 Components\DragTracker.lua
 Components\Splitter.lua
 Components\ResizeGrip.lua

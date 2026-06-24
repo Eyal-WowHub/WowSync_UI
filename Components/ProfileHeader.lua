@@ -3,11 +3,12 @@ local _, addon = ...
 --[[
     ProfileHeader object.
 
-    Fills an injected region with the selected profile's name and a summary
-    line (class, last character, last updated).
+    Fills an injected region with the selected character's class-colored name and
+    a summary line (class and the latest snapshot's date). Per-snapshot notes are
+    shown in the timeline below, not here.
 
     addon:GetObject("ProfileHeader"):Build(region)
-        -> self { SetProfile(profileName, snapshot) }
+        -> self { SetProfile(character, snapshot) }
 ]]
 
 local ProfileHeader = addon:NewObject("ProfileHeader")
@@ -32,14 +33,23 @@ function ProfileHeader:Build(region)
     return self
 end
 
-function ProfileHeader:SetProfile(profileName, snapshot)
+function ProfileHeader:SetProfile(character, snapshot)
     local source = snapshot and snapshot.Source
+    character = character or (source and source.Character) or L["Unknown"]
+
     local classInfo = source and source.ClassID and C_CreatureInfo.GetClassInfo(source.ClassID)
     local className = classInfo and classInfo.className or L["Unknown"]
-    titleText:SetText(profileName)
-    infoText:SetText(L["X • Y • Z"]:format(
+
+    -- Class-color the character name when we know the class.
+    if classInfo then
+        local classColor = C_ClassColor.GetClassColor(classInfo.classFile)
+        titleText:SetText(classColor and classColor:WrapTextInColorCode(character) or character)
+    else
+        titleText:SetText(character)
+    end
+
+    infoText:SetText(L["X • Y"]:format(
         className,
-        (source and source.Character) or L["Unknown"],
         date("%b %d, %Y %H:%M", (snapshot and snapshot.Timestamp) or 0)
     ))
 end

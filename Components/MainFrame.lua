@@ -4,10 +4,9 @@ local _, addon = ...
     MainFrame object.
 
     The top-level movable window shell and composition root. Owns the backdrop,
-    title bar, drag and escape handling, and a tab strip that switches between
-    two top-level views: Profiles (ProfileList + ProfileDetails) and Characters
-    (CharacterList + CharacterDetails). Builds and wires those panels, and is
-    built lazily on the first Toggle().
+    title bar, drag and escape handling, and a tab strip above the Profiles view
+    (ProfileList + ProfileDetails). Builds and wires those panels, and is built
+    lazily on the first Toggle().
 
     addon:GetObject("MainFrame"):Toggle()
 ]]
@@ -17,9 +16,6 @@ local TitleBar = addon:GetObject("TitleBar")
 local TabStrip = addon:GetObject("TabStrip")
 local ProfileList = addon:GetObject("ProfileList")
 local ProfileDetails = addon:GetObject("ProfileDetails")
-local CharacterList = addon:GetObject("CharacterList")
-local CharacterDetails = addon:GetObject("CharacterDetails")
-local SaveDialog = addon:GetObject("SaveDialog")
 local Splitter = addon:GetObject("Splitter")
 local ResizeGrip = addon:GetObject("ResizeGrip")
 
@@ -29,7 +25,6 @@ local Settings = addon.Settings
 
 local frame
 local profileList, profileDetails
-local characterList, characterDetails
 local showView
 
 -- The left panel may never exceed this share of the pane width, so the right
@@ -64,8 +59,8 @@ local ACCENT_HEX = "ff40a5f7"
 local function Build()
     if frame then return end
 
-    -- Layout state shared by both top-level views (Profiles and Characters):
-    -- they use the same left/right split ratio and the same lock state.
+    -- Layout state shared across the panes: the same left/right split ratio and
+    -- the same lock state.
     local panes = {}
     local locked = false
 
@@ -198,12 +193,11 @@ local function Build()
         onToggleLock = function(value) setLocked(value) end,
     })
 
-    -- Tab strip (Profiles | Characters)
+    -- Tab strip (Profiles)
     local tabStrip = TabStrip:Build(frame, {
         height = TAB_STRIP_HEIGHT,
         tabs = {
             { key = "profiles", label = L["Profiles"] },
-            { key = "characters", label = L["Characters"] },
         },
         onSelect = function(which) showView(which) end,
     })
@@ -235,35 +229,19 @@ local function Build()
         profileDetails:SetProfile(profileName)
     end)
 
-    -- Capture a snapshot (optionally a subset, optionally a note) and reflect it
-    -- in the list. Shared by the quick Save and the Save… dialog.
-    local function DoSave(name, moduleSet, note)
-        local pm = WowSync:GetProfileManager()
-        local snapshot, reason = pm:Save(name, moduleSet, note)
-        if snapshot then
-            WowSync:Print(L["Profile 'X' saved."]:format(name))
-            profileList:Refresh()
-
-            -- Select the freshly saved profile so the list highlights it and
-            -- the detail panel updates through the selection callback.
-            profileList:Select(name)
-            profileList:ScrollToProfile(name)
-        elseif reason == "unchanged" then
-            WowSync:Print(L["Profile 'X': nothing changed."]:format(name))
-        end
-    end
-
-    profileList:OnSave(function(name)
-        DoSave(name)
+    -- The top Save button freezes the logged-in character's current setup; the
+    -- detail panel owns the save flow (dialog, limit prompt, and the actual
+    -- save). Per-character freezing of an alt happens from its head's menu.
+    profileList:OnSave(function()
+        profileDetails:RequestSave()
     end)
 
-    profileList:OnSaveAdvanced(function(name)
-        SaveDialog:Show({
-            profileName = name,
-            onConfirm = function(moduleSet, note)
-                DoSave(name, moduleSet, note)
-            end,
-        })
+    -- After a save the head collapses into a new snapshot; refresh the list and
+    -- keep the saved character selected and in view.
+    profileDetails:OnSaved(function(charKey)
+        profileList:Refresh()
+        profileList:Select(charKey)
+        profileList:ScrollToProfile(charKey)
     end)
 
     profileDetails:OnRefresh(function()
@@ -272,49 +250,12 @@ local function Build()
         profileDetails:SetProfile(nil)
     end)
 
-    -- Characters view: character list (left) + character details (right)
-    local charactersView = CreateFrame("Frame", nil, frame)
-    charactersView:SetPoint("TOPLEFT", EDGE_INSET, contentTop)
-    charactersView:SetPoint("BOTTOMRIGHT", -EDGE_INSET, EDGE_INSET)
-    charactersView:Hide()
-
-    local charLeftSlot = CreateFrame("Frame", nil, charactersView)
-    charLeftSlot:SetPoint("TOPLEFT", 0, 0)
-    charLeftSlot:SetPoint("BOTTOMLEFT", 0, 0)
-    charLeftSlot:SetWidth(LEFT_PANEL_WIDTH)
-
-    local charRightSlot = CreateFrame("Frame", nil, charactersView)
-    charRightSlot:SetPoint("TOPLEFT", charLeftSlot, "TOPRIGHT", UI.Splitter.Width, 0)
-    charRightSlot:SetPoint("BOTTOMRIGHT", 0, 0)
-
-    characterList = CharacterList:Build(charLeftSlot)
-    characterDetails = CharacterDetails:Build(charRightSlot)
-
-    AddPane(charactersView, charLeftSlot)
-
-    characterList:OnSelect(function(entry)
-        characterDetails:SetCharacter(entry)
-    end)
-
-    -- A cross-character save creates or updates a profile, so refresh the
-    -- profile list to reflect it the next time that view is shown.
-    characterDetails:OnSaved(function()
-        profileList:Refresh()
-    end)
-
-    -- Switch the active top-level view and reflect it in the tab visuals.
+    -- Switch the active view and reflect it in the tab visuals. Only the
+    -- Profiles view exists today, but the tab strip is kept for future tabs.
     showView = function(which)
-        if which == "characters" then
-            profilesView:Hide()
-            charactersView:Show()
-            characterList:Refresh()
-            characterList:ClearSelection()
-        else
-            which = "profiles"
-            charactersView:Hide()
-            profilesView:Show()
-            profileList:Refresh()
-        end
+        which = "profiles"
+        profilesView:Show()
+        profileList:Refresh()
         tabStrip:Select(which)
     end
 

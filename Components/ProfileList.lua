@@ -3,15 +3,14 @@ local _, addon = ...
 --[[
     ProfileList object (left panel).
 
-    Fills an injected region with a title, a SaveBar, and a scrollable list of
-    profiles (one ProfileRow each). Owns the selection state and exposes it
+    Fills an injected region with a title, a Save button, and a scrollable list
+    of profiles (one ProfileRow each). Owns the selection state and exposes it
     through callbacks; never leaks its frames.
 
     addon:GetObject("ProfileList"):Build(region)
         -> self {
             OnSelect(callback),       -- callback(profileName or nil)
-            OnSave(callback),         -- callback(name)
-            OnSaveAdvanced(callback), -- callback(name); open the save dialog
+            OnSave(callback),         -- callback(); open the save dialog
             Refresh(),
             GetSelected() -> profileName or nil,
             ClearSelection(),
@@ -19,7 +18,6 @@ local _, addon = ...
 ]]
 
 local ProfileList = addon:NewObject("ProfileList")
-local SaveBar = addon:GetObject("SaveBar")
 local ProfileRow = addon:GetObject("ProfileRow")
 
 local C = LibStub("Contracts-1.0")
@@ -28,10 +26,10 @@ local UI = addon.UI
 
 local pm
 local scrollBox
+local saveButton
 local selectedProfileName = nil
 local onSelectionChanged = nil
 local onSaveRequested = nil
-local onSaveAdvancedRequested = nil
 
 function ProfileList:Build(region)
     C:IsTable(region, 2)
@@ -54,23 +52,20 @@ function ProfileList:Build(region)
     title:SetPoint("TOPLEFT", 10, -8)
     title:SetText(L["Profiles"])
 
-    -- Save bar region
-    local saveSlot = CreateFrame("Frame", nil, root)
-    saveSlot:SetPoint("TOPLEFT", 10, -32)
-    saveSlot:SetPoint("RIGHT", root, "RIGHT", -10, 0)
-    saveSlot:SetHeight(22)
-    SaveBar:Build(saveSlot, {
-        onSave = function(name)
-            if onSaveRequested then onSaveRequested(name) end
-        end,
-        onSaveAdvanced = function(name)
-            if onSaveAdvancedRequested then onSaveAdvancedRequested(name) end
-        end,
-    })
+    -- Save button, top-right of the header (aligned with the title). The note
+    -- is collected by the save dialog, so the header only needs the button.
+    saveButton = CreateFrame("Button", nil, root, "UIPanelButtonTemplate")
+    saveButton:SetPoint("TOPRIGHT", -10, -6)
+    saveButton:SetSize(56, 22)
+    saveButton:SetText(L["Save"])
+    saveButton:SetScript("OnClick", function()
+        if not saveButton:IsEnabled() then return end
+        if onSaveRequested then onSaveRequested() end
+    end)
 
     -- Scroll area
     scrollBox = CreateFrame("Frame", nil, root, "WowScrollBoxList")
-    scrollBox:SetPoint("TOPLEFT", 6, -60)
+    scrollBox:SetPoint("TOPLEFT", 6, -36)
     scrollBox:SetPoint("BOTTOMRIGHT", -22, 6)
 
     local scrollBar = CreateFrame("EventFrame", nil, root, "MinimalScrollBar")
@@ -104,6 +99,13 @@ function ProfileList:Build(region)
     -- Only show the scrollbar when the list actually overflows.
     scrollBar:SetHideIfUnscrollable(true)
 
+    -- The Save button is only meaningful when the logged-in character has
+    -- something captured; track that live and on first build.
+    WowSync:RegisterEvent("WOWSYNC_CURRENT_CHANGED", function()
+        ProfileList:SetSaveEnabled(pm:HasCurrent())
+    end)
+    self:SetSaveEnabled(pm:HasCurrent())
+
     return self
 end
 
@@ -115,46 +117,44 @@ function ProfileList:OnSave(callback)
     onSaveRequested = callback
 end
 
-function ProfileList:OnSaveAdvanced(callback)
-    onSaveAdvancedRequested = callback
+-- Enable or disable the header's Save button.
+function ProfileList:SetSaveEnabled(enabled)
+    if saveButton then
+        saveButton:SetEnabled(enabled)
+    end
 end
 
 function ProfileList:Refresh()
-    local profiles = pm:GetProfiles()
+    -- Every character with saved history and/or a captured Current, the
+    -- logged-in one first. Each is one row; its detail panel shows the current
+    -- head plus saved history.
+    local characters = pm:ListCharacters()
 
     local dataProvider = CreateDataProvider()
-    local sorted = {}
+    local present = {}
 
-    for name, profile in pairs(profiles) do
-        -- The profile's display identity (class, character, date) comes from its
-        -- most recent snapshot; an empty profile falls back to name only.
-        local latest = profile.Snapshots[#profile.Snapshots]
-        local source = latest and latest.Source
-        tinsert(sorted, {
-            name = name,
-            classID = source and source.ClassID,
-            character = source and source.Character,
-            timestamp = latest and latest.Timestamp,
+    for _, entry in ipairs(characters) do
+        present[entry.Key] = true
+        dataProvider:Insert({
+            id = entry.Key,
+            classID = entry.ClassID,
+            character = entry.Key,
+            timestamp = entry.LastSeen,
+            isCurrent = entry.IsCurrent,
         })
-    end
-
-    table.sort(sorted, function(a, b)
-        return a.name < b.name
-    end)
-
-    for _, entry in ipairs(sorted) do
-        dataProvider:Insert(entry)
     end
 
     scrollBox:SetDataProvider(dataProvider)
 
-    -- Restore selection if the profile still exists
-    if selectedProfileName and not profiles[selectedProfileName] then
+    -- Drop the selection if the selected character is no longer listed.
+    if selectedProfileName and not present[selectedProfileName] then
         selectedProfileName = nil
         if onSelectionChanged then
             onSelectionChanged(nil)
         end
     end
+
+    self:SetSaveEnabled(pm:HasCurrent())
 end
 
 function ProfileList:Select(profileName)
@@ -177,7 +177,7 @@ end
 function ProfileList:ScrollToProfile(name)
     if not name then return end
     scrollBox:ScrollToElementDataByPredicate(function(data)
-        return data.name == name
+        return data.id == name
     end, ScrollBoxConstants.AlignNearest)
 end
 

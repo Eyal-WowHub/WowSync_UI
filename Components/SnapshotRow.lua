@@ -15,11 +15,11 @@ local _, addon = ...
     elementData = { snapshot = <snapshot>, isLatest = bool, isOldest = bool }
 
     ctx = {
-        GetSelected() -> hash or nil,
-        IsExpanded(hash) -> bool,
+        GetSelected() -> snapshot or nil,
+        IsExpanded(snapshot) -> bool,
         GetDetail() -> detail or nil,   -- valid only for the expanded row
-        Select(hash),
-        OpenMenu(hash, anchor),         -- right-click actions for the row
+        Select(snapshot),
+        OpenMenu(snapshot, anchor),     -- right-click actions for the row
     }
 
     addon:GetObject("SnapshotRow"):Build(row, ctx)
@@ -56,8 +56,11 @@ local TEXT_INDENT = 16
 
 -- Timeline rail and node colours.
 local TIMELINE_RAIL_COLOR = CreateColor(0.35, 0.35, 0.35, 0.8)
-local TIMELINE_NODE_COLOR = CreateColor(0.6, 0.6, 0.6, 1)
+local TIMELINE_NODE_COLOR = CreateColor(0.85, 0.85, 0.85, 1)
 local TIMELINE_NODE_LATEST_COLOR = CreateColor(0.25, 0.65, 0.95, 1)
+
+-- Pinned snapshots get a warm accent so they stand out from the history.
+local TIMELINE_NODE_PINNED_COLOR = CreateColor(0.95, 0.6, 0.2, 1)
 
 -- Exposed so siblings (e.g. the context menu and its dialogs) can label a
 -- snapshot with the same subject the row shows.
@@ -130,20 +133,20 @@ function SnapshotRow:Build(row, ctx)
 
     row:EnableMouse(true)
     row:SetScript("OnEnter", function(self)
-        if self.snapshotHash ~= ctx.GetSelected() then
+        if self.snapshot ~= ctx.GetSelected() then
             self.bg:SetColorTexture(UI.Row.Hover:GetRGBA())
         end
     end)
     row:SetScript("OnLeave", function(self)
-        if self.snapshotHash ~= ctx.GetSelected() then
+        if self.snapshot ~= ctx.GetSelected() then
             self.bg:SetColorTexture(UI.Row.Normal:GetRGBA())
         end
     end)
     row:SetScript("OnMouseDown", function(self, button)
         if button == "RightButton" then
-            ctx.OpenMenu(self.snapshotHash, self)
+            ctx.OpenMenu(self.snapshot, self)
         else
-            ctx.Select(self.snapshotHash)
+            ctx.Select(self.snapshot)
         end
     end)
 end
@@ -210,35 +213,46 @@ function SnapshotRow:Update(row, elementData, ctx)
     C:IsTable(ctx, 4)
 
     local snapshot = elementData.snapshot
-    row.snapshotHash = snapshot.Hash
+    row.snapshot = snapshot
 
-    row.subjectText:SetText(FormatSubject(snapshot.Timestamp))
-
-    -- Latest / pinned tags
-    local tags = {}
-    if elementData.isLatest then
-        tinsert(tags, L["(latest)"])
+    -- The current head reads "Current" in the brand accent; saved snapshots show
+    -- their capture date in the normal colour. Rows are pooled, so both the
+    -- text and its colour are set explicitly on every update.
+    if elementData.isHead then
+        row.subjectText:SetText(L["Current"])
+        row.subjectText:SetTextColor(TIMELINE_NODE_LATEST_COLOR:GetRGB())
+    else
+        row.subjectText:SetText(FormatSubject(snapshot.Timestamp))
+        row.subjectText:SetTextColor(NORMAL_FONT_COLOR:GetRGB())
     end
+
+    -- Tag: a saved snapshot may show a pinned marker in the warm accent; the
+    -- head and ordinary snapshots carry no tag.
     if snapshot.Pinned then
-        tinsert(tags, L["(pinned)"])
+        row.tagText:SetText(L["(pinned)"])
+        row.tagText:SetTextColor(TIMELINE_NODE_PINNED_COLOR:GetRGB())
+    else
+        row.tagText:SetText("")
     end
-    row.tagText:SetText(table.concat(tags, " "))
 
-    if ctx.IsExpanded(row.snapshotHash) then
+    if ctx.IsExpanded(row.snapshot) then
         ExpandRow(row, ctx.GetDetail())
     else
         CollapseRow(row, snapshot)
     end
 
-    -- The latest node carries the brand accent; older nodes stay neutral.
-    if elementData.isLatest then
+    -- The head node carries the brand accent; pinned nodes take the warm
+    -- accent; the rest stay neutral.
+    if elementData.isHead then
         row.node:SetVertexColor(TIMELINE_NODE_LATEST_COLOR:GetRGB())
+    elseif snapshot.Pinned then
+        row.node:SetVertexColor(TIMELINE_NODE_PINNED_COLOR:GetRGB())
     else
         row.node:SetVertexColor(TIMELINE_NODE_COLOR:GetRGB())
     end
 
     -- Selection highlight
-    if row.snapshotHash == ctx.GetSelected() then
+    if row.snapshot == ctx.GetSelected() then
         row.bg:SetColorTexture(UI.Row.Selected:GetRGBA())
     else
         row.bg:SetColorTexture(UI.Row.Normal:GetRGBA())
