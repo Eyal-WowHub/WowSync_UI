@@ -11,6 +11,9 @@
 
 ## SavedVariables: WowSyncUIDB
 
+Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
+Libs\AceDB-3.0\AceDB-3.0.xml
+
 Core\Constants.lua
 Core\Settings.lua
 
