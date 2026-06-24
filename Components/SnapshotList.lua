@@ -44,6 +44,7 @@ local SNAPSHOT_DETAIL_LINE_HEIGHT = 15
 local SNAPSHOT_DETAIL_BOTTOM_PAD = 8
 
 local sv
+local cache
 local scrollBox
 local entries = {}           -- ordered display rows { snapshot = <handle>, isHead = bool }
 local currentProfile = nil   -- profile name, for diffing against the live setup
@@ -120,6 +121,7 @@ function SnapshotList:Build(region, opts)
     onSelectionChanged = opts.onSelect
     onContext = opts.onContext
     sv = WowSync:GetSnapshotView()
+    cache = WowSync:GetSnapshotHandleCache()
     scrollBox = CreateFrame("Frame", nil, region, "WowScrollBoxList")
     scrollBox:SetPoint("TOPLEFT", 0, 0)
     scrollBox:SetPoint("BOTTOMRIGHT", -16, 0)
@@ -189,7 +191,7 @@ end
 local function LoadEntries()
     wipe(entries)
     if not currentProfile then return end
-    for _, handle in ipairs(sv:GetTimelineOf(currentProfile)) do
+    for _, handle in ipairs(cache:GetTimeline(currentProfile)) do
         tinsert(entries, {
             snapshot = handle,
             isHead = sv:IsHead(handle),
@@ -206,7 +208,7 @@ function SnapshotList:SetProfile(profileName)
     LoadEntries()
 
     -- Default selection: the head when present, else the latest saved snapshot.
-    selected = profileName and (sv:GetHeadOf(profileName) or sv:GetLatestOf(profileName))
+    selected = profileName and (cache:GetHead(profileName) or cache:GetLatestSaved(profileName))
     expanded = nil
     expandedDetail = nil
     Rebuild()

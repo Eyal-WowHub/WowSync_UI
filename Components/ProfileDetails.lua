@@ -41,6 +41,7 @@ local WARNING_TEXT_COLOR = { 0.95, 0.75, 0.2, 1 }
 
 local pm
 local sv
+local cache
 local currentProfileName = nil
 local onRefreshNeeded = nil
 local onSaved = nil
@@ -327,6 +328,7 @@ function ProfileDetails:Build(region)
 
     pm = WowSync:GetProfileManager()
     sv = WowSync:GetSnapshotView()
+    cache = WowSync:GetSnapshotHandleCache()
 
     local root = CreateFrame("Frame", nil, region, "BackdropTemplate")
     root:SetAllPoints(region)
@@ -424,7 +426,7 @@ function ProfileDetails:Build(region)
         onUndo = RequestUndo,
         onDelete = function()
             if currentProfileName then
-                local latest = sv:GetLatestOf(currentProfileName)
+                local latest = cache:GetLatestSaved(currentProfileName)
                 local label = (latest and sv:GetCharacterInfo(latest).Character) or currentProfileName
                 Dialogs:ConfirmDelete(label, DoDelete)
             end
@@ -448,8 +450,8 @@ function ProfileDetails:SetProfile(profileName)
         return
     end
 
-    local headHandle = sv:GetHeadOf(profileName)
-    local latestHandle = sv:GetLatestOf(profileName)
+    local headHandle = cache:GetHead(profileName)
+    local latestHandle = cache:GetLatestSaved(profileName)
 
     -- A listed character always has a head and/or saved history; guard anyway.
     if not headHandle and not latestHandle then
@@ -484,7 +486,7 @@ end
 function ProfileDetails:RequestSave(charKey)
     charKey = charKey or pm:GetCurrentCharacterKey()
 
-    local headHandle = sv:GetHeadOf(charKey)
+    local headHandle = cache:GetHead(charKey)
     if not headHandle then
         WowSync:Print(L["That character has nothing captured yet."])
         return
@@ -500,7 +502,7 @@ function ProfileDetails:RequestSave(charKey)
     SaveDialog:Show({
         moduleNames = moduleNames,
         onConfirm = function(moduleSet, note)
-            local evicted = sv:GetPendingEvictionOf(charKey)
+            local evicted = cache:GetPendingEviction(charKey)
 
             local function commit()
                 local snapshot, reason
