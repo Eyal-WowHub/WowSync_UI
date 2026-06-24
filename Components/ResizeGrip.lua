@@ -22,8 +22,9 @@ local C = LibStub("Contracts-1.0")
 -- Size of the square grab handle.
 local RESIZE_GRIP_SIZE = 16
 
--- Inset of the grip from the frame's bottom-right corner.
-local GRIP_INSET = 4
+-- Inset of the grip from the frame's bottom-right corner, just clearing the
+-- window's 1px border so the handle sits snug in the corner.
+local GRIP_INSET = 1
 
 -- Frame levels the grip sits above its frame so it stays clickable.
 local GRIP_FRAME_LEVEL_OFFSET = 10

@@ -33,6 +33,10 @@ local SPLITTER_HOVER_COLOR = { 0.25, 0.65, 0.95, 0.9 }
 -- Thickness of the handle's centre line.
 local LINE_THICKNESS = 2
 
+-- Trim taken off each end of the centre line so it stops short of the pane edges
+-- rather than running the full height.
+local LINE_END_INSET = 4
+
 -- Frame levels the handle sits above its pane so it stays clickable.
 local HANDLE_FRAME_LEVEL_OFFSET = 5
 
@@ -58,8 +62,8 @@ function Splitter:Build(pane, opts)
     handle:EnableMouse(true)
 
     handle.line = handle:CreateTexture(nil, "OVERLAY")
-    handle.line:SetPoint("TOP")
-    handle.line:SetPoint("BOTTOM")
+    handle.line:SetPoint("TOP", 0, -LINE_END_INSET)
+    handle.line:SetPoint("BOTTOM", 0, LINE_END_INSET)
     handle.line:SetWidth(LINE_THICKNESS)
     handle.line:SetColorTexture(unpack(SPLITTER_COLOR))
 

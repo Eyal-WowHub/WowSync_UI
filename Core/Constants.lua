@@ -49,8 +49,7 @@ addon.UI = {
     -- Frame backdrop fills, borders, and divider lines { r, g, b, a }.
     Backdrop = {
         Main = { 0.08, 0.08, 0.08, 0.92 },
-        MainBorder = { 0.5, 0.5, 0.5, 1 },
-        Header = { 0.13, 0.13, 0.15, 0.95 },
+        MainBorder = { 0.22, 0.22, 0.24, 1 },
         Panel = { 0.05, 0.05, 0.05, 0.8 },
         PanelBorder = { 0.4, 0.4, 0.4, 0.8 },
         Separator = { 0.4, 0.4, 0.4, 0.6 },

@@ -139,11 +139,14 @@ local function Build()
     end
 
     frame = CreateFrame("Frame", "WowSyncUIFrame", UIParent, "BackdropTemplate")
+    -- A crisp 1px edge (rather than the soft, beige tooltip border) matches the
+    -- flat banner and bevelled divider in the title bar. It also removes the 16px
+    -- corner art that used to peek over the banner where the two met.
     frame:SetBackdrop({
         bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        tile = true, tileSize = 16, edgeSize = 16,
-        insets = { left = 4, right = 4, top = 4, bottom = 4 },
+        edgeFile = "Interface\\Buttons\\WHITE8X8",
+        tile = true, tileSize = 16, edgeSize = 1,
+        insets = { left = 1, right = 1, top = 1, bottom = 1 },
     })
     frame:SetBackdropColor(unpack(UI.Backdrop.Main))
     frame:SetBackdropBorderColor(unpack(UI.Backdrop.MainBorder))
