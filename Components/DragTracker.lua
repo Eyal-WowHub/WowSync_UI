@@ -18,7 +18,17 @@ local _, addon = ...
 
 local DragTracker = addon:NewObject("DragTracker")
 
+local C = LibStub("Contracts-1.0")
+
 function DragTracker:Attach(region, opts)
+    C:IsTable(region, 2)
+    C:IsTable(opts, 3)
+
+    C:Ensures(opts.enabled == nil or type(opts.enabled) == "function", "Attach: 'opts.enabled' must be a function")
+    C:Ensures(opts.onStart == nil or type(opts.onStart) == "function", "Attach: 'opts.onStart' must be a function")
+    C:Ensures(opts.onUpdate == nil or type(opts.onUpdate) == "function", "Attach: 'opts.onUpdate' must be a function")
+    C:Ensures(opts.onStop == nil or type(opts.onStop) == "function", "Attach: 'opts.onStop' must be a function")
+
     local dragging = false
 
     local function stop()

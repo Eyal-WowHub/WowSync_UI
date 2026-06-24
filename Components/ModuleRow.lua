@@ -14,9 +14,12 @@ local _, addon = ...
 
 local ModuleRow = addon:NewObject("ModuleRow")
 
+local C = LibStub("Contracts-1.0")
 local L = addon.L
 
 function ModuleRow:Build(parent)
+    C:IsTable(parent, 2)
+
     local cb = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
     cb:SetSize(24, 24)
 
@@ -36,6 +39,9 @@ function ModuleRow:Build(parent)
 end
 
 function ModuleRow:Update(cb, name, canApply, reason, counts)
+    C:IsTable(cb, 2)
+    C:IsString(name, 3)
+
     cb:SetChecked(canApply)
     cb:SetEnabled(canApply)
     cb.label:SetText(name)

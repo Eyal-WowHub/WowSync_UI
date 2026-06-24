@@ -15,12 +15,20 @@ local _, addon = ...
 
 local ActionBar = addon:NewObject("ActionBar")
 
+local C = LibStub("Contracts-1.0")
 local L = addon.L
 
 local undoButton
 
 function ActionBar:Build(region, opts)
+    C:IsTable(region, 2)
+
     opts = opts or {}
+
+    C:Ensures(opts.onApply == nil or type(opts.onApply) == "function", "Build: 'opts.onApply' must be a function")
+    C:Ensures(opts.onUndo == nil or type(opts.onUndo) == "function", "Build: 'opts.onUndo' must be a function")
+    C:Ensures(opts.onRename == nil or type(opts.onRename) == "function", "Build: 'opts.onRename' must be a function")
+    C:Ensures(opts.onDelete == nil or type(opts.onDelete) == "function", "Build: 'opts.onDelete' must be a function")
 
     local root = CreateFrame("Frame", nil, region)
     root:SetAllPoints(region)

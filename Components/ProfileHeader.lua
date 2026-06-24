@@ -12,11 +12,14 @@ local _, addon = ...
 
 local ProfileHeader = addon:NewObject("ProfileHeader")
 
+local C = LibStub("Contracts-1.0")
 local L = addon.L
 
 local titleText, infoText
 
 function ProfileHeader:Build(region)
+    C:IsTable(region, 2)
+
     local root = CreateFrame("Frame", nil, region)
     root:SetAllPoints(region)
 

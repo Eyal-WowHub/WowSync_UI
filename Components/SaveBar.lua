@@ -16,10 +16,16 @@ local _, addon = ...
 
 local SaveBar = addon:NewObject("SaveBar")
 
+local C = LibStub("Contracts-1.0")
 local L = addon.L
 
 function SaveBar:Build(region, opts)
+    C:IsTable(region, 2)
+
     opts = opts or {}
+
+    C:Ensures(opts.onSave == nil or type(opts.onSave) == "function", "Build: 'opts.onSave' must be a function")
+    C:Ensures(opts.onSaveAdvanced == nil or type(opts.onSaveAdvanced) == "function", "Build: 'opts.onSaveAdvanced' must be a function")
 
     local root = CreateFrame("Frame", nil, region)
     root:SetAllPoints(region)

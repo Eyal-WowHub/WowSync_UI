@@ -26,6 +26,7 @@ local UndoList = addon:GetObject("UndoList")
 local ActionBar = addon:GetObject("ActionBar")
 local ApplyPreviewDialog = addon:GetObject("ApplyPreviewDialog")
 
+local C = LibStub("Contracts-1.0")
 local L = addon.L
 local UI = addon.UI
 
@@ -287,6 +288,8 @@ local function OpenSnapshotMenu(snapshot, subject, anchor)
 end
 
 function ProfileDetails:Build(region)
+    C:IsTable(region, 2)
+
     pm = WowSync:GetProfileManager()
 
     local root = CreateFrame("Frame", nil, region, "BackdropTemplate")

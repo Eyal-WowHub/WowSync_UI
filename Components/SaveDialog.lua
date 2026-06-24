@@ -33,6 +33,7 @@ local _, addon = ...
 local SaveDialog = addon:NewObject("SaveDialog")
 local ModuleRow = addon:GetObject("ModuleRow")
 
+local C = LibStub("Contracts-1.0")
 local L = addon.L
 local UI = addon.UI
 
@@ -260,6 +261,10 @@ local function Build()
 end
 
 function SaveDialog:Show(opts)
+    C:IsTable(opts, 2)
+
+    C:Ensures(opts.onConfirm == nil or type(opts.onConfirm) == "function", "Show: 'opts.onConfirm' must be a function")
+
     Build()
 
     onConfirm = opts.onConfirm

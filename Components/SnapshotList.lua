@@ -28,6 +28,7 @@ local _, addon = ...
 local SnapshotList = addon:NewObject("SnapshotList")
 local SnapshotRow = addon:GetObject("SnapshotRow")
 
+local C = LibStub("Contracts-1.0")
 local UI = addon.UI
 
 -- Height of a collapsed snapshot row.
@@ -110,7 +111,13 @@ local function BuildDetail(hash)
 end
 
 function SnapshotList:Build(region, opts)
+    C:IsTable(region, 2)
+
     opts = opts or {}
+
+    C:Ensures(opts.onSelect == nil or type(opts.onSelect) == "function", "Build: 'opts.onSelect' must be a function")
+    C:Ensures(opts.onContext == nil or type(opts.onContext) == "function", "Build: 'opts.onContext' must be a function")
+
     onSelectionChanged = opts.onSelect
     onContext = opts.onContext
     pm = WowSync:GetProfileManager()

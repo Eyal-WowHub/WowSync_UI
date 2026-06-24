@@ -18,6 +18,7 @@ local _, addon = ...
 local ModuleList = addon:NewObject("ModuleList")
 local ModuleRow = addon:GetObject("ModuleRow")
 
+local C = LibStub("Contracts-1.0")
 local UI = addon.UI
 
 local pm
@@ -52,7 +53,12 @@ local function ReleaseAll()
 end
 
 function ModuleList:Build(region, opts)
+    C:IsTable(region, 2)
+
     opts = opts or {}
+
+    C:Ensures(opts.onChanged == nil or type(opts.onChanged) == "function", "Build: 'opts.onChanged' must be a function")
+
     pm = opts.profileManager or WowSync:GetProfileManager()
     onChanged = opts.onChanged
 

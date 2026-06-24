@@ -18,6 +18,7 @@ local _, addon = ...
 
 local TabStrip = addon:NewObject("TabStrip")
 
+local C = LibStub("Contracts-1.0")
 local UI = addon.UI
 
 -- Fallback strip height when the caller does not supply one.
@@ -81,7 +82,12 @@ local function CreateTab(parent, label, height, onClick)
 end
 
 function TabStrip:Build(parent, opts)
+    C:IsTable(parent, 2)
+
     opts = opts or {}
+
+    C:Ensures(type(opts.tabs) == "table" and #opts.tabs > 0, "Build: 'opts.tabs' must be a non-empty array")
+    C:Ensures(opts.onSelect == nil or type(opts.onSelect) == "function", "Build: 'opts.onSelect' must be a function")
 
     local height = opts.height or DEFAULT_HEIGHT
 
@@ -91,7 +97,10 @@ function TabStrip:Build(parent, opts)
     local tabs = {}
     local previous
 
-    for _, def in ipairs(opts.tabs or {}) do
+    for _, def in ipairs(opts.tabs) do
+        C:Ensures(type(def.key) == "string", "Build: each tab needs a string 'key'")
+        C:Ensures(type(def.label) == "string", "Build: each tab needs a string 'label'")
+
         local key = def.key
         local tab = CreateTab(strip, def.label, height, function()
             if opts.onSelect then

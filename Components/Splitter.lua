@@ -23,6 +23,7 @@ local _, addon = ...
 local Splitter = addon:NewObject("Splitter")
 local DragTracker = addon:GetObject("DragTracker")
 
+local C = LibStub("Contracts-1.0")
 local UI = addon.UI
 
 -- Idle and hover colours of the handle's centre line { r, g, b, a }.
@@ -36,7 +37,15 @@ local LINE_THICKNESS = 2
 local HANDLE_FRAME_LEVEL_OFFSET = 5
 
 function Splitter:Build(pane, opts)
+    C:IsTable(pane, 2)
+
+    C:Ensures(type(pane.view) == "table", "Build: 'pane.view' must be a frame")
+    C:Ensures(type(pane.leftSlot) == "table", "Build: 'pane.leftSlot' must be a frame")
+
     opts = opts or {}
+
+    C:Ensures(opts.onResize == nil or type(opts.onResize) == "function", "Build: 'opts.onResize' must be a function")
+    C:Ensures(opts.onCommit == nil or type(opts.onCommit) == "function", "Build: 'opts.onCommit' must be a function")
 
     local view = pane.view
     local locked = false

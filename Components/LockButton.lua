@@ -16,10 +16,16 @@ local _, addon = ...
 
 local LockButton = addon:NewObject("LockButton")
 
+local C = LibStub("Contracts-1.0")
 local L = addon.L
 
 function LockButton:Build(parent, anchorTo, opts)
+    C:IsTable(parent, 2)
+    C:IsTable(anchorTo, 3)
+
     opts = opts or {}
+
+    C:Ensures(opts.onToggle == nil or type(opts.onToggle) == "function", "Build: 'opts.onToggle' must be a function")
 
     local button = CreateFrame("Button", nil, parent)
     button:SetSize(20, 20)

@@ -19,6 +19,7 @@ local _, addon = ...
 
 local ProfileRow = addon:NewObject("ProfileRow")
 
+local C = LibStub("Contracts-1.0")
 local UI = addon.UI
 
 local function FormatDate(timestamp)
@@ -27,6 +28,12 @@ local function FormatDate(timestamp)
 end
 
 function ProfileRow:Build(row, ctx)
+    C:IsTable(row, 2)
+    C:IsTable(ctx, 3)
+
+    C:Ensures(type(ctx.GetSelected) == "function", "Build: 'ctx.GetSelected' must be a function")
+    C:Ensures(type(ctx.Select) == "function", "Build: 'ctx.Select' must be a function")
+
     row.bg = row:CreateTexture(nil, "BACKGROUND")
     row.bg:SetAllPoints()
     row.bg:SetColorTexture(0, 0, 0, 0)
@@ -62,6 +69,10 @@ function ProfileRow:Build(row, ctx)
 end
 
 function ProfileRow:Update(row, elementData, ctx)
+    C:IsTable(row, 2)
+    C:IsTable(elementData, 3)
+    C:IsTable(ctx, 4)
+
     local profileName = elementData.name
 
     row.profileName = profileName

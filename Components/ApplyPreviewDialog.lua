@@ -22,6 +22,7 @@ local ApplyPreviewDialog = addon:NewObject("ApplyPreviewDialog")
 local ModuleList = addon:GetObject("ModuleList")
 local SnapshotRow = addon:GetObject("SnapshotRow")
 
+local C = LibStub("Contracts-1.0")
 local L = addon.L
 local UI = addon.UI
 
@@ -114,6 +115,12 @@ local function Build()
 end
 
 function ApplyPreviewDialog:Show(opts)
+    C:IsTable(opts, 2)
+
+    C:Ensures(type(opts.profileName) == "string", "Show: 'opts.profileName' must be a string")
+    C:Ensures(type(opts.snapshot) == "table", "Show: 'opts.snapshot' must be a table")
+    C:Ensures(opts.onConfirm == nil or type(opts.onConfirm) == "function", "Show: 'opts.onConfirm' must be a function")
+
     Build()
 
     onConfirm = opts.onConfirm

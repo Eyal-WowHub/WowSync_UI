@@ -22,6 +22,7 @@ local ProfileList = addon:NewObject("ProfileList")
 local SaveBar = addon:GetObject("SaveBar")
 local ProfileRow = addon:GetObject("ProfileRow")
 
+local C = LibStub("Contracts-1.0")
 local L = addon.L
 local UI = addon.UI
 
@@ -33,6 +34,8 @@ local onSaveRequested = nil
 local onSaveAdvancedRequested = nil
 
 function ProfileList:Build(region)
+    C:IsTable(region, 2)
+
     pm = WowSync:GetProfileManager()
 
     local root = CreateFrame("Frame", nil, region, "BackdropTemplate")

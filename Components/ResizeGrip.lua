@@ -17,6 +17,7 @@ local _, addon = ...
 
 local ResizeGrip = addon:NewObject("ResizeGrip")
 local DragTracker = addon:GetObject("DragTracker")
+local C = LibStub("Contracts-1.0")
 
 -- Size of the square grab handle.
 local RESIZE_GRIP_SIZE = 16
@@ -35,7 +36,12 @@ local DOUBLE_CLICK_SECONDS = 0.3
 local RESIZE_EPSILON = 1
 
 function ResizeGrip:Build(frame, opts)
+    C:IsTable(frame, 2)
+
     opts = opts or {}
+
+    C:Ensures(opts.onResizeStop == nil or type(opts.onResizeStop) == "function", "Build: 'opts.onResizeStop' must be a function")
+    C:Ensures(opts.onReset == nil or type(opts.onReset) == "function", "Build: 'opts.onReset' must be a function")
 
     local locked = false
 

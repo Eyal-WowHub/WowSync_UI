@@ -28,6 +28,7 @@ local _, addon = ...
 
 local SnapshotRow = addon:NewObject("SnapshotRow")
 
+local C = LibStub("Contracts-1.0")
 local L = addon.L
 local UI = addon.UI
 
@@ -65,6 +66,9 @@ function SnapshotRow:FormatSubject(timestamp)
 end
 
 function SnapshotRow:Build(row, ctx)
+    C:IsTable(row, 2)
+    C:IsTable(ctx, 3)
+
     row.bg = row:CreateTexture(nil, "BACKGROUND")
     row.bg:SetAllPoints()
     row.bg:SetColorTexture(0, 0, 0, 0)
@@ -201,6 +205,10 @@ local function CollapseRow(row, snapshot)
 end
 
 function SnapshotRow:Update(row, elementData, ctx)
+    C:IsTable(row, 2)
+    C:IsTable(elementData, 3)
+    C:IsTable(ctx, 4)
+
     local snapshot = elementData.snapshot
     row.snapshotHash = snapshot.Hash
 

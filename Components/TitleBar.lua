@@ -20,6 +20,7 @@ local _, addon = ...
 local TitleBar = addon:NewObject("TitleBar")
 local LockButton = addon:GetObject("LockButton")
 
+local C = LibStub("Contracts-1.0")
 local UI = addon.UI
 
 -- Inset that tucks the header art just inside the window's metal border so the
@@ -30,7 +31,12 @@ local titleText
 local lockButton
 
 function TitleBar:Build(region, opts)
+    C:IsTable(region, 2)
+
     opts = opts or {}
+
+    C:Ensures(opts.onClose == nil or type(opts.onClose) == "function", "Build: 'opts.onClose' must be a function")
+    C:Ensures(opts.onToggleLock == nil or type(opts.onToggleLock) == "function", "Build: 'opts.onToggleLock' must be a function")
 
     local root = CreateFrame("Frame", nil, region)
     root:SetAllPoints(region)

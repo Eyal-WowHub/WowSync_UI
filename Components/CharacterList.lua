@@ -21,6 +21,7 @@ local _, addon = ...
 local CharacterList = addon:NewObject("CharacterList")
 local CharacterRow = addon:GetObject("CharacterRow")
 
+local C = LibStub("Contracts-1.0")
 local L = addon.L
 local UI = addon.UI
 local CharacterGrouping = addon.CharacterGrouping
@@ -68,6 +69,8 @@ local function RenderCharacter(row, elementData, rowContext)
 end
 
 function CharacterList:Build(region)
+    C:IsTable(region, 2)
+
     pm = WowSync:GetProfileManager()
 
     local root = CreateFrame("Frame", nil, region, "BackdropTemplate")

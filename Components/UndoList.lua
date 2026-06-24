@@ -22,6 +22,7 @@ local UndoList = addon:NewObject("UndoList")
 
 local L = addon.L
 local UI = addon.UI
+local C = LibStub("Contracts-1.0")
 
 -- Height of an undo history row and the gap between rows.
 local UNDO_ROW_HEIGHT = 34
@@ -65,7 +66,12 @@ local function UpdateRow(row, elementData)
 end
 
 function UndoList:Build(region, opts)
+    C:IsTable(region, 2)
+
     opts = opts or {}
+
+    C:Ensures(opts.onActivate == nil or type(opts.onActivate) == "function", "Build: 'opts.onActivate' must be a function")
+
     onActivate = opts.onActivate
     pm = WowSync:GetProfileManager()
 

@@ -21,6 +21,7 @@ local _, addon = ...
 
 local CharacterRow = addon:NewObject("CharacterRow")
 
+local C = LibStub("Contracts-1.0")
 local L = addon.L
 local UI = addon.UI
 
@@ -30,6 +31,12 @@ local function FormatLastSeen(timestamp)
 end
 
 function CharacterRow:Build(row, ctx)
+    C:IsTable(row, 2)
+    C:IsTable(ctx, 3)
+
+    C:Ensures(type(ctx.GetSelected) == "function", "Build: 'ctx.GetSelected' must be a function")
+    C:Ensures(type(ctx.Select) == "function", "Build: 'ctx.Select' must be a function")
+
     row.bg = row:CreateTexture(nil, "BACKGROUND")
     row.bg:SetAllPoints()
     row.bg:SetColorTexture(0, 0, 0, 0)
@@ -74,6 +81,10 @@ function CharacterRow:SetShown(row, shown)
 end
 
 function CharacterRow:Update(row, elementData, ctx)
+    C:IsTable(row, 2)
+    C:IsTable(elementData, 3)
+    C:IsTable(ctx, 4)
+
     local charKey = elementData.Key
     -- The realm is conveyed by the section header (or is implicit for a single
     -- own-realm list), so the row shows just the character name when available.

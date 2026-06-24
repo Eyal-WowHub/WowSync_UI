@@ -19,6 +19,7 @@ local _, addon = ...
 local CharacterDetails = addon:NewObject("CharacterDetails")
 local SaveDialog = addon:GetObject("SaveDialog")
 
+local C = LibStub("Contracts-1.0")
 local L = addon.L
 local UI = addon.UI
 
@@ -82,6 +83,8 @@ local function RequestSave()
 end
 
 function CharacterDetails:Build(region)
+    C:IsTable(region, 2)
+
     pm = WowSync:GetProfileManager()
 
     local root = CreateFrame("Frame", nil, region, "BackdropTemplate")
