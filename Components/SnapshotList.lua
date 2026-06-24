@@ -43,11 +43,11 @@ local SNAPSHOT_DETAIL_LINE_HEIGHT = 15
 -- Padding below the last line of an expanded row's detail panel.
 local SNAPSHOT_DETAIL_BOTTOM_PAD = 8
 
-local pm
+local sv
 local scrollBox
-local entries = {}           -- ordered newest-first { snapshot, isLatest, isOldest }
+local entries = {}           -- ordered display rows { snapshot = <handle>, isHead = bool }
 local currentProfile = nil   -- profile name, for diffing against the live setup
-local selected = nil         -- the selected snapshot (object identity, not its hash)
+local selected = nil         -- the selected snapshot handle (identity, not its hash)
 local expanded = nil         -- the one open row (accordion), independent of selection
 local expandedDetail = nil   -- cached diff/note for the expanded row
 local onSelectionChanged = nil
@@ -76,17 +76,13 @@ local function BuildDetail(snapshot)
     local detail = { hasNote = false, note = nil, modules = {} }
     if not snapshot then return detail end
 
-    if snapshot.Body and snapshot.Body ~= "" then
+    local note = sv:GetNotes(snapshot)
+    if note ~= "" then
         detail.hasNote = true
-        detail.note = snapshot.Body
+        detail.note = note
     end
 
-    local preview
-    if snapshot.IsHead then
-        preview = pm:PreviewApplyCurrentOf(snapshot.CharKey)
-    else
-        preview = pm:PreviewApply(currentProfile, WowSync:GetSnapshotSelector(snapshot))
-    end
+    local preview = sv:Preview(snapshot)
     if preview and preview.perModule then
         local names = {}
         for name in pairs(preview.perModule) do
@@ -123,8 +119,7 @@ function SnapshotList:Build(region, opts)
 
     onSelectionChanged = opts.onSelect
     onContext = opts.onContext
-    pm = WowSync:GetProfileManager()
-
+    sv = WowSync:GetSnapshotView()
     scrollBox = CreateFrame("Frame", nil, region, "WowScrollBoxList")
     scrollBox:SetPoint("TOPLEFT", 0, 0)
     scrollBox:SetPoint("BOTTOMRIGHT", -16, 0)
@@ -148,17 +143,7 @@ function SnapshotList:Build(region, opts)
         end,
         OpenMenu = function(snapshot, anchor)
             if snapshot and onContext then
-                -- A collapsed head is a real saved snapshot, so head-ness lives
-                -- on the entry, not the snapshot object; pass it through so the
-                -- menu can still offer the head actions (e.g. "Save now").
-                local isHead = false
-                for _, entry in ipairs(entries) do
-                    if entry.snapshot == snapshot then
-                        isHead = entry.isHead or false
-                        break
-                    end
-                end
-                onContext(snapshot, SnapshotRow:FormatSubject(snapshot.Timestamp), anchor, isHead)
+                onContext(snapshot, SnapshotRow:FormatSubject(sv:GetTimestamp(snapshot)), anchor, sv:IsHead(snapshot))
             end
         end,
     }
@@ -201,67 +186,15 @@ end
 
 -- Newest-first ordering for saved history, with the persistent index as a
 -- tiebreaker so snapshots captured in the same second stay deterministic.
-local function HistoryNewerFirst(a, b)
-    local at, bt = a.snapshot.Timestamp or 0, b.snapshot.Timestamp or 0
-    if at ~= bt then
-        return at > bt
-    end
-    return (a.snapshot.Index or 0) > (b.snapshot.Index or 0)
-end
-
--- Re-partition the current entries so the head stays on top, pinned snapshots
--- float above the rest of the history, and everything else falls back to its
--- newest-first slot. Operates on the existing entry objects (preserving their
--- identity, so selection/expansion survive) and is what a pin/unpin toggle
--- calls to move a row between the pinned and unpinned groups. Sorting each
--- group by time means unpinning returns a snapshot to its original position.
-local function Reorder()
-    local headEntries = {}
-    local pinnedEntries = {}
-    local unpinnedEntries = {}
-    for _, entry in ipairs(entries) do
-        if entry.isHead then
-            tinsert(headEntries, entry)
-        elseif entry.snapshot.Pinned then
-            tinsert(pinnedEntries, entry)
-        else
-            tinsert(unpinnedEntries, entry)
-        end
-    end
-
-    table.sort(pinnedEntries, HistoryNewerFirst)
-    table.sort(unpinnedEntries, HistoryNewerFirst)
-
+local function LoadEntries()
     wipe(entries)
-    for _, entry in ipairs(headEntries) do
-        tinsert(entries, entry)
+    if not currentProfile then return end
+    for _, handle in ipairs(sv:GetTimelineOf(currentProfile)) do
+        tinsert(entries, {
+            snapshot = handle,
+            isHead = sv:IsHead(handle),
+        })
     end
-    for _, entry in ipairs(pinnedEntries) do
-        tinsert(entries, entry)
-    end
-    for _, entry in ipairs(unpinnedEntries) do
-        tinsert(entries, entry)
-    end
-end
-
--- Build the derived "current head" pseudo-snapshot for a character, or nil when
--- nothing is captured. It carries Modules + Hash like a real snapshot but is
--- marked IsHead (so apply/preview route through the *CurrentOf core paths), has
--- no Index/Pinned/Body, and uses LastSeen as its timestamp.
-local function HeadSnapshot(charKey)
-    local head = pm:GetCurrentHead(charKey)
-    if not head then
-        return nil
-    end
-    return {
-        IsHead = true,
-        CharKey = charKey,
-        IsOwn = head.IsCurrent,
-        Hash = head.Hash,
-        Timestamp = head.LastSeen,
-        Modules = head.Modules,
-        Source = { Character = charKey, ClassID = head.ClassID },
-    }
 end
 
 -- Populate the timeline for a character: the current head always sits on top as
@@ -270,35 +203,10 @@ end
 -- first). Selects the head, or the latest saved snapshot when there is none.
 function SnapshotList:SetProfile(profileName)
     currentProfile = profileName
-    wipe(entries)
-
-    local profile = profileName and pm:GetProfile(profileName)
-    local list = profile and profile.Snapshots or {}
-    local count = #list
-
-    local head = profileName and HeadSnapshot(profileName)
-
-    -- The head is always the top row: the character's current state, distinct
-    -- from the saved history below it.
-    if head then
-        tinsert(entries, {
-            snapshot = head,
-            isHead = true,
-        })
-    end
-
-    -- The history is stored oldest-first; walk it in reverse for newest-first.
-    for i = count, 1, -1 do
-        tinsert(entries, {
-            snapshot = list[i],
-        })
-    end
-
-    -- Float pinned snapshots above the rest of the history (but below the head).
-    Reorder()
+    LoadEntries()
 
     -- Default selection: the head when present, else the latest saved snapshot.
-    selected = head or list[count]
+    selected = profileName and (sv:GetHeadOf(profileName) or sv:GetLatestOf(profileName))
     expanded = nil
     expandedDetail = nil
     Rebuild()
@@ -332,10 +240,10 @@ end
 -- had its note edited) without disturbing the current selection or expansion.
 -- A pin/unpin changes the row's group, so the order is re-derived too.
 function SnapshotList:Refresh()
+    LoadEntries()
     if expanded then
         expandedDetail = BuildDetail(expanded)
     end
-    Reorder()
     Rebuild()
 end
 

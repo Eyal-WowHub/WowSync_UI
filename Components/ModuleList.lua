@@ -22,6 +22,7 @@ local C = LibStub("Contracts-1.0")
 local UI = addon.UI
 
 local pm
+local sv
 local root
 local checkboxes = {}   -- name -> active checkbox
 local pool = {}
@@ -60,6 +61,7 @@ function ModuleList:Build(region, opts)
     C:Ensures(opts.onChanged == nil or type(opts.onChanged) == "function", "Build: 'opts.onChanged' must be a function")
 
     pm = opts.profileManager or WowSync:GetProfileManager()
+    sv = WowSync:GetSnapshotView()
     onChanged = opts.onChanged
 
     root = CreateFrame("Frame", nil, region)
@@ -71,49 +73,45 @@ end
 function ModuleList:SetSnapshot(snapshot, preview, mode)
     ReleaseAll()
 
-    local modules = snapshot and snapshot.Modules or {}
-    local meta = { ClassID = snapshot and snapshot.Source and snapshot.Source.ClassID }
+    local meta = { ClassID = snapshot and sv:GetCharacterInfo(snapshot).ClassID }
     local perModule = preview and preview.perModule
     local exact = (mode == "exact")
     local applyModes = WowSync.Models and WowSync.Models.SnapshotApplyMode
 
-    -- Sort module names for consistent ordering
-    local names = {}
-    for name in pm:IterableModules() do
-        if modules[name] then
-            tinsert(names, name)
-        end
-    end
-    table.sort(names)
+    -- The snapshot's modules, in a stable order, intersected with what is
+    -- currently registered (a snapshot may carry a module no longer installed).
+    local names = snapshot and sv:GetModuleNames(snapshot) or {}
 
     local yOffset = 0
     for _, name in ipairs(names) do
         local module = pm:GetModule(name)
-        local canApply, reason = module:CanApply(meta)
+        if module then
+            local canApply, reason = module:CanApply(meta)
 
-        local counts
-        local moduleDiff = perModule and perModule[name]
-        if moduleDiff then
-            -- Merge never removes, and Exact removes only for modules whose apply
-            -- mode supports it; surface a removal figure only when the apply will
-            -- actually act on it, so the preview never overstates the change.
-            local showRemovals = exact and applyModes
-                and applyModes.CanExact(pm:GetModuleSnapshotApplyMode(name))
-            counts = {
-                added = #(moduleDiff.added or {}),
-                changed = #(moduleDiff.changed or {}),
-                removed = showRemovals and #(moduleDiff.removed or {}) or 0,
-            }
+            local counts
+            local moduleDiff = perModule and perModule[name]
+            if moduleDiff then
+                -- Merge never removes, and Exact removes only for modules whose apply
+                -- mode supports it; surface a removal figure only when the apply will
+                -- actually act on it, so the preview never overstates the change.
+                local showRemovals = exact and applyModes
+                    and applyModes.CanExact(pm:GetModuleSnapshotApplyMode(name))
+                counts = {
+                    added = #(moduleDiff.added or {}),
+                    changed = #(moduleDiff.changed or {}),
+                    removed = showRemovals and #(moduleDiff.removed or {}) or 0,
+                }
+            end
+
+            local cb = Acquire()
+            cb:ClearAllPoints()
+            cb:SetPoint("TOPLEFT", 0, -yOffset)
+            ModuleRow:Update(cb, name, canApply, reason, counts)
+            cb:Show()
+
+            checkboxes[name] = cb
+            yOffset = yOffset + UI.ModuleRow.Height + UI.ModuleRow.Padding
         end
-
-        local cb = Acquire()
-        cb:ClearAllPoints()
-        cb:SetPoint("TOPLEFT", 0, -yOffset)
-        ModuleRow:Update(cb, name, canApply, reason, counts)
-        cb:Show()
-
-        checkboxes[name] = cb
-        yOffset = yOffset + UI.ModuleRow.Height + UI.ModuleRow.Padding
     end
 end
 

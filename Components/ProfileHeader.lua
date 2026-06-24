@@ -16,10 +16,13 @@ local ProfileHeader = addon:NewObject("ProfileHeader")
 local C = LibStub("Contracts-1.0")
 local L = addon.L
 
+local sv
 local titleText, infoText
 
 function ProfileHeader:Build(region)
     C:IsTable(region, 2)
+
+    sv = WowSync:GetSnapshotView()
 
     local root = CreateFrame("Frame", nil, region)
     root:SetAllPoints(region)
@@ -34,10 +37,10 @@ function ProfileHeader:Build(region)
 end
 
 function ProfileHeader:SetProfile(character, snapshot)
-    local source = snapshot and snapshot.Source
-    character = character or (source and source.Character) or L["Unknown"]
+    local info = snapshot and sv:GetCharacterInfo(snapshot)
+    character = character or (info and info.Character) or L["Unknown"]
 
-    local classInfo = source and source.ClassID and C_CreatureInfo.GetClassInfo(source.ClassID)
+    local classInfo = info and info.ClassID and C_CreatureInfo.GetClassInfo(info.ClassID)
     local className = classInfo and classInfo.className or L["Unknown"]
 
     -- Class-color the character name when we know the class.
@@ -50,6 +53,6 @@ function ProfileHeader:SetProfile(character, snapshot)
 
     infoText:SetText(L["X • Y"]:format(
         className,
-        date("%b %d, %Y %H:%M", (snapshot and snapshot.Timestamp) or 0)
+        date("%b %d, %Y %H:%M", (snapshot and sv:GetTimestamp(snapshot)) or 0)
     ))
 end

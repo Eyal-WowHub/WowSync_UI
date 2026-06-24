@@ -40,6 +40,7 @@ local SUCCESS_TEXT_COLOR = { 0.3, 0.85, 0.3, 1 }
 local WARNING_TEXT_COLOR = { 0.95, 0.75, 0.2, 1 }
 
 local pm
+local sv
 local currentProfileName = nil
 local onRefreshNeeded = nil
 local onSaved = nil
@@ -138,12 +139,7 @@ local function ApplySnapshot(snapshot, moduleSet, mode)
     -- Apply only the chosen modules of the snapshot, in the requested mode. The
     -- current head is not a stored snapshot, so it routes through ApplyCurrentOf.
     local strategy = { default = mode or "merge" }
-    local result
-    if snapshot.IsHead then
-        result = pm:ApplyCurrentOf(snapshot.CharKey, strategy, moduleSet)
-    else
-        result = pm:Apply(currentProfileName, WowSync:GetSnapshotSelector(snapshot), strategy, moduleSet)
-    end
+    local result = sv:Apply(snapshot, strategy, moduleSet)
     if result and result:Any() then
         for _, name in ipairs(result:Applied()) do
             local outcome = result:Get(name)
@@ -173,8 +169,7 @@ local function CanApplySnapshot(snapshot)
     if not snapshot then
         return false
     end
-    local myHead = pm:GetCurrentHead()
-    return not (myHead and snapshot.Hash == myHead.Hash)
+    return not sv:IsCurrent(snapshot)
 end
 
 -- Open the preview dialog for a snapshot (defaulting to the selected one) in the
@@ -276,13 +271,11 @@ local function OpenSnapshotMenu(snapshot, subject, anchor, isHead)
             end
 
             rootDescription:CreateButton(L["Save now"], function()
-                ProfileDetails:RequestSave(snapshot.CharKey or currentProfileName)
+                ProfileDetails:RequestSave(sv:GetCharacterInfo(snapshot).Key)
             end)
         end)
         return
     end
-
-    local selector = WowSync:GetSnapshotSelector(snapshot)
 
     MenuUtil.CreateContextMenu(anchor, function(_, rootDescription)
         rootDescription:CreateTitle(subject)
@@ -297,21 +290,21 @@ local function OpenSnapshotMenu(snapshot, subject, anchor, isHead)
 
         rootDescription:CreateDivider()
 
-        if snapshot.Pinned then
+        if sv:IsPinned(snapshot) then
             rootDescription:CreateButton(L["Unpin"], function()
-                pm:UnpinSnapshot(currentProfileName, selector)
+                sv:Unpin(snapshot)
                 snapshotList:Refresh()
             end)
         else
             rootDescription:CreateButton(L["Pin"], function()
-                pm:PinSnapshot(currentProfileName, selector)
+                sv:Pin(snapshot)
                 snapshotList:Refresh()
             end)
         end
 
         rootDescription:CreateButton(L["Edit note…"], function()
-            Dialogs:PromptEditNote(snapshot.Body or "", function(text)
-                pm:SetSnapshotBody(currentProfileName, selector, text)
+            Dialogs:PromptEditNote(sv:GetNotes(snapshot), function(text)
+                sv:SetNotes(snapshot, text)
                 snapshotList:Refresh()
             end)
         end)
@@ -320,7 +313,7 @@ local function OpenSnapshotMenu(snapshot, subject, anchor, isHead)
 
         rootDescription:CreateButton(L["Delete snapshot"], function()
             Dialogs:ConfirmDeleteSnapshot(subject, function()
-                pm:DeleteSnapshot(currentProfileName, selector)
+                sv:Delete(snapshot)
                 -- Deleting the latest snapshot changes what the header shows, so
                 -- refresh the whole panel rather than just the list.
                 ProfileDetails:SetProfile(currentProfileName)
@@ -333,6 +326,7 @@ function ProfileDetails:Build(region)
     C:IsTable(region, 2)
 
     pm = WowSync:GetProfileManager()
+    sv = WowSync:GetSnapshotView()
 
     local root = CreateFrame("Frame", nil, region, "BackdropTemplate")
     root:SetAllPoints(region)
@@ -430,9 +424,8 @@ function ProfileDetails:Build(region)
         onUndo = RequestUndo,
         onDelete = function()
             if currentProfileName then
-                local profile = pm:GetProfile(currentProfileName)
-                local latest = profile and profile.Snapshots[#profile.Snapshots]
-                local label = (latest and latest.Source and latest.Source.Character) or currentProfileName
+                local latest = sv:GetLatestOf(currentProfileName)
+                local label = (latest and sv:GetCharacterInfo(latest).Character) or currentProfileName
                 Dialogs:ConfirmDelete(label, DoDelete)
             end
         end,
@@ -455,12 +448,11 @@ function ProfileDetails:SetProfile(profileName)
         return
     end
 
-    local head = pm:GetCurrentHead(profileName)
-    local profile = pm:GetProfile(profileName)
-    local latest = profile and profile.Snapshots[#profile.Snapshots]
+    local headHandle = sv:GetHeadOf(profileName)
+    local latestHandle = sv:GetLatestOf(profileName)
 
     -- A listed character always has a head and/or saved history; guard anyway.
-    if not head and not latest then
+    if not headHandle and not latestHandle then
         content:Hide()
         emptyLabel:Show()
         ApplyUndoState()
@@ -474,21 +466,12 @@ function ProfileDetails:SetProfile(profileName)
 
     -- The header headlines the character's CURRENT setup (its head); fall back
     -- to the latest saved snapshot for a character with history but no capture.
-    local headline
-    if head then
-        headline = {
-            Source = { Character = profileName, ClassID = head.ClassID },
-            Timestamp = head.LastSeen,
-        }
-    else
-        headline = latest
-    end
-    header:SetProfile(profileName, headline)
+    header:SetProfile(profileName, headHandle or latestHandle)
 
     snapshotList:SetProfile(profileName)
 
     -- Delete removes the saved history, so it only applies when some exists.
-    actionBar:SetDeleteEnabled(profile ~= nil)
+    actionBar:SetDeleteEnabled(latestHandle ~= nil)
 
     ApplyUndoState()
 end
@@ -500,27 +483,24 @@ end
 -- the list can refresh and re-select the character.
 function ProfileDetails:RequestSave(charKey)
     charKey = charKey or pm:GetCurrentCharacterKey()
-    local isOwn = charKey == pm:GetCurrentCharacterKey()
 
-    local head = pm:GetCurrentHead(charKey)
-    if not head then
+    local headHandle = sv:GetHeadOf(charKey)
+    if not headHandle then
         WowSync:Print(L["That character has nothing captured yet."])
         return
     end
 
+    local isOwn = sv:IsOwnCharacter(headHandle)
+
     local moduleNames
     if not isOwn then
-        moduleNames = {}
-        for name in pairs(head.Modules) do
-            tinsert(moduleNames, name)
-        end
-        table.sort(moduleNames)
+        moduleNames = sv:GetModuleNames(headHandle)
     end
 
     SaveDialog:Show({
         moduleNames = moduleNames,
         onConfirm = function(moduleSet, note)
-            local evicted = pm:PreviewSave(moduleSet, charKey)
+            local evicted = sv:GetPendingEvictionOf(charKey)
 
             local function commit()
                 local snapshot, reason
@@ -535,7 +515,7 @@ function ProfileDetails:RequestSave(charKey)
                     WowSync:Print(L["Snapshot saved."])
                     if evicted then
                         WowSync:Print(L["Reached the snapshot limit — removed the oldest (X)."]:format(
-                            SnapshotRow:FormatSubject(evicted.Timestamp)))
+                            SnapshotRow:FormatSubject(sv:GetTimestamp(evicted))))
                     end
                     ProfileDetails:SetProfile(charKey)
                     if onSaved then
@@ -548,7 +528,7 @@ function ProfileDetails:RequestSave(charKey)
 
             if evicted then
                 Dialogs:ConfirmSaveAtLimit(pm:GetMaxSnapshots(),
-                    SnapshotRow:FormatSubject(evicted.Timestamp), commit)
+                    SnapshotRow:FormatSubject(sv:GetTimestamp(evicted)), commit)
             else
                 commit()
             end

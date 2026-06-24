@@ -28,6 +28,7 @@ local L = addon.L
 local UI = addon.UI
 
 local pm
+local sv
 local dialog, frame
 local subjectLabel, moduleList, toggleButton
 local onConfirm
@@ -42,6 +43,7 @@ end
 local function Build()
     if frame then return end
     pm = WowSync:GetProfileManager()
+    sv = WowSync:GetSnapshotView()
 
     dialog = Dialog:Build({
         name = "WowSyncApplyPreview",
@@ -108,14 +110,9 @@ function ApplyPreviewDialog:Show(opts)
     onConfirm = opts.onConfirm
     currentMode = opts.mode or "merge"
     dialog:SetTitle(currentMode == "exact" and L["Apply snapshot — Exact"] or L["Apply snapshot — Merge"])
-    subjectLabel:SetText(opts.snapshot.IsHead and L["Current"] or SnapshotRow:FormatSubject(opts.snapshot.Timestamp))
+    subjectLabel:SetText(sv:IsHead(opts.snapshot) and L["Current"] or SnapshotRow:FormatSubject(sv:GetTimestamp(opts.snapshot)))
 
-    local preview
-    if opts.snapshot.IsHead then
-        preview = pm:PreviewApplyCurrentOf(opts.snapshot.CharKey)
-    else
-        preview = pm:PreviewApply(opts.profileName, WowSync:GetSnapshotSelector(opts.snapshot))
-    end
+    local preview = sv:Preview(opts.snapshot)
     moduleList:SetSnapshot(opts.snapshot, preview, currentMode)
     RefreshToggle()
 
