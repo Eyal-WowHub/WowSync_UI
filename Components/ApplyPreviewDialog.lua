@@ -19,6 +19,7 @@ local _, addon = ...
 ]]
 
 local ApplyPreviewDialog = addon:NewObject("ApplyPreviewDialog")
+local Dialog = addon:GetObject("Dialog")
 local ModuleList = addon:GetObject("ModuleList")
 local SnapshotRow = addon:GetObject("SnapshotRow")
 
@@ -27,8 +28,8 @@ local L = addon.L
 local UI = addon.UI
 
 local pm
-local frame
-local titleLabel, subjectLabel, moduleList, toggleButton
+local dialog, frame
+local subjectLabel, moduleList, toggleButton
 local onConfirm
 local currentMode
 
@@ -42,27 +43,13 @@ local function Build()
     if frame then return end
     pm = WowSync:GetProfileManager()
 
-    frame = CreateFrame("Frame", "WowSyncApplyPreview", UIParent, "BackdropTemplate")
-    frame:SetSize(UI.Preview.Width, UI.Preview.Height)
-    frame:SetPoint("CENTER")
-    frame:SetFrameStrata("FULLSCREEN_DIALOG")
-    frame:SetBackdrop({
-        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        tile = true, tileSize = 16, edgeSize = 16,
-        insets = { left = 4, right = 4, top = 4, bottom = 4 },
+    dialog = Dialog:Build({
+        name = "WowSyncApplyPreview",
+        title = L["Apply snapshot"],
+        width = UI.Preview.Width,
+        height = UI.Preview.Height,
     })
-    frame:SetBackdropColor(unpack(UI.Backdrop.Main))
-    frame:SetBackdropBorderColor(unpack(UI.Backdrop.MainBorder))
-    frame:EnableMouse(true)
-
-    titleLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    titleLabel:SetPoint("TOPLEFT", 14, -12)
-    titleLabel:SetText(L["Apply snapshot"])
-
-    local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
-    close:SetPoint("TOPRIGHT", 2, -2)
-    close:SetScript("OnClick", function() ApplyPreviewDialog:Hide() end)
+    frame = dialog:GetFrame()
 
     subjectLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     subjectLabel:SetPoint("TOPLEFT", 14, -38)
@@ -107,11 +94,6 @@ local function Build()
     cancelButton:SetPoint("RIGHT", applyButton, "LEFT", -8, 0)
     cancelButton:SetText(L["Cancel"])
     cancelButton:SetScript("OnClick", function() ApplyPreviewDialog:Hide() end)
-
-    -- ESC closes the dialog.
-    tinsert(UISpecialFrames, "WowSyncApplyPreview")
-
-    frame:Hide()
 end
 
 function ApplyPreviewDialog:Show(opts)
@@ -125,7 +107,7 @@ function ApplyPreviewDialog:Show(opts)
 
     onConfirm = opts.onConfirm
     currentMode = opts.mode or "merge"
-    titleLabel:SetText(currentMode == "exact" and L["Apply snapshot — Exact"] or L["Apply snapshot — Merge"])
+    dialog:SetTitle(currentMode == "exact" and L["Apply snapshot — Exact"] or L["Apply snapshot — Merge"])
     subjectLabel:SetText(opts.snapshot.IsHead and L["Current"] or SnapshotRow:FormatSubject(opts.snapshot.Timestamp))
 
     local preview
@@ -137,12 +119,11 @@ function ApplyPreviewDialog:Show(opts)
     moduleList:SetSnapshot(opts.snapshot, preview, currentMode)
     RefreshToggle()
 
-    frame:Show()
-    frame:Raise()
+    dialog:Show()
 end
 
 function ApplyPreviewDialog:Hide()
-    if frame then
-        frame:Hide()
+    if dialog then
+        dialog:Hide()
     end
 end

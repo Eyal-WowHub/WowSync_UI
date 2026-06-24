@@ -19,6 +19,7 @@ local _, addon = ...
 ]]
 
 local SaveDialog = addon:NewObject("SaveDialog")
+local Dialog = addon:GetObject("Dialog")
 local ModuleRow = addon:GetObject("ModuleRow")
 
 local C = LibStub("Contracts-1.0")
@@ -26,8 +27,8 @@ local L = addon.L
 local UI = addon.UI
 
 local pm
-local frame
-local title, toggleButton, noteBox
+local dialog, frame
+local toggleButton, noteBox
 local rows = {}          -- name -> checkbox (one per registered module, created once)
 local activeNames = {}   -- names currently offered/shown (a subset of rows)
 local onConfirm
@@ -104,28 +105,13 @@ local function Build()
     if frame then return end
     pm = WowSync:GetProfileManager()
 
-    frame = CreateFrame("Frame", "WowSyncSaveDialog", UIParent, "BackdropTemplate")
-    frame:SetSize(UI.Preview.Width, UI.Preview.Height)
-    frame:SetPoint("CENTER")
-    frame:SetFrameStrata("FULLSCREEN_DIALOG")
-    frame:SetBackdrop({
-        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        tile = true, tileSize = 16, edgeSize = 16,
-        insets = { left = 4, right = 4, top = 4, bottom = 4 },
+    dialog = Dialog:Build({
+        name = "WowSyncSaveDialog",
+        title = L["Save snapshot"],
+        width = UI.Preview.Width,
+        height = UI.Preview.Height,
     })
-    frame:SetBackdropColor(unpack(UI.Backdrop.Main))
-    frame:SetBackdropBorderColor(unpack(UI.Backdrop.MainBorder))
-    frame:EnableMouse(true)
-
-    title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    title:SetPoint("TOPLEFT", 14, -12)
-    title:SetText(L["Save snapshot"])
-
-    local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
-    close:SetSize(24, 24)
-    close:SetPoint("TOPRIGHT", -3, -3)
-    close:SetScript("OnClick", function() SaveDialog:Hide() end)
+    frame = dialog:GetFrame()
 
     -- Optional note, captured into the snapshot's Body when the player saves.
     local noteLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
@@ -192,11 +178,6 @@ local function Build()
     cancelButton:SetPoint("RIGHT", saveButton, "LEFT", -8, 0)
     cancelButton:SetText(L["Cancel"])
     cancelButton:SetScript("OnClick", function() SaveDialog:Hide() end)
-
-    -- ESC closes the dialog.
-    tinsert(UISpecialFrames, "WowSyncSaveDialog")
-
-    frame:Hide()
 end
 
 function SaveDialog:Show(opts)
@@ -223,7 +204,7 @@ function SaveDialog:Show(opts)
     end
     table.sort(activeNames)
 
-    title:SetText(L["Save snapshot"])
+    dialog:SetTitle(L["Save snapshot"])
 
     noteBox:SetText("")
     noteBox:ClearFocus()
@@ -231,12 +212,11 @@ function SaveDialog:Show(opts)
     LayoutActiveRows()
     RefreshToggle()
 
-    frame:Show()
-    frame:Raise()
+    dialog:Show()
 end
 
 function SaveDialog:Hide()
-    if frame then
-        frame:Hide()
+    if dialog then
+        dialog:Hide()
     end
 end
