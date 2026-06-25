@@ -24,11 +24,12 @@ local L = addon.L
 local UI = addon.UI
 local C = LibStub("Contracts-1.0")
 
+local SnapshotManager = WowSync:GetSnapshotManager()
+
 -- Height of an undo history row and the gap between rows.
 local UNDO_ROW_HEIGHT = 34
 local UNDO_ROW_PADDING = 2
 
-local pm
 local root
 local scrollBox
 local onActivate
@@ -73,7 +74,6 @@ function UndoList:Build(region, opts)
     C:Ensures(opts.onActivate == nil or type(opts.onActivate) == "function", "Build: 'opts.onActivate' must be a function")
 
     onActivate = opts.onActivate
-    pm = WowSync:GetProfileManager()
 
     root = CreateFrame("Frame", nil, region)
     root:SetAllPoints(region)
@@ -117,7 +117,7 @@ end
 -- Repopulate from the live undo stack (newest first) and show the list only
 -- when there is something to undo. Returns whether any entries exist.
 function UndoList:Refresh()
-    local stack = pm:GetUndoStack()
+    local stack = SnapshotManager:GetUndoStack()
 
     local dataProvider = CreateDataProvider()
     for i, entry in ipairs(stack) do

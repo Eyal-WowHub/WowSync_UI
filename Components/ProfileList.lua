@@ -24,7 +24,9 @@ local C = LibStub("Contracts-1.0")
 local L = addon.L
 local UI = addon.UI
 
-local pm
+local SnapshotManager = WowSync:GetSnapshotManager()
+local CharacterManager = WowSync:GetCharacterManager()
+
 local scrollBox
 local saveButton
 local selectedProfileName = nil
@@ -39,8 +41,6 @@ local SAVED_FLOURISH_SECONDS = 0.9
 
 function ProfileList:Build(region)
     C:IsTable(region, 2)
-
-    pm = WowSync:GetProfileManager()
 
     local root = CreateFrame("Frame", nil, region, "BackdropTemplate")
     root:SetAllPoints(region)
@@ -139,9 +139,9 @@ function ProfileList:Build(region)
     -- The Save button is only meaningful when the logged-in character has
     -- something captured; track that live and on first build.
     WowSync:RegisterEvent("WOWSYNC_CURRENT_CHANGED", function()
-        ProfileList:SetSaveEnabled(pm:HasCurrent())
+        ProfileList:SetSaveEnabled(SnapshotManager:HasCurrent())
     end)
-    self:SetSaveEnabled(pm:HasCurrent())
+    self:SetSaveEnabled(SnapshotManager:HasCurrent())
 
     -- Animate the button for the duration of any save (including the command
     -- line), then show a brief confirmation.
@@ -205,7 +205,7 @@ function ProfileList:EndSaving(stored)
         end
         saveButton.spinner:Hide()
         saveButton:SetText(L["Save"])
-        ProfileList:SetSaveEnabled(pm:HasCurrent())
+        ProfileList:SetSaveEnabled(SnapshotManager:HasCurrent())
         if stored then
             saveButton.flourish:Restart()
         end
@@ -216,7 +216,7 @@ function ProfileList:Refresh()
     -- Every character with saved history and/or a captured Current, the
     -- logged-in one first. Each is one row; its detail panel shows the current
     -- head plus saved history.
-    local characters = pm:ListCharacters()
+    local characters = CharacterManager:GetSavedCharacters()
 
     local dataProvider = CreateDataProvider()
     local present = {}
@@ -242,7 +242,7 @@ function ProfileList:Refresh()
         end
     end
 
-    self:SetSaveEnabled(pm:HasCurrent())
+    self:SetSaveEnabled(SnapshotManager:HasCurrent())
 end
 
 function ProfileList:Select(profileName)

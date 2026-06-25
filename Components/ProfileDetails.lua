@@ -35,13 +35,15 @@ local C = LibStub("Contracts-1.0")
 local L = addon.L
 local UI = addon.UI
 
+local ProfileManager = WowSync:GetProfileManager()
+local SnapshotManager = WowSync:GetSnapshotManager()
+local SnapshotView = WowSync:GetSnapshotView()
+local SnapshotHandleCache = WowSync:GetSnapshotHandleCache()
+
 -- Status text colours { r, g, b, a } for in-sync/saved and out-of-sync states.
 local SUCCESS_TEXT_COLOR = { 0.3, 0.85, 0.3, 1 }
 local WARNING_TEXT_COLOR = { 0.95, 0.75, 0.2, 1 }
 
-local pm
-local sv
-local cache
 local currentProfileName = nil
 local onRefreshNeeded = nil
 local onSaved = nil
@@ -58,7 +60,7 @@ local function RefreshSyncStatus()
         return
     end
 
-    local preview = pm:PreviewApply(currentProfileName)
+    local preview = SnapshotManager:PreviewApply(currentProfileName)
     if not preview then
         syncLabel:Hide()
         return
@@ -91,7 +93,7 @@ end
 
 -- Reflect the current undo point in whichever view is visible
 local function ApplyUndoState()
-    local hasUndo = pm:HasUndo()
+    local hasUndo = SnapshotManager:HasUndo()
     if content:IsShown() then
         actionBar:SetUndoEnabled(hasUndo)
     else
@@ -118,8 +120,8 @@ end
 -- Action handlers
 
 local function DoUndo()
-    local info = pm:GetUndoInfo()
-    local result = pm:Undo()
+    local info = SnapshotManager:GetUndoInfo()
+    local result = SnapshotManager:Undo()
     if result then
         WowSync:Print(L["Undid the last apply (X)."]:format(info and info.Subject or L["Unknown"]))
         for _, name in ipairs(result:Applied()) do
@@ -140,7 +142,7 @@ local function ApplySnapshot(snapshot, moduleSet, mode)
     -- Apply only the chosen modules of the snapshot, in the requested mode. The
     -- current head is not a stored snapshot, so it routes through ApplyCurrentOf.
     local strategy = { default = mode or "merge" }
-    local result = sv:Apply(snapshot, strategy, moduleSet)
+    local result = SnapshotView:Apply(snapshot, strategy, moduleSet)
     if result and result:Any() then
         for _, name in ipairs(result:Applied()) do
             local outcome = result:Get(name)
@@ -170,7 +172,7 @@ local function CanApplySnapshot(snapshot)
     if not snapshot then
         return false
     end
-    return not sv:IsCurrent(snapshot)
+    return not SnapshotView:IsCurrent(snapshot)
 end
 
 -- Open the preview dialog for a snapshot (defaulting to the selected one) in the
@@ -202,7 +204,7 @@ end
 
 local function DoDelete()
     if currentProfileName then
-        pm:DeleteProfile(currentProfileName)
+        ProfileManager:DeleteProfile(currentProfileName)
         currentProfileName = nil
         if onRefreshNeeded then
             onRefreshNeeded()
@@ -211,7 +213,7 @@ local function DoDelete()
 end
 
 local function RequestUndo()
-    local info = pm:GetUndoInfo()
+    local info = SnapshotManager:GetUndoInfo()
     if info then
         Dialogs:ConfirmUndo(info.Subject, DoUndo)
     end
@@ -219,7 +221,7 @@ end
 
 -- Roll back the most recent `count` applies (a cascade from the undo list).
 local function DoUndoSteps(count, entry)
-    local result = pm:UndoSteps(count)
+    local result = SnapshotManager:UndoSteps(count)
     if result then
         if count > 1 then
             WowSync:Print(L["Undid X changes."]:format(count))
@@ -272,7 +274,7 @@ local function OpenSnapshotMenu(snapshot, subject, anchor, isHead)
             end
 
             rootDescription:CreateButton(L["Save now"], function()
-                ProfileDetails:RequestSave(sv:GetCharacterInfo(snapshot).Key)
+                ProfileDetails:RequestSave(SnapshotView:GetCharacterInfo(snapshot).Key)
             end)
         end)
         return
@@ -291,21 +293,21 @@ local function OpenSnapshotMenu(snapshot, subject, anchor, isHead)
 
         rootDescription:CreateDivider()
 
-        if sv:IsPinned(snapshot) then
+        if SnapshotView:IsPinned(snapshot) then
             rootDescription:CreateButton(L["Unpin"], function()
-                sv:Unpin(snapshot)
+                SnapshotView:Unpin(snapshot)
                 snapshotList:Refresh()
             end)
         else
             rootDescription:CreateButton(L["Pin"], function()
-                sv:Pin(snapshot)
+                SnapshotView:Pin(snapshot)
                 snapshotList:Refresh()
             end)
         end
 
         rootDescription:CreateButton(L["Edit note…"], function()
-            Dialogs:PromptEditNote(sv:GetNotes(snapshot), function(text)
-                sv:SetNotes(snapshot, text)
+            Dialogs:PromptEditNote(SnapshotView:GetNotes(snapshot), function(text)
+                SnapshotView:SetNotes(snapshot, text)
                 snapshotList:Refresh()
             end)
         end)
@@ -314,7 +316,7 @@ local function OpenSnapshotMenu(snapshot, subject, anchor, isHead)
 
         rootDescription:CreateButton(L["Delete snapshot"], function()
             Dialogs:ConfirmDeleteSnapshot(subject, function()
-                sv:Delete(snapshot)
+                SnapshotView:Delete(snapshot)
                 -- Deleting the latest snapshot changes what the header shows, so
                 -- refresh the whole panel rather than just the list.
                 ProfileDetails:SetProfile(currentProfileName)
@@ -325,10 +327,6 @@ end
 
 function ProfileDetails:Build(region)
     C:IsTable(region, 2)
-
-    pm = WowSync:GetProfileManager()
-    sv = WowSync:GetSnapshotView()
-    cache = WowSync:GetSnapshotHandleCache()
 
     local root = CreateFrame("Frame", nil, region, "BackdropTemplate")
     root:SetAllPoints(region)
@@ -426,8 +424,8 @@ function ProfileDetails:Build(region)
         onUndo = RequestUndo,
         onDelete = function()
             if currentProfileName then
-                local latest = cache:GetLatestSaved(currentProfileName)
-                local label = (latest and sv:GetCharacterInfo(latest).Character) or currentProfileName
+                local latest = SnapshotHandleCache:GetLatestSaved(currentProfileName)
+                local label = (latest and SnapshotView:GetCharacterInfo(latest).Character) or currentProfileName
                 Dialogs:ConfirmDelete(label, DoDelete)
             end
         end,
@@ -450,8 +448,8 @@ function ProfileDetails:SetProfile(profileName)
         return
     end
 
-    local headHandle = cache:GetHead(profileName)
-    local latestHandle = cache:GetLatestSaved(profileName)
+    local headHandle = SnapshotHandleCache:GetHead(profileName)
+    local latestHandle = SnapshotHandleCache:GetLatestSaved(profileName)
 
     -- A listed character always has a head and/or saved history; guard anyway.
     if not headHandle and not latestHandle then
@@ -484,25 +482,25 @@ end
 -- success the head collapses into the new latest snapshot and onSaved fires so
 -- the list can refresh and re-select the character.
 function ProfileDetails:RequestSave(charKey)
-    charKey = charKey or pm:GetCurrentCharacterKey()
+    charKey = charKey or SnapshotManager:GetCurrentCharacterKey()
 
-    local headHandle = cache:GetHead(charKey)
+    local headHandle = SnapshotHandleCache:GetHead(charKey)
     if not headHandle then
         WowSync:Print(L["That character has nothing captured yet."])
         return
     end
 
-    local isOwn = sv:IsOwnCharacter(headHandle)
+    local isOwn = SnapshotView:IsOwnCharacter(headHandle)
 
     local moduleNames
     if not isOwn then
-        moduleNames = sv:GetModuleNames(headHandle)
+        moduleNames = SnapshotView:GetModuleNames(headHandle)
     end
 
     SaveDialog:Show({
         moduleNames = moduleNames,
         onConfirm = function(moduleSet, note)
-            local evicted = cache:GetPendingEviction(charKey)
+            local evicted = SnapshotHandleCache:GetPendingEviction(charKey)
 
             local function commit()
                 local function done(snapshot, reason)
@@ -510,7 +508,7 @@ function ProfileDetails:RequestSave(charKey)
                         WowSync:Print(L["Snapshot saved."])
                         if evicted then
                             WowSync:Print(L["Reached the snapshot limit — removed the oldest (X)."]:format(
-                                SnapshotRow:FormatSubject(sv:GetTimestamp(evicted))))
+                                SnapshotRow:FormatSubject(SnapshotView:GetTimestamp(evicted))))
                         end
                         ProfileDetails:SetProfile(charKey)
                         if onSaved then
@@ -526,15 +524,15 @@ function ProfileDetails:RequestSave(charKey)
                 end
 
                 if isOwn then
-                    pm:Save(note, moduleSet, done)
+                    SnapshotManager:Save(note, moduleSet, done)
                 else
-                    pm:SaveFromCharacter(charKey, moduleSet, note, done)
+                    SnapshotManager:SaveFromCharacter(charKey, moduleSet, note, done)
                 end
             end
 
             if evicted then
-                Dialogs:ConfirmSaveAtLimit(pm:GetMaxSnapshots(),
-                    SnapshotRow:FormatSubject(sv:GetTimestamp(evicted)), commit)
+                Dialogs:ConfirmSaveAtLimit(SnapshotManager:GetMaxSnapshots(),
+                    SnapshotRow:FormatSubject(SnapshotView:GetTimestamp(evicted)), commit)
             else
                 commit()
             end

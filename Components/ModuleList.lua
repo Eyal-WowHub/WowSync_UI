@@ -7,7 +7,7 @@ local _, addon = ...
     profile. Rows are pooled and reused across profile selections (no frame
     churn). Composes ModuleRow for each row.
 
-    addon:GetObject("ModuleList"):Build(region, { profileManager = pm })
+    addon:GetObject("ModuleList"):Build(region, { onChanged = fn })
         -> self {
             SetSnapshot(snapshot, preview, mode),   -- (re)build rows; preview adds counts
             GetSelected() -> { [name] = true },
@@ -21,8 +21,10 @@ local ModuleRow = addon:GetObject("ModuleRow")
 local C = LibStub("Contracts-1.0")
 local UI = addon.UI
 
-local pm
-local sv
+local ModuleRegistry = WowSync:GetModuleRegistry()
+local SnapshotManager = WowSync:GetSnapshotManager()
+local SnapshotView = WowSync:GetSnapshotView()
+
 local root
 local checkboxes = {}   -- name -> active checkbox
 local pool = {}
@@ -60,8 +62,6 @@ function ModuleList:Build(region, opts)
 
     C:Ensures(opts.onChanged == nil or type(opts.onChanged) == "function", "Build: 'opts.onChanged' must be a function")
 
-    pm = opts.profileManager or WowSync:GetProfileManager()
-    sv = WowSync:GetSnapshotView()
     onChanged = opts.onChanged
 
     root = CreateFrame("Frame", nil, region)
@@ -73,18 +73,18 @@ end
 function ModuleList:SetSnapshot(snapshot, preview, mode)
     ReleaseAll()
 
-    local meta = { ClassID = snapshot and sv:GetCharacterInfo(snapshot).ClassID }
+    local meta = { ClassID = snapshot and SnapshotView:GetCharacterInfo(snapshot).ClassID }
     local perModule = preview and preview.perModule
     local exact = (mode == "exact")
     local applyModes = WowSync.Models and WowSync.Models.SnapshotApplyMode
 
     -- The snapshot's modules, in a stable order, intersected with what is
     -- currently registered (a snapshot may carry a module no longer installed).
-    local names = snapshot and sv:GetModuleNames(snapshot) or {}
+    local names = snapshot and SnapshotView:GetModuleNames(snapshot) or {}
 
     local yOffset = 0
     for _, name in ipairs(names) do
-        local module = pm:GetModule(name)
+        local module = ModuleRegistry:Get(name)
         if module then
             local canApply, reason = module:CanApply(meta)
 
@@ -95,7 +95,7 @@ function ModuleList:SetSnapshot(snapshot, preview, mode)
                 -- mode supports it; surface a removal figure only when the apply will
                 -- actually act on it, so the preview never overstates the change.
                 local showRemovals = exact and applyModes
-                    and applyModes.CanExact(pm:GetModuleSnapshotApplyMode(name))
+                    and applyModes.CanExact(SnapshotManager:GetModuleSnapshotApplyMode(name))
                 counts = {
                     added = #(moduleDiff.added or {}),
                     changed = #(moduleDiff.changed or {}),

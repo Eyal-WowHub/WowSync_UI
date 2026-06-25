@@ -26,7 +26,8 @@ local C = LibStub("Contracts-1.0")
 local L = addon.L
 local UI = addon.UI
 
-local pm
+local ModuleRegistry = WowSync:GetModuleRegistry()
+
 local dialog, frame
 local toggleButton, noteBox
 local rows = {}          -- name -> checkbox (one per registered module, created once)
@@ -68,7 +69,7 @@ end
 -- checked state) is decided per Show.
 local function BuildRows(listParent)
     local names = {}
-    for name in pm:IterableModules() do
+    for name in ModuleRegistry:Iterate() do
         tinsert(names, name)
     end
     table.sort(names)
@@ -103,7 +104,6 @@ end
 -- Offer the existing profile names in a menu; choosing one fills the name box.
 local function Build()
     if frame then return end
-    pm = WowSync:GetProfileManager()
 
     dialog = Dialog:Build({
         name = "WowSyncSaveDialog",

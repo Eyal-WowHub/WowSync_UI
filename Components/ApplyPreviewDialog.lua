@@ -27,8 +27,8 @@ local C = LibStub("Contracts-1.0")
 local L = addon.L
 local UI = addon.UI
 
-local pm
-local sv
+local SnapshotView = WowSync:GetSnapshotView()
+
 local dialog, frame
 local subjectLabel, moduleList, toggleButton
 local onConfirm
@@ -42,8 +42,6 @@ end
 
 local function Build()
     if frame then return end
-    pm = WowSync:GetProfileManager()
-    sv = WowSync:GetSnapshotView()
 
     dialog = Dialog:Build({
         name = "WowSyncApplyPreview",
@@ -75,7 +73,6 @@ local function Build()
     listSlot:SetPoint("TOPRIGHT", -14, -82)
     listSlot:SetPoint("BOTTOM", frame, "BOTTOM", 0, 44)
     moduleList = ModuleList:Build(listSlot, {
-        profileManager = pm,
         onChanged = RefreshToggle,
     })
 
@@ -110,9 +107,9 @@ function ApplyPreviewDialog:Show(opts)
     onConfirm = opts.onConfirm
     currentMode = opts.mode or "merge"
     dialog:SetTitle(currentMode == "exact" and L["Apply snapshot — Exact"] or L["Apply snapshot — Merge"])
-    subjectLabel:SetText(sv:IsHead(opts.snapshot) and L["Current"] or SnapshotRow:FormatSubject(sv:GetTimestamp(opts.snapshot)))
+    subjectLabel:SetText(SnapshotView:IsHead(opts.snapshot) and L["Current"] or SnapshotRow:FormatSubject(SnapshotView:GetTimestamp(opts.snapshot)))
 
-    local preview = sv:Preview(opts.snapshot)
+    local preview = SnapshotView:Preview(opts.snapshot)
     moduleList:SetSnapshot(opts.snapshot, preview, currentMode)
     RefreshToggle()
 
