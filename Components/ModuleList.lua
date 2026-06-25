@@ -95,7 +95,7 @@ function ModuleList:SetSnapshot(snapshot, preview, mode)
                 -- mode supports it; surface a removal figure only when the apply will
                 -- actually act on it, so the preview never overstates the change.
                 local showRemovals = exact and applyModes
-                    and applyModes.CanExact(SnapshotManager:GetModuleSnapshotApplyMode(name))
+                    and applyModes.CanExact(SnapshotManager:GetModuleApplyMode(name))
                 counts = {
                     added = #(moduleDiff.added or {}),
                     changed = #(moduleDiff.changed or {}),

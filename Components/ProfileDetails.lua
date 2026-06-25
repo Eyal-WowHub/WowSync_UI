@@ -60,7 +60,7 @@ local function RefreshSyncStatus()
         return
     end
 
-    local preview = SnapshotManager:PreviewApply(currentProfileName)
+    local preview = SnapshotManager:PreviewApplySnapshot(currentProfileName)
     if not preview then
         syncLabel:Hide()
         return
@@ -93,7 +93,7 @@ end
 
 -- Reflect the current undo point in whichever view is visible
 local function ApplyUndoState()
-    local hasUndo = SnapshotManager:HasUndo()
+    local hasUndo = SnapshotManager:CanUndo()
     if content:IsShown() then
         actionBar:SetUndoEnabled(hasUndo)
     else
@@ -120,8 +120,8 @@ end
 -- Action handlers
 
 local function DoUndo()
-    local info = SnapshotManager:GetUndoInfo()
-    local result = SnapshotManager:Undo()
+    local info = SnapshotManager:GetNextUndoPoint()
+    local result = SnapshotManager:UndoLastApply()
     if result then
         WowSync:Print(L["Undid the last apply (X)."]:format(info and info.Subject or L["Unknown"]))
         for _, name in ipairs(result:Applied()) do
@@ -213,7 +213,7 @@ local function DoDelete()
 end
 
 local function RequestUndo()
-    local info = SnapshotManager:GetUndoInfo()
+    local info = SnapshotManager:GetNextUndoPoint()
     if info then
         Dialogs:ConfirmUndo(info.Subject, DoUndo)
     end
@@ -221,7 +221,7 @@ end
 
 -- Roll back the most recent `count` applies (a cascade from the undo list).
 local function DoUndoSteps(count, entry)
-    local result = SnapshotManager:UndoSteps(count)
+    local result = SnapshotManager:UndoApplies(count)
     if result then
         if count > 1 then
             WowSync:Print(L["Undid X changes."]:format(count))
@@ -482,7 +482,7 @@ end
 -- success the head collapses into the new latest snapshot and onSaved fires so
 -- the list can refresh and re-select the character.
 function ProfileDetails:RequestSave(charKey)
-    charKey = charKey or SnapshotManager:GetCurrentCharacterKey()
+    charKey = charKey or SnapshotManager:GetCurrentCharKey()
 
     local headHandle = SnapshotHandleCache:GetHead(charKey)
     if not headHandle then
@@ -524,14 +524,14 @@ function ProfileDetails:RequestSave(charKey)
                 end
 
                 if isOwn then
-                    SnapshotManager:Save(note, moduleSet, done)
+                    SnapshotManager:SaveCurrentSnapshot(note, moduleSet, done)
                 else
-                    SnapshotManager:SaveFromCharacter(charKey, moduleSet, note, done)
+                    SnapshotManager:SaveSnapshotByCharKey(charKey, moduleSet, note, done)
                 end
             end
 
             if evicted then
-                Dialogs:ConfirmSaveAtLimit(SnapshotManager:GetMaxSnapshots(),
+                Dialogs:ConfirmSaveAtLimit(SnapshotManager:GetSnapshotLimit(),
                     SnapshotRow:FormatSubject(SnapshotView:GetTimestamp(evicted)), commit)
             else
                 commit()

@@ -117,7 +117,7 @@ end
 -- Repopulate from the live undo stack (newest first) and show the list only
 -- when there is something to undo. Returns whether any entries exist.
 function UndoList:Refresh()
-    local stack = SnapshotManager:GetUndoStack()
+    local stack = SnapshotManager:GetUndoPoints()
 
     local dataProvider = CreateDataProvider()
     for i, entry in ipairs(stack) do

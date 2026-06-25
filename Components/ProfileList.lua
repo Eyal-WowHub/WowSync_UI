@@ -139,9 +139,9 @@ function ProfileList:Build(region)
     -- The Save button is only meaningful when the logged-in character has
     -- something captured; track that live and on first build.
     WowSync:RegisterEvent("WOWSYNC_CURRENT_CHANGED", function()
-        ProfileList:SetSaveEnabled(SnapshotManager:HasCurrent())
+        ProfileList:SetSaveEnabled(SnapshotManager:HasCapturedGameData())
     end)
-    self:SetSaveEnabled(SnapshotManager:HasCurrent())
+    self:SetSaveEnabled(SnapshotManager:HasCapturedGameData())
 
     -- Animate the button for the duration of any save (including the command
     -- line), then show a brief confirmation.
@@ -205,7 +205,7 @@ function ProfileList:EndSaving(stored)
         end
         saveButton.spinner:Hide()
         saveButton:SetText(L["Save"])
-        ProfileList:SetSaveEnabled(SnapshotManager:HasCurrent())
+        ProfileList:SetSaveEnabled(SnapshotManager:HasCapturedGameData())
         if stored then
             saveButton.flourish:Restart()
         end
@@ -242,7 +242,7 @@ function ProfileList:Refresh()
         end
     end
 
-    self:SetSaveEnabled(SnapshotManager:HasCurrent())
+    self:SetSaveEnabled(SnapshotManager:HasCapturedGameData())
 end
 
 function ProfileList:Select(profileName)
