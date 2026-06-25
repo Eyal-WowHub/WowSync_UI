@@ -43,8 +43,8 @@ local SNAPSHOT_DETAIL_LINE_HEIGHT = 15
 -- Padding below the last line of an expanded row's detail panel.
 local SNAPSHOT_DETAIL_BOTTOM_PAD = 8
 
-local sv
-local cache
+local SnapshotView = WowSync:GetSnapshotView()
+local SnapshotHandleCache = WowSync:GetSnapshotHandleCache()
 local scrollBox
 local entries = {}           -- ordered display rows { snapshot = <handle>, isHead = bool }
 local currentProfile = nil   -- profile name, for diffing against the live setup
@@ -77,21 +77,21 @@ local function BuildDetail(snapshot)
     local detail = { hasNote = false, note = nil, modules = {} }
     if not snapshot then return detail end
 
-    local note = sv:GetNotes(snapshot)
+    local note = SnapshotView:GetNotes(snapshot)
     if note ~= "" then
         detail.hasNote = true
         detail.note = note
     end
 
-    local preview = sv:Preview(snapshot)
+    local preview = SnapshotView:Preview(snapshot)
     if preview and preview.perModule then
-        local names = {}
+        local moduleNames = {}
         for name in pairs(preview.perModule) do
-            tinsert(names, name)
+            tinsert(moduleNames, name)
         end
-        table.sort(names)
+        table.sort(moduleNames)
 
-        for _, name in ipairs(names) do
+        for _, name in ipairs(moduleNames) do
             local moduleDiff = preview.perModule[name]
             local added = #(moduleDiff.added or {})
             local changed = #(moduleDiff.changed or {})
@@ -120,8 +120,6 @@ function SnapshotList:Build(region, opts)
 
     onSelectionChanged = opts.onSelect
     onContext = opts.onContext
-    sv = WowSync:GetSnapshotView()
-    cache = WowSync:GetSnapshotHandleCache()
     scrollBox = CreateFrame("Frame", nil, region, "WowScrollBoxList")
     scrollBox:SetPoint("TOPLEFT", 0, 0)
     scrollBox:SetPoint("BOTTOMRIGHT", -16, 0)
@@ -145,7 +143,7 @@ function SnapshotList:Build(region, opts)
         end,
         OpenMenu = function(snapshot, anchor)
             if snapshot and onContext then
-                onContext(snapshot, SnapshotRow:FormatSubject(sv:GetTimestamp(snapshot)), anchor, sv:IsHead(snapshot))
+                onContext(snapshot, SnapshotRow:FormatSubject(SnapshotView:GetTimestamp(snapshot)), anchor, SnapshotView:IsHead(snapshot))
             end
         end,
     }
@@ -191,10 +189,10 @@ end
 local function LoadEntries()
     wipe(entries)
     if not currentProfile then return end
-    for _, handle in ipairs(cache:GetTimeline(currentProfile)) do
+    for _, handle in ipairs(SnapshotHandleCache:GetTimeline(currentProfile)) do
         tinsert(entries, {
             snapshot = handle,
-            isHead = sv:IsHead(handle),
+            isHead = SnapshotView:IsHead(handle),
         })
     end
 end
@@ -208,7 +206,7 @@ function SnapshotList:SetProfile(profileName)
     LoadEntries()
 
     -- Default selection: the head when present, else the latest saved snapshot.
-    selected = profileName and (cache:GetHead(profileName) or cache:GetLatestSaved(profileName))
+    selected = profileName and (SnapshotHandleCache:GetHead(profileName) or SnapshotHandleCache:GetLatestSaved(profileName))
     expanded = nil
     expandedDetail = nil
     Rebuild()

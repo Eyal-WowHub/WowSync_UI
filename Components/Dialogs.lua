@@ -30,9 +30,9 @@ StaticPopupDialogs["WOWSYNC_UNDO"] = {
     text = L["Undo the last apply (X)?"],
     button1 = YES,
     button2 = NO,
-    OnAccept = function(self, data)
-        if data and data.onConfirm then
-            data.onConfirm()
+    OnAccept = function(self, popupData)
+        if popupData and popupData.onConfirm then
+            popupData.onConfirm()
         end
     end,
     timeout = 0,
@@ -45,9 +45,9 @@ StaticPopupDialogs["WOWSYNC_UNDO_MULTI"] = {
     text = L["Undo the last X changes, back to Y?"],
     button1 = YES,
     button2 = NO,
-    OnAccept = function(self, data)
-        if data and data.onConfirm then
-            data.onConfirm()
+    OnAccept = function(self, popupData)
+        if popupData and popupData.onConfirm then
+            popupData.onConfirm()
         end
     end,
     timeout = 0,
@@ -60,9 +60,9 @@ StaticPopupDialogs["WOWSYNC_DELETE_PROFILE"] = {
     text = L["Delete profile 'X'?"],
     button1 = YES,
     button2 = NO,
-    OnAccept = function(self, data)
-        if data and data.onConfirm then
-            data.onConfirm()
+    OnAccept = function(self, popupData)
+        if popupData and popupData.onConfirm then
+            popupData.onConfirm()
         end
     end,
     timeout = 0,
@@ -75,9 +75,9 @@ StaticPopupDialogs["WOWSYNC_DELETE_SNAPSHOT"] = {
     text = L["Delete this snapshot (X)?"],
     button1 = YES,
     button2 = NO,
-    OnAccept = function(self, data)
-        if data and data.onConfirm then
-            data.onConfirm()
+    OnAccept = function(self, popupData)
+        if popupData and popupData.onConfirm then
+            popupData.onConfirm()
         end
     end,
     timeout = 0,
@@ -90,9 +90,9 @@ StaticPopupDialogs["WOWSYNC_APPLY_MERGE"] = {
     text = L["Apply the selected modules from this snapshot?\n\nNew and changed entries will be added or updated. Nothing will be removed."],
     button1 = ACCEPT,
     button2 = CANCEL,
-    OnAccept = function(self, data)
-        if data and data.onConfirm then
-            data.onConfirm()
+    OnAccept = function(self, popupData)
+        if popupData and popupData.onConfirm then
+            popupData.onConfirm()
         end
     end,
     timeout = 0,
@@ -106,9 +106,9 @@ StaticPopupDialogs["WOWSYNC_APPLY_EXACT"] = {
     button1 = ACCEPT,
     button2 = CANCEL,
     showAlert = true,
-    OnAccept = function(self, data)
-        if data and data.onConfirm then
-            data.onConfirm()
+    OnAccept = function(self, popupData)
+        if popupData and popupData.onConfirm then
+            popupData.onConfirm()
         end
     end,
     timeout = 0,
@@ -121,9 +121,9 @@ StaticPopupDialogs["WOWSYNC_SAVE_AT_LIMIT"] = {
     text = L["You've reached the snapshot limit (X). Saving will remove the oldest snapshot, from Y. Save anyway?"],
     button1 = ACCEPT,
     button2 = CANCEL,
-    OnAccept = function(self, data)
-        if data and data.onConfirm then
-            data.onConfirm()
+    OnAccept = function(self, popupData)
+        if popupData and popupData.onConfirm then
+            popupData.onConfirm()
         end
     end,
     timeout = 0,

@@ -26,31 +26,31 @@ local SnapshotManager = WowSync:GetSnapshotManager()
 local SnapshotView = WowSync:GetSnapshotView()
 
 local root
-local checkboxes = {}   -- name -> active checkbox
+local checkboxes = {}   -- moduleName -> active checkbox
 local pool = {}
 local onChanged
 
 local function Acquire()
-    for _, cb in ipairs(pool) do
-        if not cb.inUse then
-            cb.inUse = true
-            return cb
+    for _, checkbox in ipairs(pool) do
+        if not checkbox.inUse then
+            checkbox.inUse = true
+            return checkbox
         end
     end
 
-    local cb = ModuleRow:Build(root)
-    cb:HookScript("OnClick", function()
+    local checkbox = ModuleRow:Build(root)
+    checkbox:HookScript("OnClick", function()
         if onChanged then onChanged() end
     end)
-    cb.inUse = true
-    tinsert(pool, cb)
-    return cb
+    checkbox.inUse = true
+    tinsert(pool, checkbox)
+    return checkbox
 end
 
 local function ReleaseAll()
-    for _, cb in pairs(checkboxes) do
-        cb:Hide()
-        cb.inUse = false
+    for _, checkbox in pairs(checkboxes) do
+        checkbox:Hide()
+        checkbox.inUse = false
     end
     wipe(checkboxes)
 end
@@ -73,23 +73,23 @@ end
 function ModuleList:SetSnapshot(snapshot, preview, mode)
     ReleaseAll()
 
-    local meta = { ClassID = snapshot and SnapshotView:GetCharacterInfo(snapshot).ClassID }
-    local perModule = preview and preview.perModule
+    local sourceMetadata = { ClassID = snapshot and SnapshotView:GetCharacterInfo(snapshot).ClassID }
+    local moduleDiffs = preview and preview.perModule
     local exact = (mode == "exact")
     local applyModes = WowSync.Models and WowSync.Models.SnapshotApplyMode
 
     -- The snapshot's modules, in a stable order, intersected with what is
     -- currently registered (a snapshot may carry a module no longer installed).
-    local names = snapshot and SnapshotView:GetModuleNames(snapshot) or {}
+    local moduleNames = snapshot and SnapshotView:GetModuleNames(snapshot) or {}
 
     local yOffset = 0
-    for _, name in ipairs(names) do
+    for _, name in ipairs(moduleNames) do
         local module = ModuleRegistry:Get(name)
         if module then
-            local canApply, reason = module:CanApply(meta)
+            local canApply, reason = module:CanApply(sourceMetadata)
 
             local counts
-            local moduleDiff = perModule and perModule[name]
+            local moduleDiff = moduleDiffs and moduleDiffs[name]
             if moduleDiff then
                 -- Merge never removes, and Exact removes only for modules whose apply
                 -- mode supports it; surface a removal figure only when the apply will
@@ -103,13 +103,13 @@ function ModuleList:SetSnapshot(snapshot, preview, mode)
                 }
             end
 
-            local cb = Acquire()
-            cb:ClearAllPoints()
-            cb:SetPoint("TOPLEFT", 0, -yOffset)
-            ModuleRow:Update(cb, name, canApply, reason, counts)
-            cb:Show()
+            local checkbox = Acquire()
+            checkbox:ClearAllPoints()
+            checkbox:SetPoint("TOPLEFT", 0, -yOffset)
+            ModuleRow:Update(checkbox, name, canApply, reason, counts)
+            checkbox:Show()
 
-            checkboxes[name] = cb
+            checkboxes[name] = checkbox
             yOffset = yOffset + UI.ModuleRow.Height + UI.ModuleRow.Padding
         end
     end
@@ -117,8 +117,8 @@ end
 
 function ModuleList:GetSelected()
     local selected = {}
-    for name, cb in pairs(checkboxes) do
-        if cb:GetChecked() then
+    for name, checkbox in pairs(checkboxes) do
+        if checkbox:GetChecked() then
             selected[name] = true
         end
     end
@@ -126,9 +126,9 @@ function ModuleList:GetSelected()
 end
 
 function ModuleList:SetAllChecked(checked)
-    for _, cb in pairs(checkboxes) do
-        if cb:IsEnabled() then
-            cb:SetChecked(checked)
+    for _, checkbox in pairs(checkboxes) do
+        if checkbox:IsEnabled() then
+            checkbox:SetChecked(checked)
         end
     end
 end
@@ -137,10 +137,10 @@ end
 -- row is currently checked.
 function ModuleList:AreAllSelectableChecked()
     local hasSelectable = false
-    for _, cb in pairs(checkboxes) do
-        if cb:IsEnabled() then
+    for _, checkbox in pairs(checkboxes) do
+        if checkbox:IsEnabled() then
             hasSelectable = true
-            if not cb:GetChecked() then
+            if not checkbox:GetChecked() then
                 return false
             end
         end

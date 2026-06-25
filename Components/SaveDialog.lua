@@ -30,13 +30,13 @@ local ModuleRegistry = WowSync:GetModuleRegistry()
 
 local dialog, frame
 local toggleButton, noteBox
-local rows = {}          -- name -> checkbox (one per registered module, created once)
-local activeNames = {}   -- names currently offered/shown (a subset of rows)
+local checkboxes = {}    -- moduleName -> checkbox (one per registered module, created once)
+local activeNames = {}   -- module names currently offered/shown
 local onConfirm
 
-local function IsActive(name)
-    for _, n in ipairs(activeNames) do
-        if n == name then return true end
+local function IsActive(moduleName)
+    for _, activeName in ipairs(activeNames) do
+        if activeName == moduleName then return true end
     end
     return false
 end
@@ -46,7 +46,7 @@ end
 local function AreAllChecked()
     if #activeNames == 0 then return false end
     for _, name in ipairs(activeNames) do
-        if not rows[name]:GetChecked() then
+        if not checkboxes[name]:GetChecked() then
             return false
         end
     end
@@ -60,48 +60,48 @@ end
 
 local function SetAllChecked(checked)
     for _, name in ipairs(activeNames) do
-        rows[name]:SetChecked(checked)
+        checkboxes[name]:SetChecked(checked)
     end
 end
 
 -- Build one checkbox per registered module. The registered set is fixed at
--- runtime, so the rows are created once; which of them are offered (and their
+-- runtime, so the checkboxes are created once; which of them are offered (and their
 -- checked state) is decided per Show.
 local function BuildRows(listParent)
-    local names = {}
+    local moduleNames = {}
     for name in ModuleRegistry:Iterate() do
-        tinsert(names, name)
+        tinsert(moduleNames, name)
     end
-    table.sort(names)
+    table.sort(moduleNames)
 
-    for _, name in ipairs(names) do
-        local cb = ModuleRow:Build(listParent)
-        cb:HookScript("OnClick", RefreshToggle)
-        rows[name] = cb
-        cb:Hide()
+    for _, name in ipairs(moduleNames) do
+        local checkbox = ModuleRow:Build(listParent)
+        checkbox:HookScript("OnClick", RefreshToggle)
+        checkboxes[name] = checkbox
+        checkbox:Hide()
     end
 end
 
--- Stack the offered rows top-to-bottom (reset to checked) and hide the rest.
+-- Stack the offered module checkboxes top-to-bottom and hide the rest.
 local function LayoutActiveRows()
     local yOffset = 0
     for _, name in ipairs(activeNames) do
-        local cb = rows[name]
-        cb:ClearAllPoints()
-        cb:SetPoint("TOPLEFT", 0, -yOffset)
-        ModuleRow:Update(cb, name, true, nil, nil)
-        cb:Show()
+        local checkbox = checkboxes[name]
+        checkbox:ClearAllPoints()
+        checkbox:SetPoint("TOPLEFT", 0, -yOffset)
+        ModuleRow:Update(checkbox, name, true, nil, nil)
+        checkbox:Show()
         yOffset = yOffset + UI.ModuleRow.Height + UI.ModuleRow.Padding
     end
 
-    for name, cb in pairs(rows) do
+    for name, checkbox in pairs(checkboxes) do
         if not IsActive(name) then
-            cb:Hide()
+            checkbox:Hide()
         end
     end
 end
 
--- Offer the existing profile names in a menu; choosing one fills the name box.
+-- Build the dialog frame and its module checkbox region.
 local function Build()
     if frame then return end
 
@@ -113,7 +113,7 @@ local function Build()
     })
     frame = dialog:GetFrame()
 
-    -- Optional note, captured into the snapshot's Body when the player saves.
+    -- Optional note attached to the snapshot when the player saves.
     local noteLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     noteLabel:SetPoint("TOPLEFT", 14, -44)
     noteLabel:SetText(L["Note (optional):"])
@@ -150,7 +150,7 @@ local function Build()
     saveButton:SetScript("OnClick", function()
         local moduleSet = {}
         for _, name in ipairs(activeNames) do
-            if rows[name]:GetChecked() then
+            if checkboxes[name]:GetChecked() then
                 moduleSet[name] = true
             end
         end
@@ -193,12 +193,12 @@ function SaveDialog:Show(opts)
     wipe(activeNames)
     if opts.moduleNames then
         for _, name in ipairs(opts.moduleNames) do
-            if rows[name] then
+            if checkboxes[name] then
                 tinsert(activeNames, name)
             end
         end
     else
-        for name in pairs(rows) do
+        for name in pairs(checkboxes) do
             tinsert(activeNames, name)
         end
     end

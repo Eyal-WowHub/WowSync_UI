@@ -10,10 +10,10 @@ local _, addon = ...
     logic of its own; it forwards the chosen depth through onActivate.
 
     addon:GetObject("UndoList"):Build(region, {
-        onActivate = function(count, entry) end,   -- undo `count` newest applies; entry = the deepest one
+        onActivate = function(count, undoPoint) end,   -- undo `count` newest applies; undoPoint = the deepest one
     })
         -> self {
-            Refresh() -> hasEntries,   -- repopulate from the live undo stack
+            Refresh() -> hasEntries,   -- repopulate from the live undo points
             Hide(),
         }
 ]]
@@ -52,18 +52,18 @@ local function BuildRow(row)
     row.modulesText:SetWordWrap(false)
 
     row:SetScript("OnClick", function(self)
-        if onActivate and self.entry then
-            onActivate(self.index, self.entry)
+        if onActivate and self.undoPoint then
+            onActivate(self.index, self.undoPoint)
         end
     end)
 end
 
 local function UpdateRow(row, elementData)
     row.index = elementData.index
-    row.entry = elementData.entry
+    row.undoPoint = elementData.undoPoint
 
-    row.subjectText:SetText(elementData.entry.Subject or L["Unknown"])
-    row.modulesText:SetText(table.concat(elementData.entry.ModuleNames or {}, ", "))
+    row.subjectText:SetText(elementData.undoPoint.Subject or L["Unknown"])
+    row.modulesText:SetText(table.concat(elementData.undoPoint.ModuleNames or {}, ", "))
 end
 
 function UndoList:Build(region, opts)
@@ -114,18 +114,18 @@ function UndoList:Build(region, opts)
     return self
 end
 
--- Repopulate from the live undo stack (newest first) and show the list only
+-- Repopulate from the live undo points (newest first) and show the list only
 -- when there is something to undo. Returns whether any entries exist.
 function UndoList:Refresh()
-    local stack = SnapshotManager:GetUndoPoints()
+    local undoPoints = SnapshotManager:GetUndoPoints()
 
     local dataProvider = CreateDataProvider()
-    for i, entry in ipairs(stack) do
-        dataProvider:Insert({ index = i, entry = entry })
+    for i, undoPoint in ipairs(undoPoints) do
+        dataProvider:Insert({ index = i, undoPoint = undoPoint })
     end
     scrollBox:SetDataProvider(dataProvider, ScrollBoxConstants.DiscardScrollPosition)
 
-    local hasEntries = #stack > 0
+    local hasEntries = #undoPoints > 0
     root:SetShown(hasEntries)
     return hasEntries
 end

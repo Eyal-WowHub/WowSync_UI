@@ -74,10 +74,10 @@ function ProfileRow:Update(row, elementData, ctx)
     C:IsTable(elementData, 3)
     C:IsTable(ctx, 4)
 
-    local id = elementData.id
+    local profileName = elementData.id
     local character = elementData.character or ""
 
-    row.profileName = id
+    row.profileName = profileName
 
     -- Class icon and class-colored character name
     local classInfo = elementData.classID and C_CreatureInfo.GetClassInfo(elementData.classID)
@@ -105,7 +105,7 @@ function ProfileRow:Update(row, elementData, ctx)
     end
 
     -- Selection highlight
-    if id == ctx.GetSelected() then
+    if profileName == ctx.GetSelected() then
         row.bg:SetColorTexture(UI.Row.Selected:GetRGBA())
     else
         row.bg:SetColorTexture(UI.Row.Normal:GetRGBA())

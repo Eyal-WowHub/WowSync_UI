@@ -25,7 +25,7 @@ local Settings = addon.Settings
 
 local frame
 local profileList, profileDetails
-local showView
+local ShowView
 
 -- The left panel may never exceed this share of the pane width, so the right
 -- panel always keeps the majority.
@@ -213,7 +213,7 @@ local function Build()
         tabs = {
             { key = "profiles", label = L["Profiles"] },
         },
-        onSelect = function(which) showView(which) end,
+        onSelect = function(viewKey) ShowView(viewKey) end,
     })
     tabStrip:SetPoint("TOPLEFT", EDGE_INSET, -TITLE_BAR_HEIGHT)
     tabStrip:SetPoint("TOPRIGHT", -EDGE_INSET, -TITLE_BAR_HEIGHT)
@@ -266,11 +266,11 @@ local function Build()
 
     -- Switch the active view and reflect it in the tab visuals. Only the
     -- Profiles view exists today, but the tab strip is kept for future tabs.
-    showView = function(which)
-        which = "profiles"
+    ShowView = function(viewKey)
+        viewKey = "profiles"
         profilesView:Show()
         profileList:Refresh()
-        tabStrip:Select(which)
+        tabStrip:Select(viewKey)
     end
 
     -- Resize grip in the bottom-right corner; hidden while the window is locked.
@@ -321,7 +321,7 @@ function MainFrame:Toggle()
     if frame:IsShown() then
         frame:Hide()
     else
-        showView("profiles")
+        ShowView("profiles")
         frame:Show()
     end
 end

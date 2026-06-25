@@ -31,7 +31,7 @@ function DragTracker:Attach(region, opts)
 
     local dragging = false
 
-    local function stop()
+    local function StopDragging()
         if not dragging then return end
         dragging = false
         region:SetScript("OnUpdate", nil)
@@ -50,6 +50,6 @@ function DragTracker:Attach(region, opts)
             region:SetScript("OnUpdate", opts.onUpdate)
         end
     end)
-    region:SetScript("OnMouseUp", stop)
-    region:SetScript("OnHide", stop)
+    region:SetScript("OnMouseUp", StopDragging)
+    region:SetScript("OnHide", StopDragging)
 end

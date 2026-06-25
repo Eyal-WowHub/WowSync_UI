@@ -97,12 +97,12 @@ function TabStrip:Build(parent, opts)
     local tabs = {}
     local previous
 
-    for _, def in ipairs(opts.tabs) do
-        C:Ensures(type(def.key) == "string", "Build: each tab needs a string 'key'")
-        C:Ensures(type(def.label) == "string", "Build: each tab needs a string 'label'")
+    for _, tabDefinition in ipairs(opts.tabs) do
+        C:Ensures(type(tabDefinition.key) == "string", "Build: each tab needs a string 'key'")
+        C:Ensures(type(tabDefinition.label) == "string", "Build: each tab needs a string 'label'")
 
-        local key = def.key
-        local tab = CreateTab(strip, def.label, height, function()
+        local key = tabDefinition.key
+        local tab = CreateTab(strip, tabDefinition.label, height, function()
             if opts.onSelect then
                 opts.onSelect(key)
             end

@@ -120,11 +120,11 @@ end
 -- Action handlers
 
 local function DoUndo()
-    local info = SnapshotManager:GetNextUndoPoint()
-    local result = SnapshotManager:UndoLastApply()
-    if result then
-        WowSync:Print(L["Undid the last apply (X)."]:format(info and info.Subject or L["Unknown"]))
-        for _, name in ipairs(result:Applied()) do
+    local undoPoint = SnapshotManager:GetNextUndoPoint()
+    local undoResult = SnapshotManager:UndoLastApply()
+    if undoResult then
+        WowSync:Print(L["Undid the last apply (X)."]:format(undoPoint and undoPoint.Subject or L["Unknown"]))
+        for _, name in ipairs(undoResult:Applied()) do
             WowSync:Print(L["  X: restored"]:format(name))
         end
     end
@@ -140,22 +140,22 @@ local function ApplySnapshot(snapshot, moduleSet, mode)
     end
 
     -- Apply only the chosen modules of the snapshot, in the requested mode. The
-    -- current head is not a stored snapshot, so it routes through ApplyCurrentOf.
+    -- current head is not a stored snapshot, so it routes through ApplyHeadByCharKey.
     local strategy = { default = mode or "merge" }
-    local result = SnapshotView:Apply(snapshot, strategy, moduleSet)
-    if result and result:Any() then
-        for _, name in ipairs(result:Applied()) do
-            local outcome = result:Get(name)
-            local msg = L["X: applied"]:format(name)
+    local applyResult = SnapshotView:Apply(snapshot, strategy, moduleSet)
+    if applyResult and applyResult:Any() then
+        for _, name in ipairs(applyResult:Applied()) do
+            local outcome = applyResult:Get(name)
+            local message = L["X: applied"]:format(name)
             if outcome.warning then
-                msg = L["X (Y)"]:format(msg, outcome.warning)
+                message = L["X (Y)"]:format(message, outcome.warning)
             end
-            WowSync:Print(msg)
+            WowSync:Print(message)
         end
-        for _, name in ipairs(result:Skipped()) do
-            WowSync:Print(L["X: skipped - Y"]:format(name, result:Get(name).reason or L["unknown"]))
+        for _, name in ipairs(applyResult:Skipped()) do
+            WowSync:Print(L["X: skipped - Y"]:format(name, applyResult:Get(name).reason or L["unknown"]))
         end
-        local applied, skipped = result:Counts()
+        local applied, skipped = applyResult:Counts()
         SetApplyStatus(applied, skipped)
     else
         WowSync:Print(L["Nothing to apply."])
@@ -213,22 +213,22 @@ local function DoDelete()
 end
 
 local function RequestUndo()
-    local info = SnapshotManager:GetNextUndoPoint()
-    if info then
-        Dialogs:ConfirmUndo(info.Subject, DoUndo)
+    local undoPoint = SnapshotManager:GetNextUndoPoint()
+    if undoPoint then
+        Dialogs:ConfirmUndo(undoPoint.Subject, DoUndo)
     end
 end
 
 -- Roll back the most recent `count` applies (a cascade from the undo list).
-local function DoUndoSteps(count, entry)
-    local result = SnapshotManager:UndoApplies(count)
-    if result then
+local function DoUndoSteps(count, undoPoint)
+    local undoResult = SnapshotManager:UndoApplies(count)
+    if undoResult then
         if count > 1 then
             WowSync:Print(L["Undid X changes."]:format(count))
         else
-            WowSync:Print(L["Undid the last apply (X)."]:format(entry and entry.Subject or L["Unknown"]))
+            WowSync:Print(L["Undid the last apply (X)."]:format(undoPoint and undoPoint.Subject or L["Unknown"]))
         end
-        for _, name in ipairs(result:Applied()) do
+        for _, name in ipairs(undoResult:Applied()) do
             WowSync:Print(L["  X: restored"]:format(name))
         end
     end
@@ -236,16 +236,16 @@ local function DoUndoSteps(count, entry)
 end
 
 -- Clicking an undo-history row rolls back every apply down to and including it.
-local function RequestUndoSteps(count, entry)
-    if not entry then return end
+local function RequestUndoSteps(count, undoPoint)
+    if not undoPoint then return end
 
     if count and count > 1 then
-        Dialogs:ConfirmUndoSteps(count, entry.Subject, function()
-            DoUndoSteps(count, entry)
+        Dialogs:ConfirmUndoSteps(count, undoPoint.Subject, function()
+            DoUndoSteps(count, undoPoint)
         end)
     else
-        Dialogs:ConfirmUndo(entry.Subject, function()
-            DoUndoSteps(1, entry)
+        Dialogs:ConfirmUndo(undoPoint.Subject, function()
+            DoUndoSteps(1, undoPoint)
         end)
     end
 end
@@ -424,8 +424,8 @@ function ProfileDetails:Build(region)
         onUndo = RequestUndo,
         onDelete = function()
             if currentProfileName then
-                local latest = SnapshotHandleCache:GetLatestSaved(currentProfileName)
-                local label = (latest and SnapshotView:GetCharacterInfo(latest).Character) or currentProfileName
+                local latestSnapshot = SnapshotHandleCache:GetLatestSaved(currentProfileName)
+                local label = (latestSnapshot and SnapshotView:GetCharacterInfo(latestSnapshot).Character) or currentProfileName
                 Dialogs:ConfirmDelete(label, DoDelete)
             end
         end,
@@ -503,7 +503,7 @@ function ProfileDetails:RequestSave(charKey)
             local evicted = SnapshotHandleCache:GetPendingEviction(charKey)
 
             local function commit()
-                local function done(snapshot, reason)
+                local function OnSaveComplete(snapshot, reason)
                     if snapshot then
                         WowSync:Print(L["Snapshot saved."])
                         if evicted then
@@ -524,9 +524,9 @@ function ProfileDetails:RequestSave(charKey)
                 end
 
                 if isOwn then
-                    SnapshotManager:SaveCurrentSnapshot(note, moduleSet, done)
+                    SnapshotManager:SaveCurrentSnapshot(note, moduleSet, OnSaveComplete)
                 else
-                    SnapshotManager:SaveSnapshotByCharKey(charKey, moduleSet, note, done)
+                    SnapshotManager:SaveSnapshotByCharKey(charKey, moduleSet, note, OnSaveComplete)
                 end
             end
 

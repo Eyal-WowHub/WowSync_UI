@@ -148,8 +148,8 @@ function ProfileList:Build(region)
     WowSync:RegisterEvent("WOWSYNC_SAVE_STARTED", function()
         ProfileList:BeginSaving()
     end)
-    WowSync:RegisterEvent("WOWSYNC_SAVE_FINISHED", function(_, _, stored)
-        ProfileList:EndSaving(stored)
+    WowSync:RegisterEvent("WOWSYNC_SAVE_FINISHED", function(_, _, storedSnapshot)
+        ProfileList:EndSaving(storedSnapshot)
     end)
 
     return self
@@ -186,7 +186,7 @@ end
 -- Leave the saving state once the spinner has shown for its minimum time, then
 -- play the confirmation flourish (only for a save that actually stored) and
 -- restore the button.
-function ProfileList:EndSaving(stored)
+function ProfileList:EndSaving(storedSnapshot)
     if not saveButton then
         return
     end
@@ -206,7 +206,7 @@ function ProfileList:EndSaving(stored)
         saveButton.spinner:Hide()
         saveButton:SetText(L["Save"])
         ProfileList:SetSaveEnabled(SnapshotManager:HasCapturedGameData())
-        if stored then
+        if storedSnapshot then
             saveButton.flourish:Restart()
         end
     end)
@@ -219,23 +219,23 @@ function ProfileList:Refresh()
     local characters = CharacterManager:GetSavedCharacters()
 
     local dataProvider = CreateDataProvider()
-    local present = {}
+    local visibleProfiles = {}
 
-    for _, entry in ipairs(characters) do
-        present[entry.Key] = true
+    for _, character in ipairs(characters) do
+        visibleProfiles[character.Key] = true
         dataProvider:Insert({
-            id = entry.Key,
-            classID = entry.ClassID,
-            character = entry.Key,
-            timestamp = entry.LastSeen,
-            isCurrent = entry.IsCurrent,
+            id = character.Key,
+            classID = character.ClassID,
+            character = character.Key,
+            timestamp = character.LastSeen,
+            isCurrent = character.IsCurrent,
         })
     end
 
     scrollBox:SetDataProvider(dataProvider)
 
     -- Drop the selection if the selected character is no longer listed.
-    if selectedProfileName and not present[selectedProfileName] then
+    if selectedProfileName and not visibleProfiles[selectedProfileName] then
         selectedProfileName = nil
         if onSelectionChanged then
             onSelectionChanged(nil)
@@ -262,10 +262,10 @@ function ProfileList:GetSelected()
 end
 
 -- Scroll the list so the named profile is visible (no-op if already on screen).
-function ProfileList:ScrollToProfile(name)
-    if not name then return end
+function ProfileList:ScrollToProfile(profileName)
+    if not profileName then return end
     scrollBox:ScrollToElementDataByPredicate(function(data)
-        return data.id == name
+        return data.id == profileName
     end, ScrollBoxConstants.AlignNearest)
 end
 

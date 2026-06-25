@@ -32,7 +32,7 @@ local C = LibStub("Contracts-1.0")
 local L = addon.L
 local UI = addon.UI
 
-local sv
+local SnapshotView = WowSync:GetSnapshotView()
 
 -- The shared subject format, mirroring the backend's Time:ToShortDisplay.
 local function FormatSubject(timestamp)
@@ -201,7 +201,7 @@ local function CollapseRow(row, snapshot)
     row.detailHeader:Hide()
     row.detailChanges:Hide()
 
-    local note = sv:GetNotes(snapshot)
+    local note = SnapshotView:GetNotes(snapshot)
     if note ~= "" then
         row.noteText:SetText(note)
         row.noteText:Show()
@@ -215,8 +215,6 @@ function SnapshotRow:Update(row, elementData, ctx)
     C:IsTable(elementData, 3)
     C:IsTable(ctx, 4)
 
-    sv = sv or WowSync:GetSnapshotView()
-
     local snapshot = elementData.snapshot
     row.snapshot = snapshot
 
@@ -227,13 +225,13 @@ function SnapshotRow:Update(row, elementData, ctx)
         row.subjectText:SetText(L["Current"])
         row.subjectText:SetTextColor(TIMELINE_NODE_LATEST_COLOR:GetRGB())
     else
-        row.subjectText:SetText(FormatSubject(sv:GetTimestamp(snapshot)))
+        row.subjectText:SetText(FormatSubject(SnapshotView:GetTimestamp(snapshot)))
         row.subjectText:SetTextColor(NORMAL_FONT_COLOR:GetRGB())
     end
 
     -- Tag: a saved snapshot may show a pinned marker in the warm accent; the
     -- head and ordinary snapshots carry no tag.
-    if sv:IsPinned(snapshot) then
+    if SnapshotView:IsPinned(snapshot) then
         row.tagText:SetText(L["(pinned)"])
         row.tagText:SetTextColor(TIMELINE_NODE_PINNED_COLOR:GetRGB())
     else
@@ -250,7 +248,7 @@ function SnapshotRow:Update(row, elementData, ctx)
     -- accent; the rest stay neutral.
     if elementData.isHead then
         row.node:SetVertexColor(TIMELINE_NODE_LATEST_COLOR:GetRGB())
-    elseif sv:IsPinned(snapshot) then
+    elseif SnapshotView:IsPinned(snapshot) then
         row.node:SetVertexColor(TIMELINE_NODE_PINNED_COLOR:GetRGB())
     else
         row.node:SetVertexColor(TIMELINE_NODE_COLOR:GetRGB())
