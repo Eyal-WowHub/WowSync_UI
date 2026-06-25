@@ -157,10 +157,13 @@ local function Build()
     -- it falls back to the default size, centred on screen. Clamp to the resolved
     -- bounds in case a saved size predates the current panel minimums.
     local savedWidth, savedHeight = Settings:GetWindowSize()
+
     frame:SetSize(
         Clamp(savedWidth, minFrameWidth, maxFrameWidth),
         Clamp(savedHeight, minFrameHeight, maxFrameHeight))
+
     local point, relativePoint, x, y = Settings:GetWindowAnchor()
+
     if point then
         frame:ClearAllPoints()
         frame:SetPoint(point, UIParent, relativePoint, x, y)
@@ -173,10 +176,21 @@ local function Build()
             self:StartMoving()
         end
     end)
+
     frame:SetScript("OnDragStop", function(self)
         self:StopMovingOrSizing()
         local point, _, relativePoint, x, y = self:GetPoint()
         Settings:SetWindowAnchor(point, relativePoint, x, y)
+    end)
+
+    -- While the window is open, ask the core to keep the live setup mirrored;
+    -- release it on close so on-demand tracking can idle.
+    frame:SetScript("OnShow", function()
+        WowSync:Attach("WowSync_UI")
+    end)
+
+    frame:SetScript("OnHide", function()
+        WowSync:Detach("WowSync_UI")
     end)
 
     -- Registering with UISpecialFrames makes ESC close the window.
