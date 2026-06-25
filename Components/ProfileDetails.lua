@@ -505,26 +505,30 @@ function ProfileDetails:RequestSave(charKey)
             local evicted = cache:GetPendingEviction(charKey)
 
             local function commit()
-                local snapshot, reason
-                if isOwn then
-                    local _id
-                    _id, snapshot, reason = pm:Save(note, moduleSet)
-                else
-                    snapshot, reason = pm:SaveFromCharacter(charKey, moduleSet, note)
+                local function done(snapshot, reason)
+                    if snapshot then
+                        WowSync:Print(L["Snapshot saved."])
+                        if evicted then
+                            WowSync:Print(L["Reached the snapshot limit — removed the oldest (X)."]:format(
+                                SnapshotRow:FormatSubject(sv:GetTimestamp(evicted))))
+                        end
+                        ProfileDetails:SetProfile(charKey)
+                        if onSaved then
+                            onSaved(charKey)
+                        end
+                    elseif reason == "unknown-character" then
+                        WowSync:Print(L["Could not save from that character."])
+                    elseif reason == "busy" then
+                        WowSync:Print(L["A save is already in progress."])
+                    else
+                        WowSync:Print(L["Could not save. Try again."])
+                    end
                 end
 
-                if snapshot then
-                    WowSync:Print(L["Snapshot saved."])
-                    if evicted then
-                        WowSync:Print(L["Reached the snapshot limit — removed the oldest (X)."]:format(
-                            SnapshotRow:FormatSubject(sv:GetTimestamp(evicted))))
-                    end
-                    ProfileDetails:SetProfile(charKey)
-                    if onSaved then
-                        onSaved(charKey)
-                    end
+                if isOwn then
+                    pm:Save(note, moduleSet, done)
                 else
-                    WowSync:Print(L["Could not save from that character."])
+                    pm:SaveFromCharacter(charKey, moduleSet, note, done)
                 end
             end
 

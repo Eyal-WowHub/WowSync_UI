@@ -5,6 +5,7 @@ addon.L = L
 -- Buttons and labels
 L["Profiles"] = "Profiles"
 L["Save"] = "Save"
+L["Saved"] = "Saved"
 L["Save now"] = "Save now"
 L["Modules to apply:"] = "Modules to apply:"
 L["Select All"] = "Select All"
@@ -44,6 +45,8 @@ L["+A ~C"] = "|cff5fcf5f+%d|r |cffd9c84a~%d|r"
 
 -- Print feedback
 L["Snapshot saved."] = "Snapshot saved."
+L["Could not save. Try again."] = "Could not save. Try again."
+L["A save is already in progress."] = "A save is already in progress."
 L["Already matches your current setup."] = "Already matches your current setup."
 L["Reached the snapshot limit — removed the oldest (X)."] = "Reached the snapshot limit — removed the oldest (%s)."
 L["No modules selected."] = "No modules selected."

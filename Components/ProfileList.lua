@@ -30,6 +30,12 @@ local saveButton
 local selectedProfileName = nil
 local onSelectionChanged = nil
 local onSaveRequested = nil
+local savingStartedAt = nil
+
+-- Keep the spinner up at least this long so a fast save is still perceptible,
+-- then let the confirmation flourish linger for this long before restoring.
+local SAVE_SPINNER_MIN_SECONDS = 0.5
+local SAVED_FLOURISH_SECONDS = 0.9
 
 function ProfileList:Build(region)
     C:IsTable(region, 2)
@@ -62,6 +68,37 @@ function ProfileList:Build(region)
         if not saveButton:IsEnabled() then return end
         if onSaveRequested then onSaveRequested() end
     end)
+
+    -- A loading spinner shown over the button while a save is in flight. The save
+    -- work is deferred a frame, so the animation is actually visible. Scaled down
+    -- from the 142px shared template art.
+    local spinner = CreateFrame("Frame", nil, saveButton, "SpinnerTemplate")
+    spinner:SetSize(18, 18)
+    spinner:SetPoint("CENTER")
+    spinner:Hide()
+    saveButton.spinner = spinner
+
+    -- A brief "Saved" confirmation that rises and fades after a successful save.
+    local savedText = saveButton:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    savedText:SetPoint("CENTER")
+    savedText:SetText(L["Saved"])
+    savedText:SetTextColor(0.3, 1, 0.3)
+    savedText:Hide()
+    saveButton.savedText = savedText
+
+    local flourish = savedText:CreateAnimationGroup()
+    local fade = flourish:CreateAnimation("Alpha")
+    fade:SetFromAlpha(1)
+    fade:SetToAlpha(0)
+    fade:SetStartDelay(0.2)
+    fade:SetDuration(SAVED_FLOURISH_SECONDS - 0.2)
+    local rise = flourish:CreateAnimation("Translation")
+    rise:SetOffset(0, 14)
+    rise:SetDuration(SAVED_FLOURISH_SECONDS)
+    flourish:SetScript("OnPlay", function() savedText:Show() end)
+    flourish:SetScript("OnStop", function() savedText:Hide() end)
+    flourish:SetScript("OnFinished", function() savedText:Hide() end)
+    saveButton.flourish = flourish
 
     -- Scroll area
     scrollBox = CreateFrame("Frame", nil, root, "WowScrollBoxList")
@@ -106,6 +143,15 @@ function ProfileList:Build(region)
     end)
     self:SetSaveEnabled(pm:HasCurrent())
 
+    -- Animate the button for the duration of any save (including the command
+    -- line), then show a brief confirmation.
+    WowSync:RegisterEvent("WOWSYNC_SAVE_STARTED", function()
+        ProfileList:BeginSaving()
+    end)
+    WowSync:RegisterEvent("WOWSYNC_SAVE_FINISHED", function(_, _, stored)
+        ProfileList:EndSaving(stored)
+    end)
+
     return self
 end
 
@@ -122,6 +168,48 @@ function ProfileList:SetSaveEnabled(enabled)
     if saveButton then
         saveButton:SetEnabled(enabled)
     end
+end
+
+-- Enter the saving state: hide the label, spin, and lock the button until the
+-- save finishes.
+function ProfileList:BeginSaving()
+    if not saveButton then
+        return
+    end
+    savingStartedAt = GetTime()
+    saveButton.flourish:Stop()
+    saveButton:SetEnabled(false)
+    saveButton:SetText("")
+    saveButton.spinner:Show()
+end
+
+-- Leave the saving state once the spinner has shown for its minimum time, then
+-- play the confirmation flourish (only for a save that actually stored) and
+-- restore the button.
+function ProfileList:EndSaving(stored)
+    if not saveButton then
+        return
+    end
+    local startedAt = savingStartedAt
+    local elapsed = GetTime() - (startedAt or 0)
+    local remaining = math.max(0, SAVE_SPINNER_MIN_SECONDS - elapsed)
+
+    C_Timer.After(remaining, function()
+        if not saveButton then
+            return
+        end
+        -- A newer save began while this one was waiting out its minimum spin
+        -- time; let that cycle own the button instead of restoring it here.
+        if savingStartedAt ~= startedAt then
+            return
+        end
+        saveButton.spinner:Hide()
+        saveButton:SetText(L["Save"])
+        ProfileList:SetSaveEnabled(pm:HasCurrent())
+        if stored then
+            saveButton.flourish:Restart()
+        end
+    end)
 end
 
 function ProfileList:Refresh()
