@@ -39,6 +39,7 @@ local ProfileManager = WowSync:GetProfileManager()
 local SnapshotManager = WowSync:GetSnapshotManager()
 local SnapshotView = WowSync:GetSnapshotView()
 local SnapshotHandleCache = WowSync:GetSnapshotHandleCache()
+local Debugger = WowSync:GetDebugger()
 
 -- Status text colours { r, g, b, a } for in-sync/saved and out-of-sync states.
 local SUCCESS_TEXT_COLOR = { 0.3, 0.85, 0.3, 1 }
@@ -121,6 +122,9 @@ end
 
 local function DoUndo()
     local undoPoint = SnapshotManager:GetNextUndoPoint()
+    if Debugger:IsEnabled() then
+        Debugger:RecordUI({ Action = "undo", Subject = undoPoint and undoPoint.Subject })
+    end
     local undoResult = SnapshotManager:UndoLastApply()
     if undoResult then
         WowSync:Print(L["Undid the last apply (X)."]:format(undoPoint and undoPoint.Subject or L["Unknown"]))
@@ -142,6 +146,9 @@ local function ApplySnapshot(snapshot, moduleSet, mode)
     -- Apply only the chosen modules of the snapshot, in the requested mode. The
     -- current head is not a stored snapshot, so it routes through ApplyHeadByCharKey.
     local strategy = { default = mode or "merge" }
+    if Debugger:IsEnabled() then
+        Debugger:RecordUI({ Action = "apply", Profile = currentProfileName, Mode = strategy.default })
+    end
     local applyResult = SnapshotView:Apply(snapshot, strategy, moduleSet)
     if applyResult and applyResult:Any() then
         for _, name in ipairs(applyResult:Applied()) do
@@ -221,6 +228,9 @@ end
 
 -- Roll back the most recent `count` applies (a cascade from the undo list).
 local function DoUndoSteps(count, undoPoint)
+    if Debugger:IsEnabled() then
+        Debugger:RecordUI({ Action = "undo-steps", Count = count })
+    end
     local undoResult = SnapshotManager:UndoApplies(count)
     if undoResult then
         if count > 1 then
@@ -523,6 +533,9 @@ function ProfileDetails:RequestSave(charKey)
                     end
                 end
 
+                if Debugger:IsEnabled() then
+                    Debugger:RecordUI({ Action = "save", CharKey = charKey, Note = note })
+                end
                 if isOwn then
                     SnapshotManager:SaveCurrentSnapshot(note, moduleSet, OnSaveComplete)
                 else
