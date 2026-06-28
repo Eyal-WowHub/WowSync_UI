@@ -5,7 +5,7 @@ local _, addon = ...
 
     Orchestrates the detail view for a selected character. Composes ProfileHeader,
     SnapshotList, ActionBar and UndoList, and drives the WowSync actions
-    (apply/save/undo/delete) routed through the Dialogs object. Holds no
+    (apply/save/undo/delete) routed through the PopupDialogs object. Holds no
     widget-building code of its own beyond layout regions and the empty state.
 
     The timeline shows the character's current head on top followed by its saved
@@ -22,7 +22,7 @@ local _, addon = ...
 ]]
 
 local ProfileDetails = addon:NewObject("ProfileDetails")
-local Dialogs = addon:GetObject("Dialogs")
+local PopupDialogs = addon:GetObject("PopupDialogs")
 local ProfileHeader = addon:GetObject("ProfileHeader")
 local SnapshotList = addon:GetObject("SnapshotList")
 local SnapshotRow = addon:GetObject("SnapshotRow")
@@ -249,7 +249,7 @@ local function RequestApply(snapshot, mode)
         snapshot = snapshot,
         mode = mode,
         onConfirm = function(moduleSet, overrides)
-            Dialogs:ConfirmApply(mode, function()
+            PopupDialogs:ConfirmApply(mode, function()
                 ApplySnapshot(snapshot, moduleSet, mode, overrides)
             end)
         end,
@@ -281,7 +281,7 @@ end
 local function RequestUndo()
     local undoPoint = SnapshotManager:GetNextUndoPoint()
     if undoPoint then
-        Dialogs:ConfirmUndo(undoPoint.Subject, DoUndo, function()
+        PopupDialogs:ConfirmUndo(undoPoint.Subject, DoUndo, function()
             PreviewUndoChanges(undoPoint)
         end)
     end
@@ -316,11 +316,11 @@ local function RequestUndoSteps(count, undoPoint)
     if not undoPoint then return end
 
     if count and count > 1 then
-        Dialogs:ConfirmUndoSteps(count, undoPoint.Subject, function()
+        PopupDialogs:ConfirmUndoSteps(count, undoPoint.Subject, function()
             DoUndoSteps(count, undoPoint)
         end)
     else
-        Dialogs:ConfirmUndo(undoPoint.Subject, function()
+        PopupDialogs:ConfirmUndo(undoPoint.Subject, function()
             DoUndoSteps(1, undoPoint)
         end, function()
             PreviewUndoChanges(undoPoint)
@@ -392,7 +392,7 @@ local function OpenSnapshotMenu(snapshot, subject, anchor, isHead)
         end
 
         rootDescription:CreateButton(L["Edit note…"], function()
-            Dialogs:PromptEditNote(SnapshotView:GetNotes(snapshot), function(text)
+            PopupDialogs:PromptEditNote(SnapshotView:GetNotes(snapshot), function(text)
                 SnapshotView:SetNotes(snapshot, text)
                 snapshotList:Refresh()
             end)
@@ -401,7 +401,7 @@ local function OpenSnapshotMenu(snapshot, subject, anchor, isHead)
         rootDescription:CreateDivider()
 
         rootDescription:CreateButton(L["Delete snapshot"], function()
-            Dialogs:ConfirmDeleteSnapshot(subject, function()
+            PopupDialogs:ConfirmDeleteSnapshot(subject, function()
                 SnapshotView:Delete(snapshot)
                 -- Deleting the latest snapshot changes what the header shows, so
                 -- refresh the whole panel rather than just the list.
@@ -530,7 +530,7 @@ function ProfileDetails:Build(region)
             if currentProfileName then
                 local latestSnapshot = SnapshotHandleCache:GetLatestSaved(currentProfileName)
                 local label = (latestSnapshot and SnapshotView:GetCharacterInfo(latestSnapshot).Character) or currentProfileName
-                Dialogs:ConfirmDelete(label, DoDelete)
+                PopupDialogs:ConfirmDelete(label, DoDelete)
             end
         end,
     })
@@ -640,7 +640,7 @@ function ProfileDetails:RequestSave(charKey)
             end
 
             if evicted then
-                Dialogs:ConfirmSaveAtLimit(SnapshotManager:GetSnapshotLimit(),
+                PopupDialogs:ConfirmSaveAtLimit(SnapshotManager:GetSnapshotLimit(),
                     SnapshotRow:FormatSubject(SnapshotView:GetTimestamp(evicted)), commit)
             else
                 commit()

@@ -1,22 +1,22 @@
 local _, addon = ...
 
 --[[
-    Dialogs object.
+    PopupDialogs object.
 
     Reusable confirmation/prompt popups. The StaticPopupDialogs are registered
     once at load; callers pass their own callbacks through the popup `data`
     payload, so this service is fully decoupled from any single consumer.
 
-    addon:GetObject("Dialogs"):ConfirmUndo(subject, onConfirm, onPreview)
-    addon:GetObject("Dialogs"):ConfirmUndoSteps(count, subject, onConfirm)
-    addon:GetObject("Dialogs"):ConfirmDelete(profileName, onConfirm)
-    addon:GetObject("Dialogs"):ConfirmDeleteSnapshot(subject, onConfirm)
-    addon:GetObject("Dialogs"):PromptEditNote(currentText, onAccept)  -- onAccept(trimmedText)
-    addon:GetObject("Dialogs"):ConfirmApply(mode, onConfirm)  -- mode = "merge"|"exact"
-    addon:GetObject("Dialogs"):ConfirmSaveAtLimit(limit, oldestSubject, onConfirm)
+    addon:GetObject("PopupDialogs"):ConfirmUndo(subject, onConfirm, onPreview)
+    addon:GetObject("PopupDialogs"):ConfirmUndoSteps(count, subject, onConfirm)
+    addon:GetObject("PopupDialogs"):ConfirmDelete(profileName, onConfirm)
+    addon:GetObject("PopupDialogs"):ConfirmDeleteSnapshot(subject, onConfirm)
+    addon:GetObject("PopupDialogs"):PromptEditNote(currentText, onAccept)  -- onAccept(trimmedText)
+    addon:GetObject("PopupDialogs"):ConfirmApply(mode, onConfirm)  -- mode = "merge"|"exact"
+    addon:GetObject("PopupDialogs"):ConfirmSaveAtLimit(limit, oldestSubject, onConfirm)
 ]]
 
-local Dialogs = addon:NewObject("Dialogs")
+local PopupDialogs = addon:NewObject("PopupDialogs")
 
 local L = addon.L
 local UI = addon.UI
@@ -141,19 +141,19 @@ StaticPopupDialogs["WOWSYNC_SAVE_AT_LIMIT"] = {
     preferredIndex = 3,
 }
 
-function Dialogs:ConfirmUndo(subject, onConfirm, onPreview)
+function PopupDialogs:ConfirmUndo(subject, onConfirm, onPreview)
     StaticPopup_Show("WOWSYNC_UNDO", subject, nil, { onConfirm = onConfirm, onPreview = onPreview })
 end
 
-function Dialogs:ConfirmUndoSteps(count, subject, onConfirm)
+function PopupDialogs:ConfirmUndoSteps(count, subject, onConfirm)
     StaticPopup_Show("WOWSYNC_UNDO_MULTI", count, subject, { onConfirm = onConfirm })
 end
 
-function Dialogs:ConfirmDelete(profileName, onConfirm)
+function PopupDialogs:ConfirmDelete(profileName, onConfirm)
     StaticPopup_Show("WOWSYNC_DELETE_PROFILE", profileName, nil, { onConfirm = onConfirm })
 end
 
-function Dialogs:ConfirmDeleteSnapshot(subject, onConfirm)
+function PopupDialogs:ConfirmDeleteSnapshot(subject, onConfirm)
     StaticPopup_Show("WOWSYNC_DELETE_SNAPSHOT", subject, nil, { onConfirm = onConfirm })
 end
 
@@ -234,7 +234,7 @@ local function BuildEditNoteDialog()
     return frame
 end
 
-function Dialogs:PromptEditNote(currentText, onAccept)
+function PopupDialogs:PromptEditNote(currentText, onAccept)
     local frame = BuildEditNoteDialog()
     editNoteOnAccept = onAccept
 
@@ -247,11 +247,11 @@ function Dialogs:PromptEditNote(currentText, onAccept)
     editBox:HighlightText()
 end
 
-function Dialogs:ConfirmApply(mode, onConfirm)
+function PopupDialogs:ConfirmApply(mode, onConfirm)
     local popup = (mode == "exact") and "WOWSYNC_APPLY_EXACT" or "WOWSYNC_APPLY_MERGE"
     StaticPopup_Show(popup, nil, nil, { onConfirm = onConfirm })
 end
 
-function Dialogs:ConfirmSaveAtLimit(limit, oldestSubject, onConfirm)
+function PopupDialogs:ConfirmSaveAtLimit(limit, oldestSubject, onConfirm)
     StaticPopup_Show("WOWSYNC_SAVE_AT_LIMIT", limit, oldestSubject, { onConfirm = onConfirm })
 end

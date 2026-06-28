@@ -22,7 +22,7 @@ Locales\enUS.lua
 Main.lua
 
 Components\Dialog.lua
-Components\Dialogs.lua
+Components\PopupDialogs.lua
 Components\LockButton.lua
 Components\TitleBar.lua
 Components\TabStrip.lua
