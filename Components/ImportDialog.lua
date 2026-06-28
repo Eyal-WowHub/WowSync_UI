@@ -41,7 +41,7 @@ local function ReasonText(reason)
     elseif reason == "invalid-class" then
         return L["This shared string is for an unknown class."]
     elseif reason == "invalid-input" or reason == "bad-format" then
-        return L["That doesn't look like a shared string."]
+        return L["That doesn't appear to be a shared string."]
     end
     return L["Could not import that string."]
 end
@@ -53,6 +53,11 @@ local function AttemptImport()
 
     local name = strtrim(nameBox:GetText())
     local text = strtrim(pasteBox:GetText())
+
+    if text == "" then
+        statusLabel:SetText(L["Paste a shared string to import."])
+        return
+    end
 
     local result, reason = ImportManager:ImportString(text, { name = name })
     if not result then
