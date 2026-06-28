@@ -21,6 +21,29 @@ local L = addon.L
 local MODE_BUTTON_WIDTH = 58
 local MODE_BUTTON_HEIGHT = 18
 
+-- Title/body text for the mode toggle tooltip, per mode.
+local function ModeTooltip(mode)
+    if mode == "exact" then
+        return L["Exact"], L["Exact mode tooltip"]
+    end
+    return L["Merge"], L["Merge mode tooltip"]
+end
+
+-- Draw the mode button's tooltip from the text stashed on it.
+local function ShowModeTooltip(button)
+    local tooltip = button._tooltip
+    if not tooltip then return end
+
+    GameTooltip:SetOwner(button, "ANCHOR_RIGHT")
+    GameTooltip:SetText(tooltip.title, 1, 0.82, 0, true)
+    GameTooltip:AddLine(tooltip.body, 0.9, 0.9, 0.9, true)
+    if tooltip.footer then
+        GameTooltip:AddLine(" ", 1, 1, 1, true)
+        GameTooltip:AddLine(tooltip.footer, 0.6, 0.6, 0.6, true)
+    end
+    GameTooltip:Show()
+end
+
 function ModuleRow:Build(parent)
     C:IsTable(parent, 2)
 
@@ -44,6 +67,10 @@ function ModuleRow:Build(parent)
     -- (or that aren't apply rows) leave it hidden.
     checkbox.modeButton = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
     checkbox.modeButton:SetSize(MODE_BUTTON_WIDTH, MODE_BUTTON_HEIGHT)
+    checkbox.modeButton:SetScript("OnEnter", ShowModeTooltip)
+    checkbox.modeButton:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
     checkbox.modeButton:Hide()
 
     return checkbox
@@ -93,11 +120,27 @@ end
 -- modules that support a single mode, and hidden when no toggle is offered.
 function ModuleRow:RenderMode(checkbox, modeInfo)
     if not (modeInfo and modeInfo.visible) then
+        checkbox.modeButton._tooltip = nil
         checkbox.modeButton:Hide()
         return
     end
 
-    checkbox.modeButton:SetText(modeInfo.mode == "exact" and L["Exact"] or L["Merge"])
+    local title, body = ModeTooltip(modeInfo.mode)
+    checkbox.modeButton._tooltip = {
+        title = title,
+        body = body,
+        footer = (modeInfo.canToggle == true)
+            and L["Click to change between Exact and Merge modes."]
+            or L["This module only supports X mode."]:format(title),
+    }
+
+    checkbox.modeButton:SetText(title)
     checkbox.modeButton:SetEnabled(modeInfo.canToggle == true)
     checkbox.modeButton:Show()
+
+    -- Toggling is click-driven, so refresh the tooltip in place when it is
+    -- already showing for this button.
+    if GameTooltip:GetOwner() == checkbox.modeButton then
+        ShowModeTooltip(checkbox.modeButton)
+    end
 end
