@@ -197,6 +197,8 @@ local function Build()
 
     frame:SetScript("OnHide", function()
         WowSync:Detach("WowSync_UI")
+        -- Close any open dialogs with the window so they don't linger over the world.
+        addon:Broadcast("WOWSYNC_UI_CLOSED")
     end)
 
     -- Registering with UISpecialFrames makes ESC close the window.

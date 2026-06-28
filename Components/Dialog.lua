@@ -27,6 +27,76 @@ local Dialog = addon:NewObject("Dialog")
 local C = LibStub("Contracts-1.0")
 local UI = addon.UI
 
+-- Horizontal gap between a dialog and the one it stacks beside.
+local DIALOG_GAP = 12
+
+-- Currently-open dialog frames in the order they were shown. A new dialog stacks
+-- beside the last entry, and all are closed together when the main window closes.
+local openDialogs = {}
+
+-- Adds a dialog to the open set, ignoring one that is already tracked.
+local function RememberOpenDialog(frame)
+    for _, openFrame in ipairs(openDialogs) do
+        if openFrame == frame then
+            return
+        end
+    end
+    tinsert(openDialogs, frame)
+end
+
+-- Removes a dialog from the open set.
+local function ForgetOpenDialog(frame)
+    for index = #openDialogs, 1, -1 do
+        if openDialogs[index] == frame then
+            tremove(openDialogs, index)
+            return
+        end
+    end
+end
+
+-- Places a dialog as it opens: centered on the main window when it is the first
+-- one open, otherwise stacked to the right of the last open dialog, or to its
+-- left when the right edge would run off-screen. Positions are absolute so each
+-- dialog can be dragged or closed without disturbing the others.
+local function PositionDialog(frame)
+    frame:ClearAllPoints()
+
+    local anchorFrame = openDialogs[#openDialogs]
+    local anchorLeft = anchorFrame and anchorFrame:GetLeft()
+    if anchorLeft then
+        local width = frame:GetWidth()
+        local top = anchorFrame:GetTop()
+        local fitsRight = (anchorFrame:GetRight() + DIALOG_GAP + width) <= UIParent:GetRight()
+        if fitsRight then
+            frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", anchorFrame:GetRight() + DIALOG_GAP, top)
+        else
+            frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", anchorLeft - DIALOG_GAP - width, top)
+        end
+        return
+    end
+
+    local mainFrame = _G.WowSyncUIFrame
+    if mainFrame and mainFrame:IsShown() and mainFrame:GetLeft() then
+        local centerX = mainFrame:GetLeft() + mainFrame:GetWidth() / 2
+        local centerY = mainFrame:GetBottom() + mainFrame:GetHeight() / 2
+        frame:SetPoint("CENTER", UIParent, "BOTTOMLEFT", centerX, centerY)
+    else
+        frame:SetPoint("CENTER")
+    end
+end
+
+-- Closing the main window closes every open dialog, so stale popups never linger
+-- over the game world after WowSync is dismissed.
+Dialog:RegisterEvent("WOWSYNC_UI_CLOSED", function()
+    local closing = {}
+    for index = 1, #openDialogs do
+        closing[index] = openDialogs[index]
+    end
+    for index = 1, #closing do
+        closing[index]:Hide()
+    end
+end)
+
 -- Shared method table for every built dialog instance.
 local DialogMixin = {}
 
@@ -83,9 +153,20 @@ function Dialog:Build(opts)
     close:SetPoint("TOPRIGHT", -3, -3)
     close:SetScript("OnClick", function() frame:Hide() end)
 
-    if opts.onHide then
-        frame:SetScript("OnHide", opts.onHide)
-    end
+    -- Position and track the dialog as it opens, and release it as it closes, so
+    -- dialogs stack instead of overlapping and clear out of the open set.
+    frame:SetScript("OnShow", function(self)
+        PositionDialog(self)
+        RememberOpenDialog(self)
+        self:Raise()
+    end)
+
+    frame:SetScript("OnHide", function(self)
+        ForgetOpenDialog(self)
+        if opts.onHide then
+            opts.onHide(self)
+        end
+    end)
 
     -- Registering with UISpecialFrames makes ESC close the dialog.
     tinsert(UISpecialFrames, opts.name)
