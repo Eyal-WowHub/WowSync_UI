@@ -28,6 +28,14 @@ local UI = addon.UI
 local editNoteFrame
 local editNoteOnAccept
 
+-- The rename prompt is a custom modal (not a StaticPopup) so it centres on the
+-- screen and matches the styling of the other WowSync dialogs. Built lazily.
+local renameFrame
+local renameDialog
+local renameBox
+local renameOnAccept
+local MAX_RENAME_LETTERS = 64
+
 StaticPopupDialogs["WOWSYNC_UNDO"] = {
     text = L["Undo the last apply (X)?"],
     button1 = YES,
@@ -264,39 +272,6 @@ StaticPopupDialogs["WOWSYNC_DELETE_IMPORT"] = {
     preferredIndex = 3,
 }
 
-StaticPopupDialogs["WOWSYNC_RENAME_IMPORT"] = {
-    text = L["Rename this import:"],
-    button1 = ACCEPT,
-    button2 = CANCEL,
-    hasEditBox = true,
-    OnShow = function(self, popupData)
-        self.EditBox:SetText(popupData and popupData.name or "")
-        self.EditBox:HighlightText()
-        self.EditBox:SetFocus()
-    end,
-    EditBoxOnEnterPressed = function(self)
-        local popupData = self:GetParent().data
-        local text = strtrim(self:GetText())
-        if popupData and popupData.onAccept and text ~= "" then
-            popupData.onAccept(text)
-        end
-        self:GetParent():Hide()
-    end,
-    EditBoxOnEscapePressed = function(self)
-        self:GetParent():Hide()
-    end,
-    OnAccept = function(self, popupData)
-        local text = strtrim(self.EditBox:GetText())
-        if popupData and popupData.onAccept and text ~= "" then
-            popupData.onAccept(text)
-        end
-    end,
-    timeout = 0,
-    whileDead = true,
-    hideOnEscape = true,
-    preferredIndex = 3,
-}
-
 function PopupDialogs:ConfirmApply(mode, onConfirm)
     local popup = (mode == "exact") and "WOWSYNC_APPLY_EXACT" or "WOWSYNC_APPLY_MERGE"
     StaticPopup_Show(popup, nil, nil, { onConfirm = onConfirm })
@@ -310,6 +285,59 @@ function PopupDialogs:ConfirmDeleteImport(name, onConfirm)
     StaticPopup_Show("WOWSYNC_DELETE_IMPORT", name, nil, { onConfirm = onConfirm })
 end
 
+-- Lazily builds the centred, single-line rename modal so it matches the styling
+-- and position of the other WowSync dialogs.
+local function BuildRenameDialog()
+    if renameFrame then return end
+
+    renameDialog = addon:GetObject("Dialog"):Build({
+        name = "WowSyncRenameDialog",
+        title = L["Rename this import:"],
+        width = UI.Preview.Width,
+        height = 130,
+        onHide = function() renameOnAccept = nil end,
+    })
+    renameFrame = renameDialog:GetFrame()
+
+    renameBox = CreateFrame("EditBox", nil, renameFrame, "InputBoxTemplate")
+    renameBox:SetPoint("TOPLEFT", 16, -44)
+    renameBox:SetPoint("RIGHT", renameFrame, "RIGHT", -16, 0)
+    renameBox:SetHeight(20)
+    renameBox:SetAutoFocus(false)
+    renameBox:SetMaxLetters(MAX_RENAME_LETTERS)
+
+    local function Accept()
+        local text = strtrim(renameBox:GetText())
+        local onAccept = renameOnAccept
+        renameDialog:Hide()
+        if onAccept and text ~= "" then
+            onAccept(text)
+        end
+    end
+
+    renameBox:SetScript("OnEnterPressed", Accept)
+    renameBox:SetScript("OnEscapePressed", function() renameDialog:Hide() end)
+
+    local accept = CreateFrame("Button", nil, renameFrame, "UIPanelButtonTemplate")
+    accept:SetSize(110, 22)
+    accept:SetPoint("BOTTOMRIGHT", -14, 12)
+    accept:SetText(ACCEPT)
+    accept:SetScript("OnClick", Accept)
+
+    local cancel = CreateFrame("Button", nil, renameFrame, "UIPanelButtonTemplate")
+    cancel:SetSize(110, 22)
+    cancel:SetPoint("RIGHT", accept, "LEFT", -8, 0)
+    cancel:SetText(CANCEL)
+    cancel:SetScript("OnClick", function() renameDialog:Hide() end)
+end
+
 function PopupDialogs:PromptRename(currentName, onAccept)
-    StaticPopup_Show("WOWSYNC_RENAME_IMPORT", nil, nil, { name = currentName, onAccept = onAccept })
+    BuildRenameDialog()
+    renameOnAccept = onAccept
+
+    renameBox:SetText(currentName or "")
+    renameBox:HighlightText()
+
+    renameDialog:Show()
+    renameBox:SetFocus()
 end
