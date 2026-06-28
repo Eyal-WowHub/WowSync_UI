@@ -270,9 +270,9 @@ StaticPopupDialogs["WOWSYNC_RENAME_IMPORT"] = {
     button2 = CANCEL,
     hasEditBox = true,
     OnShow = function(self, popupData)
-        self.editBox:SetText(popupData and popupData.name or "")
-        self.editBox:HighlightText()
-        self.editBox:SetFocus()
+        self.EditBox:SetText(popupData and popupData.name or "")
+        self.EditBox:HighlightText()
+        self.EditBox:SetFocus()
     end,
     EditBoxOnEnterPressed = function(self)
         local popupData = self:GetParent().data
@@ -286,7 +286,7 @@ StaticPopupDialogs["WOWSYNC_RENAME_IMPORT"] = {
         self:GetParent():Hide()
     end,
     OnAccept = function(self, popupData)
-        local text = strtrim(self.editBox:GetText())
+        local text = strtrim(self.EditBox:GetText())
         if popupData and popupData.onAccept and text ~= "" then
             popupData.onAccept(text)
         end
