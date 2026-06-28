@@ -39,6 +39,20 @@ local savingStartedAt = nil
 local SAVE_SPINNER_MIN_SECONDS = 0.5
 local SAVED_FLOURISH_SECONDS = 0.9
 
+-- Height of a realm group header row; the extra space over the text gives each
+-- group a consistent leading gap. The character rows below use UI.List.ItemHeight.
+local REALM_HEADER_HEIGHT = 26
+
+-- Split a "Name - Realm" profile key on its first dash; realm is empty when the
+-- key carries no dash.
+local function SplitNameRealm(key)
+    local name, realm = key:match("^(.-)%s*%-%s*(.*)$")
+    if name then
+        return strtrim(name), strtrim(realm)
+    end
+    return strtrim(key), ""
+end
+
 function ProfileList:Build(region)
     C:IsTable(region, 2)
 
@@ -121,7 +135,12 @@ function ProfileList:Build(region)
 
     -- List view
     local view = CreateScrollBoxListLinearView()
-    view:SetElementExtent(UI.List.ItemHeight)
+    view:SetElementExtentCalculator(function(_, elementData)
+        if elementData.kind == "realm" then
+            return REALM_HEADER_HEIGHT
+        end
+        return UI.List.ItemHeight
+    end)
     view:SetPadding(0, 0, 0, 0, UI.List.ItemPadding)
     view:SetElementInitializer("Frame", function(row, elementData)
         if not row.initialized then
@@ -213,23 +232,64 @@ function ProfileList:EndSaving(storedSnapshot)
 end
 
 function ProfileList:Refresh()
-    -- Every character with saved history and/or a captured Current, the
-    -- logged-in one first. Each is one row; its detail panel shows the current
-    -- head plus saved history.
+    -- Every character with saved history and/or a captured Current, grouped
+    -- under its realm. The logged-in character's realm leads, then realms by
+    -- most-recently-seen; within a realm the order GetSavedCharacters returns is
+    -- kept (logged-in character first, then by recency).
     local characters = CharacterManager:GetSavedCharacters()
 
-    local dataProvider = CreateDataProvider()
+    local groups = {}
+    local realmOrder = {}
     local visibleProfiles = {}
 
     for _, character in ipairs(characters) do
         visibleProfiles[character.Key] = true
-        dataProvider:Insert({
+
+        local name, realm = SplitNameRealm(character.Key)
+        if realm == "" then
+            realm = L["Unknown"]
+        end
+
+        local group = groups[realm]
+        if not group then
+            group = { realm = realm, characters = {}, lastSeen = 0, hasCurrent = false }
+            groups[realm] = group
+            tinsert(realmOrder, group)
+        end
+
+        tinsert(group.characters, {
             id = character.Key,
+            name = name,
             classID = character.ClassID,
-            character = character.Key,
             timestamp = character.LastSeen,
             isCurrent = character.IsCurrent,
         })
+        group.lastSeen = math.max(group.lastSeen, character.LastSeen or 0)
+        if character.IsCurrent then
+            group.hasCurrent = true
+        end
+    end
+
+    table.sort(realmOrder, function(left, right)
+        if left.hasCurrent ~= right.hasCurrent then
+            return left.hasCurrent
+        end
+        return left.lastSeen > right.lastSeen
+    end)
+
+    local dataProvider = CreateDataProvider()
+    for _, group in ipairs(realmOrder) do
+        dataProvider:Insert({ kind = "realm", realm = group.realm })
+        for _, entry in ipairs(group.characters) do
+            dataProvider:Insert({
+                kind = "character",
+                id = entry.id,
+                classID = entry.classID,
+                character = entry.name,
+                timestamp = entry.timestamp,
+                isCurrent = entry.isCurrent,
+            })
+        end
     end
 
     scrollBox:SetDataProvider(dataProvider)
@@ -248,6 +308,7 @@ end
 function ProfileList:Select(profileName)
     selectedProfileName = profileName
     scrollBox:ForEachFrame(function(frame)
+        if not frame.profileName then return end
         if frame.profileName == selectedProfileName then
             frame.bg:SetColorTexture(UI.Row.Selected:GetRGBA())
         else
