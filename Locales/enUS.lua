@@ -104,6 +104,10 @@ L["Select an import"] = "Select an import"
 L["1 snapshot"] = "1 snapshot"
 L["X snapshots"] = "%d snapshots"
 L["Imported X"] = "Imported %s"
+L["Rename"] = "Rename"
+L["Delete import"] = "Delete import"
+L["Delete import 'X' and all its snapshots?"] = "Delete import '%s' and all its snapshots?"
+L["Rename this import:"] = "Rename this import:"
 
 -- Import dialog
 L["Import"] = "Import"

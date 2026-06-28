@@ -299,6 +299,10 @@ local function Build()
         importDetails:SetImport(importID)
     end)
 
+    importDetails:OnRefresh(function()
+        importList:Refresh()
+    end)
+
     importsView:Hide()
 
     -- Switch the active view and reflect it in the tab visuals. Both views share

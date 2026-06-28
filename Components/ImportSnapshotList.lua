@@ -7,10 +7,14 @@ local _, addon = ...
     imported container's snapshots (one ImportSnapshotRow each). Owns the
     selection state; never leaks its frames. Rows are pooled across containers.
 
-    addon:GetObject("ImportSnapshotList"):Build(region)
+    addon:GetObject("ImportSnapshotList"):Build(region, {
+        onSelect  = fn(snapshot or nil),   -- selection changed
+        onContext = fn(snapshot, anchor),  -- right-click on a row
+    })
         -> self {
             SetImport(importID),   -- (re)populate from a container; clears selection
             Refresh(),             -- re-render in place from the current container
+            GetSelected() -> snapshot or nil,
             Clear(),
         }
 ]]
@@ -26,6 +30,7 @@ local ImportManager = WowSync:GetImportManager()
 local scrollBox
 local currentImportID = nil
 local selectedSnapshot = nil
+local onSelect = nil
 
 -- Height of a snapshot row; tall enough for the subject and the note line.
 local ROW_HEIGHT = 40
@@ -33,8 +38,11 @@ local ROW_HEIGHT = 40
 -- Vertical gap between rows.
 local ROW_PADDING = 2
 
-function ImportSnapshotList:Build(region)
+function ImportSnapshotList:Build(region, opts)
     C:IsTable(region, 2)
+
+    opts = opts or {}
+    onSelect = opts.onSelect
 
     scrollBox = CreateFrame("Frame", nil, region, "WowScrollBoxList")
     scrollBox:SetPoint("TOPLEFT", 0, 0)
@@ -51,6 +59,7 @@ function ImportSnapshotList:Build(region)
         Select = function(snapshot)
             ImportSnapshotList:Select(snapshot)
         end,
+        OpenMenu = opts.onContext,
     }
 
     local view = CreateScrollBoxListLinearView()
@@ -103,6 +112,11 @@ function ImportSnapshotList:Select(snapshot)
             row.bg:SetColorTexture(UI.Row.Normal:GetRGBA())
         end
     end)
+    if onSelect then onSelect(selectedSnapshot) end
+end
+
+function ImportSnapshotList:GetSelected()
+    return selectedSnapshot
 end
 
 function ImportSnapshotList:Clear()

@@ -88,6 +88,12 @@ function ImportSnapshotRow:Build(row, ctx)
             ctx.Select(self.snapshot)
         end
     end)
+    row:SetScript("OnMouseUp", function(self, button)
+        if button == "RightButton" and self.snapshot and ctx.OpenMenu then
+            ctx.Select(self.snapshot)
+            ctx.OpenMenu(self.snapshot, self)
+        end
+    end)
 end
 
 function ImportSnapshotRow:Update(row, snapshot, ctx)

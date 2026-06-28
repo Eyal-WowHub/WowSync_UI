@@ -14,6 +14,8 @@ local _, addon = ...
     addon:GetObject("PopupDialogs"):PromptEditNote(currentText, onAccept)  -- onAccept(trimmedText)
     addon:GetObject("PopupDialogs"):ConfirmApply(mode, onConfirm)  -- mode = "merge"|"exact"
     addon:GetObject("PopupDialogs"):ConfirmSaveAtLimit(limit, oldestSubject, onConfirm)
+    addon:GetObject("PopupDialogs"):ConfirmDeleteImport(name, onConfirm)
+    addon:GetObject("PopupDialogs"):PromptRename(currentName, onAccept)  -- onAccept(trimmedName)
 ]]
 
 local PopupDialogs = addon:NewObject("PopupDialogs")
@@ -247,6 +249,54 @@ function PopupDialogs:PromptEditNote(currentText, onAccept)
     editBox:HighlightText()
 end
 
+StaticPopupDialogs["WOWSYNC_DELETE_IMPORT"] = {
+    text = L["Delete import 'X' and all its snapshots?"],
+    button1 = YES,
+    button2 = NO,
+    OnAccept = function(self, popupData)
+        if popupData and popupData.onConfirm then
+            popupData.onConfirm()
+        end
+    end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,
+}
+
+StaticPopupDialogs["WOWSYNC_RENAME_IMPORT"] = {
+    text = L["Rename this import:"],
+    button1 = ACCEPT,
+    button2 = CANCEL,
+    hasEditBox = true,
+    OnShow = function(self, popupData)
+        self.editBox:SetText(popupData and popupData.name or "")
+        self.editBox:HighlightText()
+        self.editBox:SetFocus()
+    end,
+    EditBoxOnEnterPressed = function(self)
+        local popupData = self:GetParent().data
+        local text = strtrim(self:GetText())
+        if popupData and popupData.onAccept and text ~= "" then
+            popupData.onAccept(text)
+        end
+        self:GetParent():Hide()
+    end,
+    EditBoxOnEscapePressed = function(self)
+        self:GetParent():Hide()
+    end,
+    OnAccept = function(self, popupData)
+        local text = strtrim(self.editBox:GetText())
+        if popupData and popupData.onAccept and text ~= "" then
+            popupData.onAccept(text)
+        end
+    end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,
+}
+
 function PopupDialogs:ConfirmApply(mode, onConfirm)
     local popup = (mode == "exact") and "WOWSYNC_APPLY_EXACT" or "WOWSYNC_APPLY_MERGE"
     StaticPopup_Show(popup, nil, nil, { onConfirm = onConfirm })
@@ -254,4 +304,12 @@ end
 
 function PopupDialogs:ConfirmSaveAtLimit(limit, oldestSubject, onConfirm)
     StaticPopup_Show("WOWSYNC_SAVE_AT_LIMIT", limit, oldestSubject, { onConfirm = onConfirm })
+end
+
+function PopupDialogs:ConfirmDeleteImport(name, onConfirm)
+    StaticPopup_Show("WOWSYNC_DELETE_IMPORT", name, nil, { onConfirm = onConfirm })
+end
+
+function PopupDialogs:PromptRename(currentName, onAccept)
+    StaticPopup_Show("WOWSYNC_RENAME_IMPORT", nil, nil, { name = currentName, onAccept = onAccept })
 end

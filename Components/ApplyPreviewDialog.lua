@@ -11,10 +11,13 @@ local _, addon = ...
     caller stays in charge of running and reporting the apply.
 
     addon:GetObject("ApplyPreviewDialog"):Show({
-        profileName = string,
         snapshot    = <snapshot>,
         mode        = "exact" | "merge",         -- the default mode each row
                                                  -- starts in (rows can override)
+        subject     = string,                    -- header label; defaults to the
+                                                 -- snapshot's own subject
+        preview     = <preview>,                 -- precomputed diff; defaults to a
+                                                 -- live preview of the snapshot
         onConfirm   = function(moduleSet, overrides) end,
                                                  -- moduleSet: { [name] = true }
                                                  -- overrides: { [name] = mode }
@@ -112,7 +115,6 @@ end
 function ApplyPreviewDialog:Show(opts)
     C:IsTable(opts, 2)
 
-    C:Ensures(type(opts.profileName) == "string", "Show: 'opts.profileName' must be a string")
     C:Ensures(type(opts.snapshot) == "table", "Show: 'opts.snapshot' must be a table")
     C:Ensures(opts.onConfirm == nil or type(opts.onConfirm) == "function", "Show: 'opts.onConfirm' must be a function")
 
@@ -120,11 +122,12 @@ function ApplyPreviewDialog:Show(opts)
 
     onConfirm = opts.onConfirm
     currentMode = opts.mode or "exact"
-    currentSubject = SnapshotView:IsHead(opts.snapshot) and L["Current"] or SnapshotRow:FormatSubject(SnapshotView:GetTimestamp(opts.snapshot))
+    currentSubject = opts.subject
+        or (SnapshotView:IsHead(opts.snapshot) and L["Current"] or SnapshotRow:FormatSubject(SnapshotView:GetTimestamp(opts.snapshot)))
     dialog:SetTitle(L["Apply snapshot"])
     subjectLabel:SetText(currentSubject)
 
-    currentPreview = SnapshotView:Preview(opts.snapshot)
+    currentPreview = opts.preview or SnapshotView:Preview(opts.snapshot)
     moduleList:SetSnapshot(opts.snapshot, currentPreview, currentMode)
     RefreshToggle()
 
