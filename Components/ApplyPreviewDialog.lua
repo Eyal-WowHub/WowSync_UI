@@ -13,7 +13,7 @@ local _, addon = ...
     addon:GetObject("ApplyPreviewDialog"):Show({
         profileName = string,
         snapshot    = <snapshot>,
-        mode        = "merge" | "exact",         -- the default mode each row
+        mode        = "exact" | "merge",         -- the default mode each row
                                                  -- starts in (rows can override)
         onConfirm   = function(moduleSet, overrides) end,
                                                  -- moduleSet: { [name] = true }
@@ -108,7 +108,7 @@ function ApplyPreviewDialog:Show(opts)
     Build()
 
     onConfirm = opts.onConfirm
-    currentMode = opts.mode or "merge"
+    currentMode = opts.mode or "exact"
     dialog:SetTitle(L["Apply snapshot"])
     subjectLabel:SetText(SnapshotView:IsHead(opts.snapshot) and L["Current"] or SnapshotRow:FormatSubject(SnapshotView:GetTimestamp(opts.snapshot)))
 

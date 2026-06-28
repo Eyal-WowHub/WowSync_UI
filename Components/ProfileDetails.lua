@@ -181,7 +181,7 @@ local function ApplySnapshot(snapshot, moduleSet, mode, overrides)
     -- Apply only the chosen modules of the snapshot, each in its own mode (the
     -- preview's per-module overrides over the dialog's default). The current head
     -- is not a stored snapshot, so it routes through ApplyHeadByCharKey.
-    local strategy = { default = mode or "merge", overrides = overrides }
+    local strategy = { default = mode or "exact", overrides = overrides }
     if Debugger:IsEnabled() then
         Debugger:RecordUI({ Action = "apply", Profile = currentProfileName, Mode = strategy.default })
     end
@@ -232,7 +232,7 @@ local function RequestApply(snapshot, mode)
         return
     end
 
-    mode = mode or "merge"
+    mode = mode or "exact"
     ApplyPreviewDialog:Show({
         profileName = currentProfileName,
         snapshot = snapshot,
@@ -310,7 +310,7 @@ local function OpenSnapshotMenu(snapshot, subject, anchor, isHead)
 
             if CanApplySnapshot(snapshot) then
                 rootDescription:CreateButton(L["Apply"], function()
-                    RequestApply(snapshot, "merge")
+                    RequestApply(snapshot, "exact")
                 end)
                 rootDescription:CreateDivider()
             end
@@ -326,7 +326,7 @@ local function OpenSnapshotMenu(snapshot, subject, anchor, isHead)
         rootDescription:CreateTitle(subject)
 
         rootDescription:CreateButton(L["Apply"], function()
-            RequestApply(snapshot, "merge")
+            RequestApply(snapshot, "exact")
         end)
 
         rootDescription:CreateDivider()
@@ -476,7 +476,7 @@ function ProfileDetails:Build(region)
     })
 
     actionBar = ActionBar:Build(actionSlot, {
-        onApply = function() RequestApply(nil, "merge") end,
+        onApply = function() RequestApply(nil, "exact") end,
         onUndo = RequestUndo,
         onDelete = function()
             if currentProfileName then
