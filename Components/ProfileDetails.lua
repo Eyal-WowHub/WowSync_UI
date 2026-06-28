@@ -266,10 +266,24 @@ local function DoDelete()
     end
 end
 
+-- Open the diff viewer on what undoing the most recent apply would restore.
+local function PreviewUndoChanges(undoPoint)
+    local preview = SnapshotManager:PreviewUndo()
+    if preview then
+        GameDiffPreview:Show({
+            title = undoPoint.Subject,
+            preview = preview,
+            mode = "exact",
+        })
+    end
+end
+
 local function RequestUndo()
     local undoPoint = SnapshotManager:GetNextUndoPoint()
     if undoPoint then
-        Dialogs:ConfirmUndo(undoPoint.Subject, DoUndo)
+        Dialogs:ConfirmUndo(undoPoint.Subject, DoUndo, function()
+            PreviewUndoChanges(undoPoint)
+        end)
     end
 end
 
@@ -308,6 +322,8 @@ local function RequestUndoSteps(count, undoPoint)
     else
         Dialogs:ConfirmUndo(undoPoint.Subject, function()
             DoUndoSteps(1, undoPoint)
+        end, function()
+            PreviewUndoChanges(undoPoint)
         end)
     end
 end

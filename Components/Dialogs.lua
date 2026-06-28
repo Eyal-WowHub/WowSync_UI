@@ -7,7 +7,7 @@ local _, addon = ...
     once at load; callers pass their own callbacks through the popup `data`
     payload, so this service is fully decoupled from any single consumer.
 
-    addon:GetObject("Dialogs"):ConfirmUndo(subject, onConfirm)
+    addon:GetObject("Dialogs"):ConfirmUndo(subject, onConfirm, onPreview)
     addon:GetObject("Dialogs"):ConfirmUndoSteps(count, subject, onConfirm)
     addon:GetObject("Dialogs"):ConfirmDelete(profileName, onConfirm)
     addon:GetObject("Dialogs"):ConfirmDeleteSnapshot(subject, onConfirm)
@@ -30,11 +30,20 @@ StaticPopupDialogs["WOWSYNC_UNDO"] = {
     text = L["Undo the last apply (X)?"],
     button1 = YES,
     button2 = NO,
+    button3 = L["Preview changes"],
     OnAccept = function(self, popupData)
         if popupData and popupData.onConfirm then
             popupData.onConfirm()
         end
     end,
+    OnAlt = function(self, popupData)
+        if popupData and popupData.onPreview then
+            popupData.onPreview()
+        end
+    end,
+    -- Previewing opens the diff viewer alongside; keep the confirm open so the
+    -- choice isn't lost.
+    noCloseOnAlt = true,
     timeout = 0,
     whileDead = true,
     hideOnEscape = true,
@@ -132,8 +141,8 @@ StaticPopupDialogs["WOWSYNC_SAVE_AT_LIMIT"] = {
     preferredIndex = 3,
 }
 
-function Dialogs:ConfirmUndo(subject, onConfirm)
-    StaticPopup_Show("WOWSYNC_UNDO", subject, nil, { onConfirm = onConfirm })
+function Dialogs:ConfirmUndo(subject, onConfirm, onPreview)
+    StaticPopup_Show("WOWSYNC_UNDO", subject, nil, { onConfirm = onConfirm, onPreview = onPreview })
 end
 
 function Dialogs:ConfirmUndoSteps(count, subject, onConfirm)
