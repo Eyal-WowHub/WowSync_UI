@@ -14,6 +14,7 @@ local _, addon = ...
             Refresh(),
             GetSelected() -> profileName or nil,
             ClearSelection(),
+            SelectCurrentWhenNone(),
         }
 ]]
 
@@ -30,6 +31,7 @@ local CharacterManager = WowSync:GetCharacterManager()
 local scrollBox
 local saveButton
 local selectedProfileName = nil
+local currentProfileName = nil
 local onSelectionChanged = nil
 local onSaveRequested = nil
 local savingStartedAt = nil
@@ -241,6 +243,7 @@ function ProfileList:Refresh()
     local groups = {}
     local realmOrder = {}
     local visibleProfiles = {}
+    currentProfileName = nil
 
     for _, character in ipairs(characters) do
         visibleProfiles[character.Key] = true
@@ -267,6 +270,7 @@ function ProfileList:Refresh()
         group.lastSeen = math.max(group.lastSeen, character.LastSeen or 0)
         if character.IsCurrent then
             group.hasCurrent = true
+            currentProfileName = character.Key
         end
     end
 
@@ -320,6 +324,14 @@ end
 
 function ProfileList:GetSelected()
     return selectedProfileName
+end
+
+-- Select the logged-in character when nothing is selected yet, so opening the
+-- window lands on a useful profile.
+function ProfileList:SelectCurrentWhenNone()
+    if selectedProfileName or not currentProfileName then return end
+    self:Select(currentProfileName)
+    self:ScrollToProfile(currentProfileName)
 end
 
 -- Scroll the list so the named profile is visible (no-op if already on screen).

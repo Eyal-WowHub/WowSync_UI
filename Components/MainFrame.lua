@@ -190,6 +190,8 @@ local function Build()
         -- Attach captures the logged-in character's live setup; rebuild the list
         -- afterwards so a first open (empty store) still shows that character.
         profileList:Refresh()
+        -- Land on the logged-in character when the user hasn't picked one yet.
+        profileList:SelectCurrentWhenNone()
     end)
 
     frame:SetScript("OnHide", function()
