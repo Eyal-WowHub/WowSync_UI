@@ -7,7 +7,10 @@ local _, addon = ...
     profile. Rows are pooled and reused across profile selections (no frame
     churn). Composes ModuleRow for each row.
 
-    addon:GetObject("ModuleList"):Build(region, { onChanged = fn })
+    addon:GetObject("ModuleList"):Build(region, {
+        onChanged = fn,                 -- called when a row's check/mode changes
+        onPreviewModule = fn(name, mode),  -- clicking a name opens its preview
+    })
         -> self {
             SetSnapshot(snapshot, preview, mode),   -- (re)build rows; preview adds counts
             GetSelected() -> { [name] = true },
@@ -35,6 +38,7 @@ local root
 local checkboxes = {}   -- moduleName -> active checkbox
 local pool = {}
 local onChanged
+local onPreviewModule
 
 local function Acquire()
     for _, checkbox in ipairs(pool) do
@@ -115,8 +119,10 @@ function ModuleList:Build(region, opts)
     opts = opts or {}
 
     C:Ensures(opts.onChanged == nil or type(opts.onChanged) == "function", "Build: 'opts.onChanged' must be a function")
+    C:Ensures(opts.onPreviewModule == nil or type(opts.onPreviewModule) == "function", "Build: 'opts.onPreviewModule' must be a function")
 
     onChanged = opts.onChanged
+    onPreviewModule = opts.onPreviewModule
 
     root = CreateFrame("Frame", nil, region)
     root:SetAllPoints(region)
@@ -169,6 +175,14 @@ function ModuleList:SetSnapshot(snapshot, preview, mode)
             checkbox.modeButton:SetScript("OnClick", function()
                 ToggleRowMode(checkbox)
             end)
+
+            if onPreviewModule then
+                ModuleRow:SetNameLink(checkbox, function()
+                    onPreviewModule(name, checkbox._mode and checkbox._mode.mode or rowMode)
+                end)
+            else
+                ModuleRow:SetNameLink(checkbox, nil)
+            end
 
             checkbox:Show()
 

@@ -21,6 +21,11 @@ local L = addon.L
 local MODE_BUTTON_WIDTH = 58
 local MODE_BUTTON_HEIGHT = 18
 
+-- Module-name link colours: the resting white and the blue-ish hover that
+-- signals the name opens that module's filtered change preview.
+local LINK_COLOR = { 1, 1, 1 }
+local LINK_HOVER_COLOR = { 0.4, 0.7, 1 }
+
 -- Title/body text for the mode toggle tooltip, per mode.
 local function ModeTooltip(mode)
     if mode == "exact" then
@@ -53,6 +58,19 @@ function ModuleRow:Build(parent)
     checkbox.label = checkbox:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     checkbox.label:SetPoint("LEFT", checkbox, "RIGHT", 2, 0)
 
+    -- An invisible button matching the name's bounds that turns it into a link:
+    -- hovering tints the name blue. The list owner opts a row in (and wires the
+    -- click) through SetNameLink; rows left out stay plain text.
+    checkbox.nameLink = CreateFrame("Button", nil, checkbox)
+    checkbox.nameLink:SetAllPoints(checkbox.label)
+    checkbox.nameLink:SetScript("OnEnter", function()
+        checkbox.label:SetTextColor(unpack(LINK_HOVER_COLOR))
+    end)
+    checkbox.nameLink:SetScript("OnLeave", function()
+        checkbox.label:SetTextColor(unpack(LINK_COLOR))
+    end)
+    checkbox.nameLink:Hide()
+
     checkbox.warning = checkbox:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     checkbox.warning:SetPoint("LEFT", checkbox.label, "RIGHT", 6, 0)
 
@@ -74,6 +92,19 @@ function ModuleRow:Build(parent)
     checkbox.modeButton:Hide()
 
     return checkbox
+end
+
+-- Turn the module name into a clickable link with the given click handler, or
+-- restore it to plain text when no handler is given.
+function ModuleRow:SetNameLink(checkbox, onClick)
+    checkbox.label:SetTextColor(unpack(LINK_COLOR))
+    if onClick then
+        checkbox.nameLink:SetScript("OnClick", onClick)
+        checkbox.nameLink:Show()
+    else
+        checkbox.nameLink:SetScript("OnClick", nil)
+        checkbox.nameLink:Hide()
+    end
 end
 
 function ModuleRow:Update(checkbox, moduleName, canApply, reason, counts, modeInfo)

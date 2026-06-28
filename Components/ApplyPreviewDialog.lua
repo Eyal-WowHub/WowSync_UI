@@ -66,18 +66,28 @@ local function Build()
 
     toggleButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
     toggleButton:SetSize(100, 20)
-    toggleButton:SetPoint("TOPRIGHT", -14, -56)
+    toggleButton:SetPoint("TOPLEFT", 12, -76)
     toggleButton:SetScript("OnClick", function()
         moduleList:SetAllChecked(not moduleList:AreAllSelectableChecked())
         RefreshToggle()
     end)
 
     local listSlot = CreateFrame("Frame", nil, frame)
-    listSlot:SetPoint("TOPLEFT", 14, -82)
-    listSlot:SetPoint("TOPRIGHT", -14, -82)
+    listSlot:SetPoint("TOPLEFT", 14, -102)
+    listSlot:SetPoint("TOPRIGHT", -14, -102)
     listSlot:SetPoint("BOTTOM", frame, "BOTTOM", 0, 44)
     moduleList = ModuleList:Build(listSlot, {
         onChanged = RefreshToggle,
+        -- Clicking a module name opens the read-only diff browser filtered to
+        -- that module, in the row's current mode.
+        onPreviewModule = function(name, mode)
+            GameDiffPreview:Show({
+                title = currentSubject,
+                preview = currentPreview,
+                mode = mode or currentMode,
+                moduleFilter = name,
+            })
+        end,
     })
 
     local applyButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
@@ -97,20 +107,6 @@ local function Build()
     cancelButton:SetPoint("RIGHT", applyButton, "LEFT", -8, 0)
     cancelButton:SetText(L["Cancel"])
     cancelButton:SetScript("OnClick", function() ApplyPreviewDialog:Hide() end)
-
-    -- Opens the read-only diff browser for the previewed snapshot; the browser's
-    -- own filter narrows it to a single module.
-    local previewButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    previewButton:SetSize(120, 22)
-    previewButton:SetPoint("BOTTOMLEFT", 14, 12)
-    previewButton:SetText(L["Preview changes"])
-    previewButton:SetScript("OnClick", function()
-        GameDiffPreview:Show({
-            title = currentSubject,
-            preview = currentPreview,
-            mode = currentMode,
-        })
-    end)
 end
 
 function ApplyPreviewDialog:Show(opts)
