@@ -14,11 +14,13 @@ local _, addon = ...
             GetSelected() -> importID or nil,
             Select(importID),
             ClearSelection(),
+            BeginImport(),          -- opens the import dialog
         }
 ]]
 
 local ImportList = addon:NewObject("ImportList")
 local ImportRow = addon:GetObject("ImportRow")
+local ImportDialog = addon:GetObject("ImportDialog")
 
 local C = LibStub("Contracts-1.0")
 local L = addon.L
@@ -52,6 +54,13 @@ function ImportList:Build(region)
     local title = root:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", 10, -8)
     title:SetText(L["Imports"])
+
+    -- Import button, top-right of the header.
+    local importButton = CreateFrame("Button", nil, root, "UIPanelButtonTemplate")
+    importButton:SetPoint("TOPRIGHT", -10, -6)
+    importButton:SetSize(64, 22)
+    importButton:SetText(L["Import"])
+    importButton:SetScript("OnClick", function() ImportList:BeginImport() end)
 
     -- Scroll area
     scrollBox = CreateFrame("Frame", nil, root, "WowScrollBoxList")
@@ -158,4 +167,26 @@ end
 
 function ImportList:ClearSelection()
     self:Select(nil)
+end
+
+-- Scrolls the list to bring the given container into view.
+function ImportList:ScrollToImport(importID)
+    if not importID then return end
+    scrollBox:ScrollToElementDataByPredicate(function(data)
+        return data.id == importID
+    end, ScrollBoxConstants.AlignNearest)
+end
+
+-- Opens the import dialog; on success refreshes the list and selects the new
+-- container.
+function ImportList:BeginImport()
+    ImportDialog:Show({
+        onImported = function(importID)
+            ImportList:Refresh()
+            if importID then
+                ImportList:Select(importID)
+                ImportList:ScrollToImport(importID)
+            end
+        end,
+    })
 end

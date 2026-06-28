@@ -376,3 +376,23 @@ function MainFrame:Toggle()
         frame:Show()
     end
 end
+
+-- Opens the window for a share action: "import" lands on the Imports tab and
+-- opens the import dialog; any other action just opens the window.
+function MainFrame:OpenShareDialog(action)
+    Build()
+
+    if action == "import" then
+        ShowView("imports")
+    else
+        ShowView("profiles")
+    end
+
+    if not frame:IsShown() then
+        frame:Show()
+    end
+
+    if action == "import" then
+        importList:BeginImport()
+    end
+end

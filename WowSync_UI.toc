@@ -37,6 +37,7 @@ Components\UndoList.lua
 Components\GameDiffPreview.lua
 Components\ApplyPreviewDialog.lua
 Components\SaveDialog.lua
+Components\ImportDialog.lua
 Components\ProfileList.lua
 Components\ProfileDetails.lua
 Components\ImportRow.lua
