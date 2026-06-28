@@ -131,15 +131,15 @@ local function Build()
 
     toggleButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
     toggleButton:SetSize(100, 20)
-    toggleButton:SetPoint("TOPRIGHT", noteBox, "BOTTOMRIGHT", 0, -10)
+    toggleButton:SetPoint("TOPLEFT", listHeader, "BOTTOMLEFT", 2, -6)
     toggleButton:SetScript("OnClick", function()
         SetAllChecked(not AreAllChecked())
         RefreshToggle()
     end)
 
     local listSlot = CreateFrame("Frame", nil, frame)
-    listSlot:SetPoint("TOPLEFT", frame, "TOPLEFT", 14, -116)
-    listSlot:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -14, -116)
+    listSlot:SetPoint("TOPLEFT", toggleButton, "BOTTOMLEFT", -2, -8)
+    listSlot:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -14, 0)
     listSlot:SetPoint("BOTTOM", frame, "BOTTOM", 0, 44)
     BuildRows(listSlot)
 
