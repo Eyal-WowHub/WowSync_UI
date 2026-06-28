@@ -34,8 +34,8 @@ Components\ModuleList.lua
 Components\SnapshotRow.lua
 Components\SnapshotList.lua
 Components\UndoList.lua
-Components\ApplyPreviewDialog.lua
 Components\GameDiffPreview.lua
+Components\ApplyPreviewDialog.lua
 Components\SaveDialog.lua
 Components\ProfileList.lua
 Components\ProfileDetails.lua

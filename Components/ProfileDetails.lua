@@ -29,6 +29,7 @@ local SnapshotRow = addon:GetObject("SnapshotRow")
 local UndoList = addon:GetObject("UndoList")
 local ActionBar = addon:GetObject("ActionBar")
 local ApplyPreviewDialog = addon:GetObject("ApplyPreviewDialog")
+local GameDiffPreview = addon:GetObject("GameDiffPreview")
 local SaveDialog = addon:GetObject("SaveDialog")
 
 local C = LibStub("Contracts-1.0")
@@ -312,8 +313,16 @@ local function OpenSnapshotMenu(snapshot, subject, anchor, isHead)
                 rootDescription:CreateButton(L["Apply"], function()
                     RequestApply(snapshot, "exact")
                 end)
-                rootDescription:CreateDivider()
             end
+
+            rootDescription:CreateButton(L["Preview changes"], function()
+                GameDiffPreview:Show({
+                    title = L["Current"],
+                    preview = SnapshotView:Preview(snapshot),
+                    mode = "exact",
+                })
+            end)
+            rootDescription:CreateDivider()
 
             rootDescription:CreateButton(L["Save now"], function()
                 ProfileDetails:RequestSave(SnapshotView:GetCharacterInfo(snapshot).Key)
@@ -327,6 +336,14 @@ local function OpenSnapshotMenu(snapshot, subject, anchor, isHead)
 
         rootDescription:CreateButton(L["Apply"], function()
             RequestApply(snapshot, "exact")
+        end)
+
+        rootDescription:CreateButton(L["Preview changes"], function()
+            GameDiffPreview:Show({
+                title = subject,
+                preview = SnapshotView:Preview(snapshot),
+                mode = "exact",
+            })
         end)
 
         rootDescription:CreateDivider()

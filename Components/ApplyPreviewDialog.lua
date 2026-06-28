@@ -23,6 +23,7 @@ local _, addon = ...
 
 local ApplyPreviewDialog = addon:NewObject("ApplyPreviewDialog")
 local Dialog = addon:GetObject("Dialog")
+local GameDiffPreview = addon:GetObject("GameDiffPreview")
 local ModuleList = addon:GetObject("ModuleList")
 local SnapshotRow = addon:GetObject("SnapshotRow")
 
@@ -35,7 +36,7 @@ local SnapshotView = WowSync:GetSnapshotView()
 local dialog, frame
 local subjectLabel, moduleList, toggleButton
 local onConfirm
-local currentMode
+local currentMode, currentPreview, currentSubject
 
 -- Keep the select-all toggle's label in sync with the current checkbox state.
 local function RefreshToggle()
@@ -80,7 +81,7 @@ local function Build()
     })
 
     local applyButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    applyButton:SetSize(110, 22)
+    applyButton:SetSize(100, 22)
     applyButton:SetPoint("BOTTOMRIGHT", -14, 12)
     applyButton:SetText(L["Apply"])
     applyButton:SetScript("OnClick", function()
@@ -92,10 +93,24 @@ local function Build()
     end)
 
     local cancelButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    cancelButton:SetSize(110, 22)
+    cancelButton:SetSize(100, 22)
     cancelButton:SetPoint("RIGHT", applyButton, "LEFT", -8, 0)
     cancelButton:SetText(L["Cancel"])
     cancelButton:SetScript("OnClick", function() ApplyPreviewDialog:Hide() end)
+
+    -- Opens the read-only diff browser for the previewed snapshot; the browser's
+    -- own filter narrows it to a single module.
+    local previewButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    previewButton:SetSize(120, 22)
+    previewButton:SetPoint("BOTTOMLEFT", 14, 12)
+    previewButton:SetText(L["Preview changes"])
+    previewButton:SetScript("OnClick", function()
+        GameDiffPreview:Show({
+            title = currentSubject,
+            preview = currentPreview,
+            mode = currentMode,
+        })
+    end)
 end
 
 function ApplyPreviewDialog:Show(opts)
@@ -109,11 +124,12 @@ function ApplyPreviewDialog:Show(opts)
 
     onConfirm = opts.onConfirm
     currentMode = opts.mode or "exact"
+    currentSubject = SnapshotView:IsHead(opts.snapshot) and L["Current"] or SnapshotRow:FormatSubject(SnapshotView:GetTimestamp(opts.snapshot))
     dialog:SetTitle(L["Apply snapshot"])
-    subjectLabel:SetText(SnapshotView:IsHead(opts.snapshot) and L["Current"] or SnapshotRow:FormatSubject(SnapshotView:GetTimestamp(opts.snapshot)))
+    subjectLabel:SetText(currentSubject)
 
-    local preview = SnapshotView:Preview(opts.snapshot)
-    moduleList:SetSnapshot(opts.snapshot, preview, currentMode)
+    currentPreview = SnapshotView:Preview(opts.snapshot)
+    moduleList:SetSnapshot(opts.snapshot, currentPreview, currentMode)
     RefreshToggle()
 
     dialog:Show()
