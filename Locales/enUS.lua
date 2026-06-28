@@ -23,6 +23,7 @@ L["Last applied: X"] = "Last applied: %s"
 
 -- Snapshot timeline
 L["Current"] = "Current"
+L["Your live setup — Save to keep it as a snapshot."] = "Your live setup — Save to keep it as a snapshot."
 L["(pinned)"] = "(pinned)"
 L["Changes vs current setup:"] = "Changes vs current setup:"
 L["Matches your current setup"] = "Matches your current setup"

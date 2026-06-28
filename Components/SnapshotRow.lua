@@ -64,6 +64,9 @@ local TIMELINE_NODE_LATEST_COLOR = CreateColor(0.25, 0.65, 0.95, 1)
 -- Pinned snapshots get a warm accent so they stand out from the history.
 local TIMELINE_NODE_PINNED_COLOR = CreateColor(0.95, 0.6, 0.2, 1)
 
+-- The head row's collapsed hint, in a calm green so it reads as guidance.
+local HEAD_HINT_COLOR = CreateColor(0.4, 0.85, 0.4, 1)
+
 -- Exposed so siblings (e.g. the context menu and its dialogs) can label a
 -- snapshot with the same subject the row shows.
 function SnapshotRow:FormatSubject(timestamp)
@@ -196,14 +199,24 @@ end
 
 -- Restore the compact look: subject, tags, and a one-line note preview; the
 -- inline detail panel is hidden.
-local function CollapseRow(row, snapshot)
+local function CollapseRow(row, snapshot, isHead)
     row.detailNote:Hide()
     row.detailHeader:Hide()
     row.detailChanges:Hide()
 
+    -- The head carries no saved note; show a hint describing the live setup so
+    -- the row still guides the user when collapsed.
+    if isHead then
+        row.noteText:SetText(L["Your live setup — Save to keep it as a snapshot."])
+        row.noteText:SetTextColor(HEAD_HINT_COLOR:GetRGB())
+        row.noteText:Show()
+        return
+    end
+
     local note = SnapshotView:GetNotes(snapshot)
     if note ~= "" then
         row.noteText:SetText(note)
+        row.noteText:SetTextColor(DISABLED_FONT_COLOR:GetRGB())
         row.noteText:Show()
     else
         row.noteText:Hide()
@@ -241,7 +254,7 @@ function SnapshotRow:Update(row, elementData, ctx)
     if ctx.IsExpanded(row.snapshot) then
         ExpandRow(row, ctx.GetDetail())
     else
-        CollapseRow(row, snapshot)
+        CollapseRow(row, snapshot, elementData.isHead)
     end
 
     -- The head node carries the brand accent; pinned nodes take the warm
