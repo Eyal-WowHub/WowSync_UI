@@ -11,6 +11,7 @@ local _, addon = ...
         -> self {
             SetSnapshot(snapshot, preview, mode),   -- (re)build rows; preview adds counts
             GetSelected() -> { [name] = true },
+            GetStrategy() -> moduleSet, overrides,  -- chosen modules + per-module mode
             SetAllChecked(checked),
         }
 ]]
@@ -24,6 +25,11 @@ local UI = addon.UI
 local ModuleRegistry = WowSync:GetModuleRegistry()
 local SnapshotManager = WowSync:GetSnapshotManager()
 local SnapshotView = WowSync:GetSnapshotView()
+
+-- Placement of the per-row Merge/Exact toggle: inset from the list's right edge,
+-- and a vertical nudge to centre the button in the row.
+local MODE_BUTTON_INSET = 2
+local MODE_BUTTON_VOFFSET = 3
 
 local root
 local checkboxes = {}   -- moduleName -> active checkbox
@@ -50,9 +56,57 @@ end
 local function ReleaseAll()
     for _, checkbox in pairs(checkboxes) do
         checkbox:Hide()
+        checkbox.modeButton:Hide()
         checkbox.inUse = false
     end
     wipe(checkboxes)
+end
+
+-- The Merge/Exact support a module declares, as two booleans.
+local function SupportedModes(name)
+    local applyModes = WowSync.Models and WowSync.Models.SnapshotApplyMode
+    local modes = SnapshotManager:GetModuleApplyMode(name)
+    return applyModes and applyModes.CanMerge(modes), applyModes and applyModes.CanExact(modes)
+end
+
+-- The mode a row starts in: the requested default when the module supports it,
+-- otherwise its only supported mode.
+local function ResolveInitialMode(canMerge, canExact, defaultMode)
+    if canMerge and canExact then
+        return defaultMode
+    elseif canExact then
+        return "exact"
+    end
+    return "merge"
+end
+
+-- Per-module change figure for a row in its current mode. Removals only count
+-- when the row applies in Exact and the module supports it, so the preview
+-- never overstates the change.
+local function ComputeCounts(moduleDiff, rowMode, canExact)
+    if not moduleDiff then return nil end
+    local showRemovals = (rowMode == "exact") and canExact
+    return {
+        added = #(moduleDiff.added or {}),
+        changed = #(moduleDiff.changed or {}),
+        removed = showRemovals and #(moduleDiff.removed or {}) or 0,
+    }
+end
+
+-- Flip a togglable row between Merge and Exact, refreshing its counts and toggle
+-- label and notifying the list owner so dependent UI can update.
+local function ToggleRowMode(checkbox)
+    local state = checkbox._mode
+    if not state or not state.canToggle then return end
+
+    state.mode = (state.mode == "exact") and "merge" or "exact"
+    ModuleRow:RenderCounts(checkbox, ComputeCounts(state.diff, state.mode, state.canExact))
+    ModuleRow:RenderMode(checkbox, {
+        mode = state.mode,
+        canToggle = true,
+        visible = true,
+    })
+    if onChanged then onChanged() end
 end
 
 function ModuleList:Build(region, opts)
@@ -75,8 +129,7 @@ function ModuleList:SetSnapshot(snapshot, preview, mode)
 
     local sourceMetadata = { ClassID = snapshot and SnapshotView:GetCharacterInfo(snapshot).ClassID }
     local moduleDiffs = preview and preview.perModule
-    local exact = (mode == "exact")
-    local applyModes = WowSync.Models and WowSync.Models.SnapshotApplyMode
+    local defaultMode = (mode == "exact") and "exact" or "merge"
 
     -- The snapshot's modules, in a stable order, intersected with what is
     -- currently registered (a snapshot may carry a module no longer installed).
@@ -87,26 +140,36 @@ function ModuleList:SetSnapshot(snapshot, preview, mode)
         local module = ModuleRegistry:Get(name)
         if module then
             local canApply, reason = module:CanApply(sourceMetadata)
+            local canMerge, canExact = SupportedModes(name)
+            local rowMode = ResolveInitialMode(canMerge, canExact, defaultMode)
+            local canToggle = canMerge and canExact
 
-            local counts
             local moduleDiff = moduleDiffs and moduleDiffs[name]
-            if moduleDiff then
-                -- Merge never removes, and Exact removes only for modules whose apply
-                -- mode supports it; surface a removal figure only when the apply will
-                -- actually act on it, so the preview never overstates the change.
-                local showRemovals = exact and applyModes
-                    and applyModes.CanExact(SnapshotManager:GetModuleApplyMode(name))
-                counts = {
-                    added = #(moduleDiff.added or {}),
-                    changed = #(moduleDiff.changed or {}),
-                    removed = showRemovals and #(moduleDiff.removed or {}) or 0,
-                }
-            end
+            local counts = ComputeCounts(moduleDiff, rowMode, canExact)
 
             local checkbox = Acquire()
+            checkbox._mode = {
+                name = name,
+                mode = rowMode,
+                canToggle = canToggle,
+                canExact = canExact,
+                diff = moduleDiff,
+            }
             checkbox:ClearAllPoints()
             checkbox:SetPoint("TOPLEFT", 0, -yOffset)
-            ModuleRow:Update(checkbox, name, canApply, reason, counts)
+            ModuleRow:Update(checkbox, name, canApply, reason, counts, {
+                mode = rowMode,
+                canToggle = canToggle,
+                visible = canApply,
+            })
+
+            checkbox.modeButton:ClearAllPoints()
+            checkbox.modeButton:SetPoint("TOPRIGHT", root, "TOPRIGHT",
+                -MODE_BUTTON_INSET, -yOffset - MODE_BUTTON_VOFFSET)
+            checkbox.modeButton:SetScript("OnClick", function()
+                ToggleRowMode(checkbox)
+            end)
+
             checkbox:Show()
 
             checkboxes[name] = checkbox
@@ -123,6 +186,22 @@ function ModuleList:GetSelected()
         end
     end
     return selected
+end
+
+-- The chosen modules and their per-module apply mode, ready for use as
+-- strategy.overrides. Only checked rows are included.
+function ModuleList:GetStrategy()
+    local moduleSet, overrides = {}, {}
+    for name, checkbox in pairs(checkboxes) do
+        if checkbox:GetChecked() then
+            moduleSet[name] = true
+            local state = checkbox._mode
+            if state then
+                overrides[name] = state.mode
+            end
+        end
+    end
+    return moduleSet, overrides
 end
 
 function ModuleList:SetAllChecked(checked)

@@ -49,29 +49,64 @@ local currentProfileName = nil
 local onRefreshNeeded = nil
 local onSaved = nil
 
-local content, emptyLabel, statusLabel, syncLabel
+local content, emptyLabel, statusLabel, syncLabel, syncHover
 local header, actionBar, undoList, snapshotList
+
+-- The changed modules backing the current unsaved-changes badge, each as
+-- { name, added, changed, removed }, in stable name order for the badge tooltip.
+local syncDetail = {}
+
+-- Distil a preview's per-module diff into syncDetail: one entry per module that
+-- has a pending change, sorted by name.
+local function CollectModuleChanges(preview)
+    wipe(syncDetail)
+    if not (preview and preview.perModule) then return end
+
+    local names = {}
+    for name in pairs(preview.perModule) do
+        tinsert(names, name)
+    end
+    table.sort(names)
+
+    for _, name in ipairs(names) do
+        local moduleDiff = preview.perModule[name]
+        local added = #(moduleDiff.added or {})
+        local changed = #(moduleDiff.changed or {})
+        local removed = #(moduleDiff.removed or {})
+        if added + changed + removed > 0 then
+            tinsert(syncDetail, { name = name, added = added, changed = changed, removed = removed })
+        end
+    end
+end
 
 -- Refresh the live "unsaved changes" badge for the selected profile: compare the
 -- logged-in character's Current against the profile's latest snapshot. Hidden
 -- when no profile is shown or the profile has no snapshot to compare against.
 local function RefreshSyncStatus()
     if not currentProfileName or not content:IsVisible() then
+        wipe(syncDetail)
+        if syncHover then syncHover:Hide() end
         syncLabel:Hide()
         return
     end
 
     local preview = SnapshotManager:PreviewApplySnapshot(currentProfileName)
     if not preview then
+        wipe(syncDetail)
+        if syncHover then syncHover:Hide() end
         syncLabel:Hide()
         return
     end
 
     local totals = preview.totals
     if totals.added + totals.changed + totals.removed == 0 then
+        wipe(syncDetail)
+        if syncHover then syncHover:Hide() end
         syncLabel:SetText(L["Up to date"])
         syncLabel:SetTextColor(unpack(SUCCESS_TEXT_COLOR))
     else
+        CollectModuleChanges(preview)
+        if syncHover then syncHover:Show() end
         syncLabel:SetText(L["Unsaved changes"] .. "  "
             .. L["+A ~C -R"]:format(totals.added, totals.changed, totals.removed))
         syncLabel:SetTextColor(unpack(WARNING_TEXT_COLOR))
@@ -135,7 +170,7 @@ local function DoUndo()
     ApplyUndoState()
 end
 
-local function ApplySnapshot(snapshot, moduleSet, mode)
+local function ApplySnapshot(snapshot, moduleSet, mode, overrides)
     if not currentProfileName or not snapshot then return end
 
     if not next(moduleSet) then
@@ -143,9 +178,10 @@ local function ApplySnapshot(snapshot, moduleSet, mode)
         return
     end
 
-    -- Apply only the chosen modules of the snapshot, in the requested mode. The
-    -- current head is not a stored snapshot, so it routes through ApplyHeadByCharKey.
-    local strategy = { default = mode or "merge" }
+    -- Apply only the chosen modules of the snapshot, each in its own mode (the
+    -- preview's per-module overrides over the dialog's default). The current head
+    -- is not a stored snapshot, so it routes through ApplyHeadByCharKey.
+    local strategy = { default = mode or "merge", overrides = overrides }
     if Debugger:IsEnabled() then
         Debugger:RecordUI({ Action = "apply", Profile = currentProfileName, Mode = strategy.default })
     end
@@ -201,9 +237,9 @@ local function RequestApply(snapshot, mode)
         profileName = currentProfileName,
         snapshot = snapshot,
         mode = mode,
-        onConfirm = function(moduleSet)
+        onConfirm = function(moduleSet, overrides)
             Dialogs:ConfirmApply(mode, function()
-                ApplySnapshot(snapshot, moduleSet, mode)
+                ApplySnapshot(snapshot, moduleSet, mode, overrides)
             end)
         end,
     })
@@ -273,12 +309,8 @@ local function OpenSnapshotMenu(snapshot, subject, anchor, isHead)
             rootDescription:CreateTitle(L["Current"])
 
             if CanApplySnapshot(snapshot) then
-                local applyMenu = rootDescription:CreateButton(L["Apply"])
-                applyMenu:CreateButton(L["Merge"], function()
+                rootDescription:CreateButton(L["Apply"], function()
                     RequestApply(snapshot, "merge")
-                end)
-                applyMenu:CreateButton(L["Exact"], function()
-                    RequestApply(snapshot, "exact")
                 end)
                 rootDescription:CreateDivider()
             end
@@ -293,12 +325,8 @@ local function OpenSnapshotMenu(snapshot, subject, anchor, isHead)
     MenuUtil.CreateContextMenu(anchor, function(_, rootDescription)
         rootDescription:CreateTitle(subject)
 
-        local applyMenu = rootDescription:CreateButton(L["Apply"])
-        applyMenu:CreateButton(L["Merge"], function()
+        rootDescription:CreateButton(L["Apply"], function()
             RequestApply(snapshot, "merge")
-        end)
-        applyMenu:CreateButton(L["Exact"], function()
-            RequestApply(snapshot, "exact")
         end)
 
         rootDescription:CreateDivider()
@@ -413,6 +441,24 @@ function ProfileDetails:Build(region)
     syncLabel:SetJustifyH("RIGHT")
     syncLabel:SetWordWrap(false)
     syncLabel:Hide()
+
+    -- An invisible mouse-catcher over the badge: on hover it lists which modules
+    -- the unsaved changes belong to, so the summary count is also explainable.
+    syncHover = CreateFrame("Frame", nil, content)
+    syncHover:SetAllPoints(syncLabel)
+    syncHover:EnableMouse(true)
+    syncHover:SetScript("OnEnter", function(self)
+        if #syncDetail == 0 then return end
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOMLEFT")
+        GameTooltip:AddLine(L["Unsaved changes"])
+        for _, change in ipairs(syncDetail) do
+            GameTooltip:AddLine(L["X: +A ~C -R"]:format(
+                change.name, change.added, change.changed, change.removed))
+        end
+        GameTooltip:Show()
+    end)
+    syncHover:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    syncHover:Hide()
 
     -- The core fires this whenever a character's live setup changes (the watcher
     -- mirroring edits into Current); refresh the badge to match.

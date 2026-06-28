@@ -13,8 +13,11 @@ local _, addon = ...
     addon:GetObject("ApplyPreviewDialog"):Show({
         profileName = string,
         snapshot    = <snapshot>,
-        mode        = "merge" | "exact",         -- shapes the title and counts
-        onConfirm   = function(moduleSet) end,   -- { [name] = true }
+        mode        = "merge" | "exact",         -- the default mode each row
+                                                 -- starts in (rows can override)
+        onConfirm   = function(moduleSet, overrides) end,
+                                                 -- moduleSet: { [name] = true }
+                                                 -- overrides: { [name] = mode }
     })
 ]]
 
@@ -81,10 +84,10 @@ local function Build()
     applyButton:SetPoint("BOTTOMRIGHT", -14, 12)
     applyButton:SetText(L["Apply"])
     applyButton:SetScript("OnClick", function()
-        local moduleSet = moduleList:GetSelected()
+        local moduleSet, overrides = moduleList:GetStrategy()
         ApplyPreviewDialog:Hide()
         if onConfirm then
-            onConfirm(moduleSet)
+            onConfirm(moduleSet, overrides)
         end
     end)
 
@@ -106,7 +109,7 @@ function ApplyPreviewDialog:Show(opts)
 
     onConfirm = opts.onConfirm
     currentMode = opts.mode or "merge"
-    dialog:SetTitle(currentMode == "exact" and L["Apply snapshot — Exact"] or L["Apply snapshot — Merge"])
+    dialog:SetTitle(L["Apply snapshot"])
     subjectLabel:SetText(SnapshotView:IsHead(opts.snapshot) and L["Current"] or SnapshotRow:FormatSubject(SnapshotView:GetTimestamp(opts.snapshot)))
 
     local preview = SnapshotView:Preview(opts.snapshot)
