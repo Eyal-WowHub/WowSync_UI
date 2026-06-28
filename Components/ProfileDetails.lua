@@ -157,6 +157,11 @@ end
 -- Action handlers
 
 local function DoUndo()
+    if SnapshotManager:IsCombatLocked() then
+        WowSync:Print(L["You can't do that while in combat."])
+        return
+    end
+
     local undoPoint = SnapshotManager:GetNextUndoPoint()
     if Debugger:IsEnabled() then
         Debugger:RecordUI({ Action = "undo", Subject = undoPoint and undoPoint.Subject })
@@ -173,6 +178,11 @@ end
 
 local function ApplySnapshot(snapshot, moduleSet, mode, overrides)
     if not currentProfileName or not snapshot then return end
+
+    if SnapshotManager:IsCombatLocked() then
+        WowSync:Print(L["You can't do that while in combat."])
+        return
+    end
 
     if not next(moduleSet) then
         WowSync:Print(L["No modules selected."])
@@ -265,6 +275,11 @@ end
 
 -- Roll back the most recent `count` applies (a cascade from the undo list).
 local function DoUndoSteps(count, undoPoint)
+    if SnapshotManager:IsCombatLocked() then
+        WowSync:Print(L["You can't do that while in combat."])
+        return
+    end
+
     if Debugger:IsEnabled() then
         Debugger:RecordUI({ Action = "undo-steps", Count = count })
     end
@@ -591,6 +606,8 @@ function ProfileDetails:RequestSave(charKey)
                         WowSync:Print(L["Could not save from that character."])
                     elseif reason == "busy" then
                         WowSync:Print(L["A save is already in progress."])
+                    elseif reason == "combat" then
+                        WowSync:Print(L["You can't do that while in combat."])
                     else
                         WowSync:Print(L["Could not save. Try again."])
                     end

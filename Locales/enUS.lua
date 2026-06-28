@@ -22,6 +22,11 @@ L["Delete"] = "Delete"
 L["Lock window"] = "Lock window"
 L["Unlock window"] = "Unlock window"
 
+-- Combat lockdown
+L["In combat"] = "In combat"
+L["Saving and applying are paused until you leave combat."] = "Saving and applying are paused until you leave combat."
+L["You can't do that while in combat."] = "You can't do that while in combat."
+
 -- Profile detail header
 L["Last applied: X"] = "Last applied: %s"
 

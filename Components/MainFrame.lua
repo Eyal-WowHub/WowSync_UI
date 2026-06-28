@@ -18,6 +18,7 @@ local ProfileList = addon:GetObject("ProfileList")
 local ProfileDetails = addon:GetObject("ProfileDetails")
 local Splitter = addon:GetObject("Splitter")
 local ResizeGrip = addon:GetObject("ResizeGrip")
+local CombatOverlay = addon:GetObject("CombatOverlay")
 
 local L = addon.L
 local UI = addon.UI
@@ -314,6 +315,11 @@ local function Build()
 
     setLocked(Settings:IsLocked())
     ApplyLayout()
+
+    -- Modal scrim that blocks the window's contents while in combat, since
+    -- saving and applying are off-limits then. It leaves the title bar usable so
+    -- the window can still be moved and closed.
+    CombatOverlay:Build(frame, { topInset = TITLE_BAR_HEIGHT })
 
     -- CreateFrame leaves the window shown; start hidden so the first Toggle()
     -- reveals it instead of hiding it.

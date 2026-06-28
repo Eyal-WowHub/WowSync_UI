@@ -42,4 +42,5 @@ Components\ProfileDetails.lua
 Components\DragTracker.lua
 Components\Splitter.lua
 Components\ResizeGrip.lua
+Components\CombatOverlay.lua
 Components\MainFrame.lua
