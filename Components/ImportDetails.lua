@@ -177,6 +177,13 @@ function ImportDetails:Build(region)
     titleText:SetJustifyH("LEFT")
     titleText:SetWordWrap(false)
 
+    -- Separator between the header and the snapshot timeline.
+    local separator = content:CreateTexture(nil, "ARTWORK")
+    separator:SetPoint("TOPLEFT", titleText, "BOTTOMLEFT", -2, -6)
+    separator:SetPoint("RIGHT", content, "RIGHT", 0, 0)
+    separator:SetHeight(1)
+    separator:SetColorTexture(unpack(UI.Backdrop.Separator))
+
     -- Action bar: Apply selected snapshot (left), delete the container (right).
     applyButton = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
     applyButton:SetPoint("BOTTOMLEFT", 0, 0)
@@ -202,8 +209,9 @@ function ImportDetails:Build(region)
 
     -- Snapshot timeline, filling the space between the title and the action bar.
     local timelineSlot = CreateFrame("Frame", nil, content)
-    timelineSlot:SetPoint("TOPLEFT", titleText, "BOTTOMLEFT", 0, -8)
-    timelineSlot:SetPoint("BOTTOMRIGHT", applyButton, "TOPRIGHT", 0, 8)
+    timelineSlot:SetPoint("TOPLEFT", separator, "BOTTOMLEFT", 2, -8)
+    timelineSlot:SetPoint("RIGHT", content, "RIGHT", 0, 0)
+    timelineSlot:SetPoint("BOTTOM", applyButton, "TOP", 0, 8)
     timeline = ImportSnapshotList:Build(timelineSlot, {
         onSelect = function(snapshot)
             applyButton:SetEnabled(snapshot ~= nil)

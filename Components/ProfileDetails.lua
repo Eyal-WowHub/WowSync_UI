@@ -31,6 +31,7 @@ local ActionBar = addon:GetObject("ActionBar")
 local ApplyPreviewDialog = addon:GetObject("ApplyPreviewDialog")
 local GameDiffPreview = addon:GetObject("GameDiffPreview")
 local SaveDialog = addon:GetObject("SaveDialog")
+local ShareDialog = addon:GetObject("ShareDialog")
 
 local C = LibStub("Contracts-1.0")
 local L = addon.L
@@ -39,6 +40,7 @@ local UI = addon.UI
 local ProfileManager = WowSync:GetProfileManager()
 local SnapshotManager = WowSync:GetSnapshotManager()
 local SnapshotView = WowSync:GetSnapshotView()
+local ImportManager = WowSync:GetImportManager()
 local SnapshotHandleCache = WowSync:GetSnapshotHandleCache()
 local Debugger = WowSync:GetDebugger()
 
@@ -328,6 +330,24 @@ local function RequestUndoSteps(count, undoPoint)
     end
 end
 
+-- Exports a snapshot to a share string and opens the copy dialog, reporting if
+-- the snapshot couldn't be encoded.
+local function ShareSnapshot(snapshot)
+    local share, reason, subject
+    if SnapshotView:IsHead(snapshot) then
+        subject = currentProfileName .. " — " .. L["Current"]
+        share, reason = ImportManager:ExportHead(SnapshotView:GetCharacterInfo(snapshot).Key)
+    else
+        subject = currentProfileName .. " — " .. SnapshotRow:FormatSubject(SnapshotView:GetTimestamp(snapshot))
+        share, reason = ImportManager:ExportSnapshot(currentProfileName, SnapshotView:GetSelector(snapshot))
+    end
+    if share then
+        ShareDialog:Show({ text = share, subject = subject })
+    else
+        WowSync:Print(reason or L["Couldn't export that snapshot."])
+    end
+end
+
 -- Right-click actions for a single snapshot. The list forwards the snapshot,
 -- its display subject, the row to anchor the menu to, and whether the row is
 -- the current head.
@@ -357,6 +377,10 @@ local function OpenSnapshotMenu(snapshot, subject, anchor, isHead)
 
             rootDescription:CreateButton(L["Save now"], function()
                 ProfileDetails:RequestSave(SnapshotView:GetCharacterInfo(snapshot).Key)
+            end)
+
+            rootDescription:CreateButton(L["Share…"], function()
+                ShareSnapshot(snapshot)
             end)
         end)
         return
@@ -396,6 +420,10 @@ local function OpenSnapshotMenu(snapshot, subject, anchor, isHead)
                 SnapshotView:SetNotes(snapshot, text)
                 snapshotList:Refresh()
             end)
+        end)
+
+        rootDescription:CreateButton(L["Share…"], function()
+            ShareSnapshot(snapshot)
         end)
 
         rootDescription:CreateDivider()
@@ -647,6 +675,16 @@ function ProfileDetails:RequestSave(charKey)
             end
         end,
     })
+end
+
+-- Exports the selected snapshot to a copy dialog, or asks for a selection first.
+function ProfileDetails:ShareSelected()
+    local snapshot = snapshotList:GetSelected()
+    if not snapshot then
+        WowSync:Print(L["Select a snapshot to share first."])
+        return
+    end
+    ShareSnapshot(snapshot)
 end
 
 function ProfileDetails:OnSaved(callback)

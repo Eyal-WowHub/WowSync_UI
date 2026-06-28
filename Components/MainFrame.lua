@@ -398,5 +398,7 @@ function MainFrame:OpenShareDialog(action)
 
     if action == "import" then
         importList:BeginImport()
+    else
+        profileDetails:ShareSelected()
     end
 end
