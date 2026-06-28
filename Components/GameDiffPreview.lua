@@ -118,6 +118,7 @@ local function Populate(dataProvider, preview, filterName, mode)
             local showRemoved = exactMode and ModuleSupportsExact(name)
             if HasVisibleChanges(moduleDiff, showRemoved) then
                 anyShown = true
+                local moduleIcon = SnapshotManager:GetModuleDefaultIcon(name)
                 dataProvider:Insert({ kind = "module", name = name })
 
                 for _, section in ipairs(SECTIONS) do
@@ -127,7 +128,7 @@ local function Populate(dataProvider, preview, filterName, mode)
                             dataProvider:Insert({ kind = "section", section = section, count = #entries })
                             for _, entry in ipairs(entries) do
                                 local label, icon = NormalizeEntry(entry)
-                                dataProvider:Insert({ kind = "item", label = label, icon = icon })
+                                dataProvider:Insert({ kind = "item", label = label, icon = icon or moduleIcon })
                             end
                         end
                     end
@@ -192,7 +193,7 @@ local function UpdateRow(row, data)
             row.icon:Show()
             row.text:SetPoint("LEFT", row.icon, "RIGHT", 4, 0)
         else
-            row.text:SetPoint("LEFT", row, "LEFT", ITEM_INSET + ICON_SIZE + 4, 0)
+            row.text:SetPoint("LEFT", row, "LEFT", ITEM_INSET, 0)
         end
     else
         row.text:SetFontObject("GameFontDisableSmall")
