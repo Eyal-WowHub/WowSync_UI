@@ -14,8 +14,8 @@ local _, addon = ...
     all. Removed entries appear only when the mode is Exact, mirroring what an
     apply in that mode would actually delete.
 
-    Each diff entry may be a plain label string or a table { label, icon }, so the
-    window renders today's text labels and gains icons once the diff is enriched.
+    Each diff entry may be a plain label string or a table
+    { label, icon, description }; the icon and one-line description are optional.
 
     addon:GetObject("GameDiffPreview"):Show({
         title        = string,                 -- window title (optional)
@@ -47,6 +47,21 @@ local MODULE_INSET = 6
 local SECTION_INSET = 16
 local ITEM_INSET = 20
 local ICON_SIZE = 16
+local ICON_TEXT_GAP = 4
+local TEXT_RIGHT_INSET = 6
+
+-- Scroll region insets, used both to place the list and to derive the wrap
+-- width available to an entry's description line.
+local SCROLLBOX_LEFT_INSET = 14
+local SCROLLBOX_RIGHT_INSET = 28
+local ROW_WIDTH = UI.Preview.Width - SCROLLBOX_LEFT_INSET - SCROLLBOX_RIGHT_INSET
+
+-- Vertical layout of an entry row that carries a description: the label sits at
+-- the top, the wrapped grey description follows beneath it.
+local ITEM_TOP_PAD = 3
+local LABEL_HEIGHT = 14
+local DESC_GAP = 2
+local ITEM_BOTTOM_PAD = 4
 
 -- Tints for the three change kinds (added green, updated gold, removed red),
 -- matching the +A ~C -R colours used elsewhere.
@@ -62,16 +77,16 @@ local SECTIONS = {
     { key = "removed", color = REMOVED_COLOR, label = L["Removed (X)"] },
 }
 
-local dialog, frame, scrollBox
+local dialog, frame, scrollBox, measureText
 local currentPreview, currentMode, moduleFilter
 
--- The label and optional icon of a diff entry, which may be a bare string or a
--- { label, icon } table.
+-- The label, optional icon, and optional description of a diff entry, which may
+-- be a bare string or a { label, icon, description } table.
 local function NormalizeEntry(entry)
     if type(entry) == "table" then
-        return entry.label or "", entry.icon
+        return entry.label or "", entry.icon, entry.description
     end
-    return entry, nil
+    return entry, nil, nil
 end
 
 -- The module names present in a preview, sorted for a stable list order.
@@ -104,6 +119,19 @@ local function ModuleSupportsExact(name)
     return applyModes and applyModes.CanExact(modes) or false
 end
 
+-- The pixel height an entry row needs: a single centred line when it has no
+-- description, or a top-aligned label plus its wrapped description otherwise.
+local function ItemHeight(item)
+    if not item.description or item.description == "" then
+        return ITEM_HEIGHT
+    end
+    local iconOffset = item.icon and (ICON_SIZE + ICON_TEXT_GAP) or 0
+    measureText:SetWidth(ROW_WIDTH - (ITEM_INSET + iconOffset) - TEXT_RIGHT_INSET)
+    measureText:SetText(item.description)
+    local descHeight = math.ceil(measureText:GetStringHeight())
+    return ITEM_TOP_PAD + LABEL_HEIGHT + DESC_GAP + descHeight + ITEM_BOTTOM_PAD
+end
+
 -- Flatten the preview into the list's element stream: a header per changed
 -- module, then a subheader and one row per entry for each non-empty section.
 local function Populate(dataProvider, preview, filterName, mode)
@@ -127,8 +155,15 @@ local function Populate(dataProvider, preview, filterName, mode)
                         if #entries > 0 then
                             dataProvider:Insert({ kind = "section", section = section, count = #entries })
                             for _, entry in ipairs(entries) do
-                                local label, icon = NormalizeEntry(entry)
-                                dataProvider:Insert({ kind = "item", label = label, icon = icon or moduleIcon })
+                                local label, icon, description = NormalizeEntry(entry)
+                                local item = {
+                                    kind = "item",
+                                    label = label,
+                                    icon = icon or moduleIcon,
+                                    description = description,
+                                }
+                                item.height = ItemHeight(item)
+                                dataProvider:Insert(item)
                             end
                         end
                     end
@@ -162,14 +197,22 @@ local function BuildRow(row)
     text:SetJustifyH("LEFT")
     text:SetWordWrap(false)
     row.text = text
+
+    local desc = row:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    desc:SetJustifyH("LEFT")
+    desc:SetWordWrap(true)
+    desc:SetTextColor(0.6, 0.6, 0.6)
+    desc:Hide()
+    row.desc = desc
 end
 
 -- Render a pooled row for its element kind.
 local function UpdateRow(row, data)
     row.icon:Hide()
     row.separator:Hide()
+    row.desc:Hide()
     row.text:ClearAllPoints()
-    row.text:SetPoint("RIGHT", row, "RIGHT", -6, 0)
+    row.text:SetPoint("RIGHT", row, "RIGHT", -TEXT_RIGHT_INSET, 0)
 
     if data.kind == "module" then
         row.text:SetFontObject("GameFontNormal")
@@ -186,12 +229,35 @@ local function UpdateRow(row, data)
         row.text:SetFontObject("GameFontHighlightSmall")
         row.text:SetText(data.label)
         row.text:SetTextColor(1, 1, 1)
-        if data.icon then
+
+        local iconOffset = data.icon and (ICON_SIZE + ICON_TEXT_GAP) or 0
+        local hasDesc = data.description and data.description ~= ""
+
+        if hasDesc then
+            -- Top-align the label (and icon) so the wrapped description can sit
+            -- beneath them instead of fighting the row's vertical centring.
+            row.text:ClearAllPoints()
+            row.text:SetPoint("TOPLEFT", row, "TOPLEFT", ITEM_INSET + iconOffset, -ITEM_TOP_PAD)
+            row.text:SetPoint("TOPRIGHT", row, "TOPRIGHT", -TEXT_RIGHT_INSET, -ITEM_TOP_PAD)
+
+            if data.icon then
+                row.icon:SetTexture(data.icon)
+                row.icon:ClearAllPoints()
+                row.icon:SetPoint("TOPLEFT", row, "TOPLEFT", ITEM_INSET, -ITEM_TOP_PAD)
+                row.icon:Show()
+            end
+
+            row.desc:ClearAllPoints()
+            row.desc:SetPoint("TOPLEFT", row, "TOPLEFT", ITEM_INSET + iconOffset, -(ITEM_TOP_PAD + LABEL_HEIGHT + DESC_GAP))
+            row.desc:SetPoint("RIGHT", row, "RIGHT", -TEXT_RIGHT_INSET, 0)
+            row.desc:SetText(data.description)
+            row.desc:Show()
+        elseif data.icon then
             row.icon:SetTexture(data.icon)
             row.icon:ClearAllPoints()
             row.icon:SetPoint("LEFT", row, "LEFT", ITEM_INSET, 0)
             row.icon:Show()
-            row.text:SetPoint("LEFT", row.icon, "RIGHT", 4, 0)
+            row.text:SetPoint("LEFT", row.icon, "RIGHT", ICON_TEXT_GAP, 0)
         else
             row.text:SetPoint("LEFT", row, "LEFT", ITEM_INSET, 0)
         end
@@ -221,9 +287,16 @@ local function Build()
     })
     frame = dialog:GetFrame()
 
+    -- Hidden font string used to measure wrapped description heights up front,
+    -- so the virtualised list can size each entry row before it is shown.
+    measureText = frame:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+    measureText:Hide()
+    measureText:SetWordWrap(true)
+    measureText:SetJustifyH("LEFT")
+
     scrollBox = CreateFrame("Frame", nil, frame, "WowScrollBoxList")
-    scrollBox:SetPoint("TOPLEFT", 14, -40)
-    scrollBox:SetPoint("BOTTOMRIGHT", -28, 14)
+    scrollBox:SetPoint("TOPLEFT", SCROLLBOX_LEFT_INSET, -40)
+    scrollBox:SetPoint("BOTTOMRIGHT", -SCROLLBOX_RIGHT_INSET, 14)
 
     local scrollBar = CreateFrame("EventFrame", nil, frame, "MinimalScrollBar")
     scrollBar:SetPoint("TOPLEFT", scrollBox, "TOPRIGHT", 4, -2)
@@ -238,7 +311,7 @@ local function Build()
         elseif data.kind == "empty" then
             return EMPTY_HEIGHT
         end
-        return ITEM_HEIGHT
+        return data.height or ITEM_HEIGHT
     end)
     view:SetPadding(0, 0, 0, 0, UI.List.ItemPadding)
     view:SetElementInitializer("Frame", function(row, data)
