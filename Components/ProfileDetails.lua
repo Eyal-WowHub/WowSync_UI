@@ -554,6 +554,7 @@ function ProfileDetails:Build(region)
     actionBar = ActionBar:Build(actionSlot, {
         onApply = function() RequestApply(nil, "exact") end,
         onUndo = RequestUndo,
+        onSave = function() ProfileDetails:RequestSave() end,
         onDelete = function()
             if currentProfileName then
                 local latestSnapshot = SnapshotHandleCache:GetLatestSaved(currentProfileName)
@@ -562,6 +563,22 @@ function ProfileDetails:Build(region)
             end
         end,
     })
+
+    -- Save is only meaningful when the logged-in character has something
+    -- captured; track that live and on first build.
+    actionBar:SetSaveEnabled(SnapshotManager:HasCapturedGameData())
+    WowSync:RegisterEvent("WOWSYNC_CURRENT_CHANGED", function()
+        actionBar:SetSaveEnabled(SnapshotManager:HasCapturedGameData())
+    end)
+
+    -- Animate the Save button for the duration of any save (including the
+    -- command line), then show a brief confirmation.
+    WowSync:RegisterEvent("WOWSYNC_SAVE_STARTED", function()
+        actionBar:BeginSaving()
+    end)
+    WowSync:RegisterEvent("WOWSYNC_SAVE_FINISHED", function(_, _, storedSnapshot)
+        actionBar:EndSaving(storedSnapshot)
+    end)
 
     -- Initialise the empty state (undo history or placeholder) so it is correct
     -- the moment the panel first appears, before any profile is selected.

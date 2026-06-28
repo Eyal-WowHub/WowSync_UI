@@ -255,13 +255,6 @@ local function Build()
         profileDetails:SetProfile(profileName)
     end)
 
-    -- The top Save button freezes the logged-in character's current setup; the
-    -- detail panel owns the save flow (dialog, limit prompt, and the actual
-    -- save). Per-character freezing of an alt happens from its head's menu.
-    profileList:OnSave(function()
-        profileDetails:RequestSave()
-    end)
-
     -- After a save the head collapses into a new snapshot; refresh the list and
     -- keep the saved character selected and in view.
     profileDetails:OnSaved(function(charKey)
