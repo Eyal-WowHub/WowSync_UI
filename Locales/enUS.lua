@@ -46,6 +46,14 @@ L["Cancel"] = "Cancel"
 L["+A ~C -R"] = "|cff5fcf5f+%d|r |cffd9c84a~%d|r |cffd96b6b-%d|r"
 L["+A ~C"] = "|cff5fcf5f+%d|r |cffd9c84a~%d|r"
 
+-- Game diff preview window
+L["Preview changes"] = "Preview changes"
+L["All modules"] = "All modules"
+L["Added (X)"] = "Added (%d)"
+L["Updated (X)"] = "Updated (%d)"
+L["Removed (X)"] = "Removed (%d)"
+L["No changes to preview."] = "No changes to preview."
+
 -- Print feedback
 L["Snapshot saved."] = "Snapshot saved."
 L["Could not save. Try again."] = "Could not save. Try again."
