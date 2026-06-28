@@ -187,6 +187,9 @@ local function Build()
     -- release it on close so on-demand tracking can idle.
     frame:SetScript("OnShow", function()
         WowSync:Attach("WowSync_UI")
+        -- Attach captures the logged-in character's live setup; rebuild the list
+        -- afterwards so a first open (empty store) still shows that character.
+        profileList:Refresh()
     end)
 
     frame:SetScript("OnHide", function()
