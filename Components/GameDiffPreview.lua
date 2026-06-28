@@ -62,7 +62,7 @@ local SECTIONS = {
     { key = "removed", color = REMOVED_COLOR, label = L["Removed (X)"] },
 }
 
-local dialog, frame, scrollBox, filterButton
+local dialog, frame, scrollBox
 local currentPreview, currentMode, moduleFilter
 
 -- The label and optional icon of a diff entry, which may be a bare string or a
@@ -74,7 +74,7 @@ local function NormalizeEntry(entry)
     return entry, nil
 end
 
--- The module names present in a preview, sorted for a stable list and filter menu.
+-- The module names present in a preview, sorted for a stable list order.
 local function ModuleNamesIn(preview)
     local names = {}
     if preview and preview.perModule then
@@ -209,24 +209,6 @@ local function Rebuild()
     scrollBox:SetDataProvider(dataProvider)
 end
 
--- Open the module filter menu: "All modules" plus every module in the preview.
-local function ShowFilterMenu()
-    MenuUtil.CreateContextMenu(filterButton, function(_, rootDescription)
-        rootDescription:CreateButton(L["All modules"], function()
-            moduleFilter = nil
-            filterButton:SetText(L["All modules"])
-            Rebuild()
-        end)
-        for _, name in ipairs(ModuleNamesIn(currentPreview)) do
-            rootDescription:CreateButton(name, function()
-                moduleFilter = name
-                filterButton:SetText(name)
-                Rebuild()
-            end)
-        end
-    end)
-end
-
 local function Build()
     if frame then return end
 
@@ -238,14 +220,8 @@ local function Build()
     })
     frame = dialog:GetFrame()
 
-    filterButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    filterButton:SetSize(150, 22)
-    filterButton:SetPoint("TOPLEFT", 14, -40)
-    filterButton:SetText(L["All modules"])
-    filterButton:SetScript("OnClick", ShowFilterMenu)
-
     scrollBox = CreateFrame("Frame", nil, frame, "WowScrollBoxList")
-    scrollBox:SetPoint("TOPLEFT", 14, -70)
+    scrollBox:SetPoint("TOPLEFT", 14, -40)
     scrollBox:SetPoint("BOTTOMRIGHT", -28, 14)
 
     local scrollBar = CreateFrame("EventFrame", nil, frame, "MinimalScrollBar")
@@ -287,7 +263,6 @@ function GameDiffPreview:Show(opts)
     moduleFilter = opts.moduleFilter
 
     dialog:SetTitle(opts.title or L["Preview changes"])
-    filterButton:SetText(moduleFilter or L["All modules"])
     Rebuild()
 
     dialog:Show()
