@@ -4,7 +4,7 @@ local _, addon = ...
     ImportDetails object (right panel, Imports tab).
 
     Shows the selected imported container: an empty-state prompt until one is
-    picked, then the container's name. The snapshot timeline and apply controls
+    picked, then the container's name and its snapshot timeline. Apply controls
     are added in a later slice.
 
     addon:GetObject("ImportDetails"):Build(region)
@@ -14,6 +14,7 @@ local _, addon = ...
 ]]
 
 local ImportDetails = addon:NewObject("ImportDetails")
+local ImportSnapshotList = addon:GetObject("ImportSnapshotList")
 
 local C = LibStub("Contracts-1.0")
 local L = addon.L
@@ -24,6 +25,7 @@ local ImportManager = WowSync:GetImportManager()
 local emptyLabel
 local content
 local titleText
+local timeline
 
 function ImportDetails:Build(region)
     C:IsTable(region, 2)
@@ -56,6 +58,12 @@ function ImportDetails:Build(region)
     titleText:SetJustifyH("LEFT")
     titleText:SetWordWrap(false)
 
+    -- Snapshot timeline, filling the rest of the panel below the title.
+    local timelineSlot = CreateFrame("Frame", nil, content)
+    timelineSlot:SetPoint("TOPLEFT", titleText, "BOTTOMLEFT", 0, -8)
+    timelineSlot:SetPoint("BOTTOMRIGHT", 0, 0)
+    timeline = ImportSnapshotList:Build(timelineSlot)
+
     return self
 end
 
@@ -64,10 +72,12 @@ function ImportDetails:SetImport(importID)
     if not record then
         content:Hide()
         emptyLabel:Show()
+        timeline:Clear()
         return
     end
 
     emptyLabel:Hide()
     titleText:SetText(record.Name or "")
+    timeline:SetImport(importID)
     content:Show()
 end

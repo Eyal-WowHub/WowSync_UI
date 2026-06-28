@@ -103,6 +103,7 @@ L["Imports"] = "Imports"
 L["Select an import"] = "Select an import"
 L["1 snapshot"] = "1 snapshot"
 L["X snapshots"] = "%d snapshots"
+L["Imported X"] = "Imported %s"
 
 -- Import dialog
 L["Import"] = "Import"

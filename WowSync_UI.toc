@@ -42,6 +42,8 @@ Components\ProfileList.lua
 Components\ProfileDetails.lua
 Components\ImportRow.lua
 Components\ImportList.lua
+Components\ImportSnapshotRow.lua
+Components\ImportSnapshotList.lua
 Components\ImportDetails.lua
 Components\DragTracker.lua
 Components\Splitter.lua
