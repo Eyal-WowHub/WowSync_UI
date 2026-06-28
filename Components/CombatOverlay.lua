@@ -24,7 +24,7 @@ local COMBAT_ICON_ATLAS = "UI-HUD-UnitFrame-Player-CombatIcon"
 
 -- Notice card geometry and the icon size on it.
 local CARD_WIDTH = 300
-local CARD_HEIGHT = 116
+local CARD_HEIGHT = 150
 local ICON_SIZE = 40
 
 -- Opacity of the scrim that dims the window behind the card.
@@ -81,7 +81,7 @@ function CombatOverlay:Build(parent, opts)
     body:SetPoint("LEFT", card, "LEFT", 12, 0)
     body:SetPoint("RIGHT", card, "RIGHT", -12, 0)
     body:SetJustifyH("CENTER")
-    body:SetText(L["Saving and applying are paused until you leave combat."])
+    body:SetText(L["WowSync UI is unavailable during combat because of WoW's combat restrictions. This helps prevent taint issues and errors."])
 
     -- Track combat directly so the scrim stays correct even while the window is
     -- hidden (events still fire) and the moment it next opens.

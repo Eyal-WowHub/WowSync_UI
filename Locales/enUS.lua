@@ -24,7 +24,7 @@ L["Unlock window"] = "Unlock window"
 
 -- Combat lockdown
 L["In combat"] = "In combat"
-L["Saving and applying are paused until you leave combat."] = "Saving and applying are paused until you leave combat."
+L["WowSync UI is unavailable during combat because of WoW's combat restrictions. This helps prevent taint issues and errors."] = "WowSync UI is unavailable during combat because of WoW's combat restrictions. This helps prevent taint issues and errors."
 L["You can't do that while in combat."] = "You can't do that while in combat."
 
 -- Profile detail header
