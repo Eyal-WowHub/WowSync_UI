@@ -97,3 +97,9 @@ L["Last seen: X"] = "Last seen: %s"
 L["X • Y"] = "%s  •  %s"
 L["That character has nothing captured yet."] = "That character has nothing captured yet."
 L["Could not save from that character."] = "Could not save from that character."
+
+-- Imports tab
+L["Imports"] = "Imports"
+L["Select an import"] = "Select an import"
+L["1 snapshot"] = "1 snapshot"
+L["X snapshots"] = "%d snapshots"

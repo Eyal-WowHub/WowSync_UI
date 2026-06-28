@@ -16,6 +16,8 @@ local TitleBar = addon:GetObject("TitleBar")
 local TabStrip = addon:GetObject("TabStrip")
 local ProfileList = addon:GetObject("ProfileList")
 local ProfileDetails = addon:GetObject("ProfileDetails")
+local ImportList = addon:GetObject("ImportList")
+local ImportDetails = addon:GetObject("ImportDetails")
 local Splitter = addon:GetObject("Splitter")
 local ResizeGrip = addon:GetObject("ResizeGrip")
 local CombatOverlay = addon:GetObject("CombatOverlay")
@@ -26,6 +28,7 @@ local Settings = addon.Settings
 
 local frame
 local profileList, profileDetails
+local importList, importDetails
 local ShowView
 
 -- The left panel may never exceed this share of the pane width, so the right
@@ -215,11 +218,12 @@ local function Build()
         onToggleLock = function(value) setLocked(value) end,
     })
 
-    -- Tab strip (Profiles)
+    -- Tab strip (Profiles, Imports)
     local tabStrip = TabStrip:Build(frame, {
         height = TAB_STRIP_HEIGHT,
         tabs = {
             { key = "profiles", label = L["Profiles"] },
+            { key = "imports", label = L["Imports"] },
         },
         onSelect = function(viewKey) ShowView(viewKey) end,
     })
@@ -272,12 +276,46 @@ local function Build()
         profileDetails:SetProfile(nil)
     end)
 
-    -- Switch the active view and reflect it in the tab visuals. Only the
-    -- Profiles view exists today, but the tab strip is kept for future tabs.
+    -- Imports view: imported-container list (left) + import details (right)
+    local importsView = CreateFrame("Frame", nil, frame)
+    importsView:SetPoint("TOPLEFT", EDGE_INSET, contentTop)
+    importsView:SetPoint("BOTTOMRIGHT", -EDGE_INSET, EDGE_INSET)
+
+    local importLeftSlot = CreateFrame("Frame", nil, importsView)
+    importLeftSlot:SetPoint("TOPLEFT", 0, 0)
+    importLeftSlot:SetPoint("BOTTOMLEFT", 0, 0)
+    importLeftSlot:SetWidth(LEFT_PANEL_WIDTH)
+
+    local importRightSlot = CreateFrame("Frame", nil, importsView)
+    importRightSlot:SetPoint("TOPLEFT", importLeftSlot, "TOPRIGHT", UI.Splitter.Width, 0)
+    importRightSlot:SetPoint("BOTTOMRIGHT", 0, 0)
+
+    importList = ImportList:Build(importLeftSlot)
+    importDetails = ImportDetails:Build(importRightSlot)
+
+    AddPane(importsView, importLeftSlot)
+
+    importList:OnSelect(function(importID)
+        importDetails:SetImport(importID)
+    end)
+
+    importsView:Hide()
+
+    -- Switch the active view and reflect it in the tab visuals. Both views share
+    -- the same split ratio (every pane is re-laid out together).
     ShowView = function(viewKey)
-        viewKey = "profiles"
-        profilesView:Show()
-        profileList:Refresh()
+        if viewKey ~= "imports" then
+            viewKey = "profiles"
+        end
+        if viewKey == "imports" then
+            profilesView:Hide()
+            importsView:Show()
+            importList:Refresh()
+        else
+            importsView:Hide()
+            profilesView:Show()
+            profileList:Refresh()
+        end
         tabStrip:Select(viewKey)
     end
 

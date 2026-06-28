@@ -39,6 +39,9 @@ Components\ApplyPreviewDialog.lua
 Components\SaveDialog.lua
 Components\ProfileList.lua
 Components\ProfileDetails.lua
+Components\ImportRow.lua
+Components\ImportList.lua
+Components\ImportDetails.lua
 Components\DragTracker.lua
 Components\Splitter.lua
 Components\ResizeGrip.lua
