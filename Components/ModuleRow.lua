@@ -35,7 +35,7 @@ local function ShowModeTooltip(button)
     if not tooltip then return end
 
     GameTooltip:SetOwner(button, "ANCHOR_RIGHT")
-    GameTooltip:SetText(tooltip.title, 1, 0.82, 0, true)
+    GameTooltip:SetText(tooltip.title, 1, 0.82, 0, 1, true)
     GameTooltip:AddLine(tooltip.body, 0.9, 0.9, 0.9, true)
     if tooltip.footer then
         GameTooltip:AddLine(" ", 1, 1, 1, true)
