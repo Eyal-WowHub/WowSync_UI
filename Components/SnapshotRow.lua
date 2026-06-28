@@ -126,7 +126,7 @@ function SnapshotRow:Build(row, ctx)
     row.detailChanges:SetPoint("RIGHT", -8, 0)
     row.detailChanges:SetJustifyH("LEFT")
     row.detailChanges:SetJustifyV("TOP")
-    row.detailChanges:SetWordWrap(false)
+    row.detailChanges:SetWordWrap(true)
     row.detailChanges:Hide()
 
     -- Stash anchors used by Update's dynamic detail layout.

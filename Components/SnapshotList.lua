@@ -37,8 +37,8 @@ local SNAPSHOT_ROW_HEIGHT = 40
 -- Vertical gap between snapshot rows.
 local SNAPSHOT_ROW_PADDING = 2
 
--- Height of a single text line in an expanded row's detail panel.
-local SNAPSHOT_DETAIL_LINE_HEIGHT = 15
+-- Gap between the detail panel's header and its first change line.
+local SNAPSHOT_DETAIL_HEADER_GAP = 2
 
 -- Padding below the last line of an expanded row's detail panel.
 local SNAPSHOT_DETAIL_BOTTOM_PAD = 8
@@ -54,19 +54,35 @@ local expandedDetail = nil   -- cached diff/note for the expanded row
 local onSelectionChanged = nil
 local onContext = nil        -- right-click handler (snapshot, subject, anchor)
 
+-- The detail font's real line height, measured once so reserved row height
+-- matches the rendered text exactly (a fixed guess leaves a trailing gap).
+local detailLineHeight
+local function DetailLineHeight()
+    if detailLineHeight then return detailLineHeight end
+    local probe = UIParent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    probe:SetText("Ag")
+    local measured = probe:GetStringHeight()
+    probe:Hide()
+    if measured and measured > 0 then
+        detailLineHeight = math.ceil(measured)
+    end
+    return detailLineHeight or 12
+end
+
 -- The extra height an expanded row needs for its detail panel, derived purely
 -- from the cached detail so the scroll box can size elements deterministically.
 local function DetailExtent(detail)
     if not detail then return 0 end
 
+    local lineHeight = DetailLineHeight()
     local height = UI.SnapshotDetail.TopPad
     if detail.hasNote then
         height = height + UI.SnapshotDetail.NoteHeight
     end
-    -- The "Changes vs current setup:" header, then one line per changed module
-    -- (or a single "matches" line when there is nothing to show).
-    height = height + SNAPSHOT_DETAIL_LINE_HEIGHT
-    height = height + math.max(1, #detail.modules) * SNAPSHOT_DETAIL_LINE_HEIGHT
+    -- The "Changes vs current setup:" header (plus the gap to the first line),
+    -- then one line per changed module (or a single "matches" line).
+    height = height + lineHeight + SNAPSHOT_DETAIL_HEADER_GAP
+    height = height + math.max(1, #detail.modules) * lineHeight
     height = height + SNAPSHOT_DETAIL_BOTTOM_PAD
     return height
 end
