@@ -38,8 +38,7 @@ local onSelectionChanged = nil
 -- group a consistent leading gap. The container rows use UI.List.ItemHeight.
 local CLASS_HEADER_HEIGHT = 26
 
-local DELETE_BUTTON_HEIGHT = 22
-local LIST_BOTTOM_INSET = 36
+local LIST_BOTTOM_INSET = 40
 
 local function CanDeleteSelectedImport()
     return selectedImportID ~= nil and ImportManager:GetImport(selectedImportID) ~= nil
@@ -73,14 +72,14 @@ function ImportList:Build(region)
     -- Import button, top-right of the header.
     local importButton = CreateFrame("Button", nil, root, "UIPanelButtonTemplate")
     importButton:SetPoint("TOPRIGHT", -10, -6)
-    importButton:SetSize(64, 22)
+    importButton:SetSize(64, 24)
     importButton:SetText(L["Import"])
     importButton:SetScript("OnClick", function() ImportList:BeginImport() end)
 
     -- Import delete button, bottom-left of the panel.
     deleteButton = CreateFrame("Button", nil, root, "UIPanelButtonTemplate")
-    deleteButton:SetPoint("BOTTOMLEFT", 10, 6)
-    deleteButton:SetSize(110, DELETE_BUTTON_HEIGHT)
+    deleteButton:SetPoint("BOTTOMLEFT", 10, 10)
+    deleteButton:SetSize(110, 24)
     deleteButton:SetText(L["Delete"])
     deleteButton:SetEnabled(false)
     deleteButton:SetScript("OnClick", function()

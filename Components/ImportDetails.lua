@@ -158,7 +158,7 @@ function ImportDetails:Build(region)
     -- Rename, top-right of the header.
     local renameButton = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
     renameButton:SetPoint("TOPRIGHT", 0, 2)
-    renameButton:SetSize(70, 22)
+    renameButton:SetSize(70, 24)
     renameButton:SetText(L["Rename"])
     renameButton:SetScript("OnClick", function()
         local record = currentImportID and ImportManager:GetImport(currentImportID)
