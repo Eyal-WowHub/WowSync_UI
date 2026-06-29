@@ -33,29 +33,19 @@ local SCRIM_ALPHA = 0.72
 -- Frame-level bump that lifts the overlay above every panel beneath it.
 local OVERLAY_LEVEL_BUMP = 100
 
-local overlay
+local Verbs = {}
 
-function CombatOverlay:Build(parent, opts)
-    C:IsTable(parent, 2)
-
-    opts = opts or {}
-    local topInset = opts.topInset or 0
-
-    -- Cover everything below the title bar so the window can still be moved and
-    -- closed, but its contents cannot be acted on.
-    overlay = CreateFrame("Frame", nil, parent)
-    overlay:SetPoint("TOPLEFT", 0, -topInset)
-    overlay:SetPoint("BOTTOMRIGHT", 0, 0)
-    overlay:SetFrameLevel(parent:GetFrameLevel() + OVERLAY_LEVEL_BUMP)
-    overlay:EnableMouse(true)
+function Verbs:Constructor(config)
+    self:SetFrameLevel(self:GetParent():GetFrameLevel() + OVERLAY_LEVEL_BUMP)
+    self:EnableMouse(true)
 
     -- Dim the window behind the card.
-    local scrim = overlay:CreateTexture(nil, "BACKGROUND")
+    local scrim = self:CreateTexture(nil, "BACKGROUND")
     scrim:SetAllPoints()
     scrim:SetColorTexture(0, 0, 0, SCRIM_ALPHA)
 
     -- Centred notice card.
-    local card = CreateFrame("Frame", nil, overlay, "BackdropTemplate")
+    local card = CreateFrame("Frame", nil, self, "BackdropTemplate")
     card:SetSize(CARD_WIDTH, CARD_HEIGHT)
     card:SetPoint("CENTER")
     card:SetBackdrop({
@@ -85,13 +75,30 @@ function CombatOverlay:Build(parent, opts)
 
     -- Track combat directly so the scrim stays correct even while the window is
     -- hidden (events still fire) and the moment it next opens.
-    overlay:RegisterEvent("PLAYER_REGEN_DISABLED")
-    overlay:RegisterEvent("PLAYER_REGEN_ENABLED")
-    overlay:SetScript("OnEvent", function(self, event)
+    self:RegisterEvent("PLAYER_REGEN_DISABLED")
+    self:RegisterEvent("PLAYER_REGEN_ENABLED")
+    self:SetScript("OnEvent", function(self, event)
         self:SetShown(event == "PLAYER_REGEN_DISABLED")
     end)
 
-    overlay:SetShown(InCombatLockdown())
+    self:SetShown(InCombatLockdown())
+end
 
-    return self
+function CombatOverlay:Build(parent, opts)
+    C:IsTable(parent, 2)
+
+    opts = opts or {}
+
+    -- Cover everything below the title bar so the window can still be moved and
+    -- closed, but its contents cannot be acted on.
+    return addon:NewWidget({
+        parent = parent,
+        anchor = function(self)
+            self:SetPoint("TOPLEFT", 0, -(opts.topInset or 0))
+            self:SetPoint("BOTTOMRIGHT", 0, 0)
+        end,
+    }, {
+        frameType = "Frame",
+        verbs = Verbs,
+    })
 end

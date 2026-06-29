@@ -8,7 +8,7 @@ local _, addon = ...
     shown in the timeline below, not here.
 
     addon:GetObject("ProfileHeader"):Build(region)
-        -> self { SetProfile(character, snapshot) }
+        -> profile-header frame { SetProfile(character, snapshot) }
 ]]
 
 local ProfileHeader = addon:NewObject("ProfileHeader")
@@ -17,24 +17,18 @@ local C = LibStub("Contracts-1.0")
 local L = addon.L
 
 local SnapshotView = WowSync:GetSnapshotView()
-local titleText, infoText
 
-function ProfileHeader:Build(region)
-    C:IsTable(region, 2)
+local Verbs = {}
 
-    local root = CreateFrame("Frame", nil, region)
-    root:SetAllPoints(region)
+function Verbs:Constructor(config)
+    self._titleText = self:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    self._titleText:SetPoint("TOPLEFT", 0, 0)
 
-    titleText = root:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    titleText:SetPoint("TOPLEFT", 0, 0)
-
-    infoText = root:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    infoText:SetPoint("TOPLEFT", titleText, "BOTTOMLEFT", 0, -4)
-
-    return self
+    self._infoText = self:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    self._infoText:SetPoint("TOPLEFT", self._titleText, "BOTTOMLEFT", 0, -4)
 end
 
-function ProfileHeader:SetProfile(character, snapshot)
+function Verbs:SetProfile(character, snapshot)
     local characterInfo = snapshot and SnapshotView:GetCharacterInfo(snapshot)
     character = character or (characterInfo and characterInfo.Character) or L["Unknown"]
 
@@ -44,13 +38,27 @@ function ProfileHeader:SetProfile(character, snapshot)
     -- Class-color the character name when we know the class.
     if classInfo then
         local classColor = C_ClassColor.GetClassColor(classInfo.classFile)
-        titleText:SetText(classColor and classColor:WrapTextInColorCode(character) or character)
+        self._titleText:SetText(classColor and classColor:WrapTextInColorCode(character) or character)
     else
-        titleText:SetText(character)
+        self._titleText:SetText(character)
     end
 
-    infoText:SetText(L["X • Y"]:format(
+    self._infoText:SetText(L["X • Y"]:format(
         className,
         date("%b %d, %Y %H:%M", (snapshot and SnapshotView:GetTimestamp(snapshot)) or 0)
     ))
+end
+
+function ProfileHeader:Build(region)
+    C:IsTable(region, 2)
+
+    return addon:NewWidget({
+        parent = region,
+        anchor = function(self)
+            self:SetAllPoints(region)
+        end,
+    }, {
+        frameType = "Frame",
+        verbs = Verbs,
+    })
 end
