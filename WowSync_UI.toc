@@ -21,6 +21,7 @@ Locales\enUS.lua
 
 Main.lua
 
+Components\Widgets\Widget.lua
 Components\Widgets\Dialog.lua
 Components\Widgets\LockButton.lua
 Components\Widgets\TitleBar.lua

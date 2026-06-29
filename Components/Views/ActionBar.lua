@@ -32,10 +32,8 @@ local applyButton
 local undoButton
 local saveButton
 
--- Keep the spinner up at least this long so a fast save is still perceptible,
--- then let the confirmation flourish linger for this long before restoring.
+-- Keep the spinner up at least this long so a fast save is still perceptible.
 local SAVE_SPINNER_MIN_SECONDS = 0.5
-local SAVED_FLOURISH_SECONDS = 0.9
 
 local savingStartedAt = nil
 
@@ -82,36 +80,6 @@ function ActionBar:Build(region, opts)
         text = L["Save"],
     })
 
-    -- A loading spinner shown over the button while a save is in flight. Scaled
-    -- down from the 142px shared template art.
-    local spinner = CreateFrame("Frame", nil, saveButton, "SpinnerTemplate")
-    spinner:SetSize(18, 18)
-    spinner:SetPoint("CENTER")
-    spinner:Hide()
-    saveButton.spinner = spinner
-
-    -- A brief "Saved" confirmation that rises and fades after a successful save.
-    local savedText = saveButton:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    savedText:SetPoint("CENTER")
-    savedText:SetText(L["Saved"])
-    savedText:SetTextColor(0.3, 1, 0.3)
-    savedText:Hide()
-    saveButton.savedText = savedText
-
-    local flourish = savedText:CreateAnimationGroup()
-    local fade = flourish:CreateAnimation("Alpha")
-    fade:SetFromAlpha(1)
-    fade:SetToAlpha(0)
-    fade:SetStartDelay(0.2)
-    fade:SetDuration(SAVED_FLOURISH_SECONDS - 0.2)
-    local rise = flourish:CreateAnimation("Translation")
-    rise:SetOffset(0, 14)
-    rise:SetDuration(SAVED_FLOURISH_SECONDS)
-    flourish:SetScript("OnPlay", function() savedText:Show() end)
-    flourish:SetScript("OnStop", function() savedText:Hide() end)
-    flourish:SetScript("OnFinished", function() savedText:Hide() end)
-    saveButton.flourish = flourish
-
     applyButton:SetScript("OnClick", function()
         if opts.onApply then opts.onApply() end
     end)
@@ -142,10 +110,7 @@ end
 -- save finishes.
 function ActionBar:BeginSaving()
     savingStartedAt = GetTime()
-    saveButton.flourish:Stop()
-    saveButton:SetEnabled(false)
-    saveButton:SetText("")
-    saveButton.spinner:Show()
+    saveButton:SetBusy(true)
 end
 
 -- Leave the saving state once the spinner has shown for its minimum time, then
@@ -162,11 +127,10 @@ function ActionBar:EndSaving(storedSnapshot)
         if savingStartedAt ~= startedAt then
             return
         end
-        saveButton.spinner:Hide()
-        saveButton:SetText(L["Save"])
+        saveButton:SetBusy(false)
         ActionBar:SetSaveEnabled(SnapshotManager:HasCapturedGameData())
         if storedSnapshot then
-            saveButton.flourish:Restart()
+            saveButton:Flash(L["Saved"])
         end
     end)
 end
