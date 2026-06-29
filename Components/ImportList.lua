@@ -21,6 +21,7 @@ local _, addon = ...
 local ImportList = addon:NewObject("ImportList")
 local ImportRow = addon:GetObject("ImportRow")
 local ImportDialog = addon:GetObject("ImportDialog")
+local PopupDialogs = addon:GetObject("PopupDialogs")
 
 local C = LibStub("Contracts-1.0")
 local L = addon.L
@@ -29,12 +30,26 @@ local UI = addon.UI
 local ImportManager = WowSync:GetImportManager()
 
 local scrollBox
+local deleteButton
 local selectedImportID = nil
 local onSelectionChanged = nil
 
 -- Height of a class group header row; the extra space over the text gives each
 -- group a consistent leading gap. The container rows use UI.List.ItemHeight.
 local CLASS_HEADER_HEIGHT = 26
+
+local DELETE_BUTTON_HEIGHT = 22
+local LIST_BOTTOM_INSET = 36
+
+local function CanDeleteSelectedImport()
+    return selectedImportID ~= nil and ImportManager:GetImport(selectedImportID) ~= nil
+end
+
+local function UpdateDeleteEnabled()
+    if deleteButton then
+        deleteButton:SetEnabled(CanDeleteSelectedImport())
+    end
+end
 
 function ImportList:Build(region)
     C:IsTable(region, 2)
@@ -62,10 +77,29 @@ function ImportList:Build(region)
     importButton:SetText(L["Import"])
     importButton:SetScript("OnClick", function() ImportList:BeginImport() end)
 
+    -- Import delete button, bottom-left of the panel.
+    deleteButton = CreateFrame("Button", nil, root, "UIPanelButtonTemplate")
+    deleteButton:SetPoint("BOTTOMLEFT", 10, 6)
+    deleteButton:SetSize(110, DELETE_BUTTON_HEIGHT)
+    deleteButton:SetText(L["Delete"])
+    deleteButton:SetEnabled(false)
+    deleteButton:SetScript("OnClick", function()
+        if not CanDeleteSelectedImport() then return end
+
+        local importID = selectedImportID
+        local record = ImportManager:GetImport(importID)
+        if not record then return end
+
+        PopupDialogs:ConfirmDeleteImport(record.Name, function()
+            ImportManager:DeleteImport(importID)
+            ImportList:Refresh()
+        end)
+    end)
+
     -- Scroll area
     scrollBox = CreateFrame("Frame", nil, root, "WowScrollBoxList")
     scrollBox:SetPoint("TOPLEFT", 6, -36)
-    scrollBox:SetPoint("BOTTOMRIGHT", -22, 6)
+    scrollBox:SetPoint("BOTTOMRIGHT", -22, LIST_BOTTOM_INSET)
 
     local scrollBar = CreateFrame("EventFrame", nil, root, "MinimalScrollBar")
     scrollBar:SetPoint("TOPLEFT", scrollBox, "TOPRIGHT", 4, -2)
@@ -102,6 +136,8 @@ function ImportList:Build(region)
 
     -- Only show the scrollbar when the list actually overflows.
     scrollBar:SetHideIfUnscrollable(true)
+
+    UpdateDeleteEnabled()
 
     return self
 end
@@ -146,6 +182,8 @@ function ImportList:Refresh()
             onSelectionChanged(nil)
         end
     end
+
+    UpdateDeleteEnabled()
 end
 
 function ImportList:Select(importID)
@@ -159,6 +197,7 @@ function ImportList:Select(importID)
         end
     end)
     if onSelectionChanged then onSelectionChanged(selectedImportID) end
+    UpdateDeleteEnabled()
 end
 
 function ImportList:GetSelected()

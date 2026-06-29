@@ -5,7 +5,7 @@ local _, addon = ...
 
     Orchestrates the detail view for a selected character. Composes ProfileHeader,
     SnapshotList, ActionBar and UndoList, and drives the WowSync actions
-    (apply/save/undo/delete) routed through the PopupDialogs object. Holds no
+    (apply/save/undo) routed through the PopupDialogs object. Holds no
     widget-building code of its own beyond layout regions and the empty state.
 
     The timeline shows the character's current head on top followed by its saved
@@ -17,7 +17,6 @@ local _, addon = ...
             SetProfile(charKey or nil),
             RequestSave(charKey or nil),  -- nil = logged-in character
             OnSaved(callback),            -- called after a successful save
-            OnRefresh(callback),          -- called after delete
         }
 ]]
 
@@ -37,7 +36,6 @@ local C = LibStub("Contracts-1.0")
 local L = addon.L
 local UI = addon.UI
 
-local ProfileManager = WowSync:GetProfileManager()
 local SnapshotManager = WowSync:GetSnapshotManager()
 local SnapshotView = WowSync:GetSnapshotView()
 local ImportManager = WowSync:GetImportManager()
@@ -49,7 +47,6 @@ local SUCCESS_TEXT_COLOR = { 0.3, 0.85, 0.3, 1 }
 local WARNING_TEXT_COLOR = { 0.95, 0.75, 0.2, 1 }
 
 local currentProfileName = nil
-local onRefreshNeeded = nil
 local onSaved = nil
 
 local content, emptyLabel, statusLabel, syncLabel, syncHover
@@ -256,16 +253,6 @@ local function RequestApply(snapshot, mode)
             end)
         end,
     })
-end
-
-local function DoDelete()
-    if currentProfileName then
-        ProfileManager:DeleteProfile(currentProfileName)
-        currentProfileName = nil
-        if onRefreshNeeded then
-            onRefreshNeeded()
-        end
-    end
 end
 
 -- Open the diff viewer on what undoing the most recent apply would restore.
@@ -555,13 +542,6 @@ function ProfileDetails:Build(region)
         onApply = function() RequestApply(nil, "exact") end,
         onUndo = RequestUndo,
         onSave = function() ProfileDetails:RequestSave() end,
-        onDelete = function()
-            if currentProfileName then
-                local latestSnapshot = SnapshotHandleCache:GetLatestSaved(currentProfileName)
-                local label = (latestSnapshot and SnapshotView:GetCharacterInfo(latestSnapshot).Character) or currentProfileName
-                PopupDialogs:ConfirmDelete(label, DoDelete)
-            end
-        end,
     })
 
     -- Save is only meaningful when the logged-in character has something
@@ -618,9 +598,6 @@ function ProfileDetails:SetProfile(profileName)
     header:SetProfile(profileName, headHandle or latestHandle)
 
     snapshotList:SetProfile(profileName)
-
-    -- Delete removes the saved history, so it only applies when some exists.
-    actionBar:SetDeleteEnabled(latestHandle ~= nil)
 
     ApplyUndoState()
 end
@@ -706,8 +683,4 @@ end
 
 function ProfileDetails:OnSaved(callback)
     onSaved = callback
-end
-
-function ProfileDetails:OnRefresh(callback)
-    onRefreshNeeded = callback
 end

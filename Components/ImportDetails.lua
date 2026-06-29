@@ -4,14 +4,14 @@ local _, addon = ...
     ImportDetails object (right panel, Imports tab).
 
     Shows the selected imported container: an empty-state prompt until one is
-    picked, then the container's name, a rename/delete bar and its snapshot
+    picked, then the container's name, a rename bar and its snapshot
     timeline. A snapshot can be applied to the logged-in character (through the
     shared apply-preview dialog), have its note edited, or be deleted.
 
     addon:GetObject("ImportDetails"):Build(region)
         -> self {
             SetImport(importID or nil),
-            OnRefresh(callback),   -- fired after a rename or container delete
+            OnRefresh(callback),   -- fired after a rename
         }
 ]]
 
@@ -184,27 +184,13 @@ function ImportDetails:Build(region)
     separator:SetHeight(1)
     separator:SetColorTexture(unpack(UI.Backdrop.Separator))
 
-    -- Action bar: Apply selected snapshot (left), delete the container (right).
+    -- Action bar: Apply selected snapshot.
     applyButton = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
     applyButton:SetPoint("BOTTOMLEFT", 0, 0)
     applyButton:SetSize(80, 24)
     applyButton:SetText(L["Apply"])
     applyButton:SetScript("OnClick", function()
         RequestApply(timeline:GetSelected())
-    end)
-
-    local deleteButton = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
-    deleteButton:SetPoint("BOTTOMRIGHT", 0, 0)
-    deleteButton:SetSize(110, 24)
-    deleteButton:SetText(L["Delete import"])
-    deleteButton:SetScript("OnClick", function()
-        local record = currentImportID and ImportManager:GetImport(currentImportID)
-        if not record then return end
-        PopupDialogs:ConfirmDeleteImport(record.Name, function()
-            ImportManager:DeleteImport(currentImportID)
-            ImportDetails:SetImport(nil)
-            if onRefresh then onRefresh() end
-        end)
     end)
 
     -- Snapshot timeline, filling the space between the title and the action bar.

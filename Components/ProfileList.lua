@@ -19,14 +19,19 @@ local _, addon = ...
 
 local ProfileList = addon:NewObject("ProfileList")
 local ProfileRow = addon:GetObject("ProfileRow")
+local PopupDialogs = addon:GetObject("PopupDialogs")
 
 local C = LibStub("Contracts-1.0")
 local L = addon.L
 local UI = addon.UI
 
 local CharacterManager = WowSync:GetCharacterManager()
+local ProfileManager = WowSync:GetProfileManager()
+local SnapshotHandleCache = WowSync:GetSnapshotHandleCache()
+local SnapshotView = WowSync:GetSnapshotView()
 
 local scrollBox
+local deleteButton
 local selectedProfileName = nil
 local currentProfileName = nil
 local onSelectionChanged = nil
@@ -34,6 +39,9 @@ local onSelectionChanged = nil
 -- Height of a realm group header row; the extra space over the text gives each
 -- group a consistent leading gap. The character rows below use UI.List.ItemHeight.
 local REALM_HEADER_HEIGHT = 26
+
+local DELETE_BUTTON_HEIGHT = 22
+local LIST_BOTTOM_INSET = 36
 
 -- Split a "Name - Realm" profile key on its first dash; realm is empty when the
 -- key carries no dash.
@@ -43,6 +51,21 @@ local function SplitNameRealm(key)
         return strtrim(name), strtrim(realm)
     end
     return strtrim(key), ""
+end
+
+local function GetDeleteLabel(profileName)
+    local latestSnapshot = profileName and SnapshotHandleCache:GetLatestSaved(profileName)
+    return (latestSnapshot and SnapshotView:GetCharacterInfo(latestSnapshot).Character) or profileName
+end
+
+local function CanDeleteSelectedProfile()
+    return selectedProfileName ~= nil and SnapshotHandleCache:GetLatestSaved(selectedProfileName) ~= nil
+end
+
+local function UpdateDeleteEnabled()
+    if deleteButton then
+        deleteButton:SetEnabled(CanDeleteSelectedProfile())
+    end
 end
 
 function ProfileList:Build(region)
@@ -64,10 +87,27 @@ function ProfileList:Build(region)
     title:SetPoint("TOPLEFT", 10, -8)
     title:SetText(L["Profiles"])
 
+    -- Profile delete button, bottom-left of the panel.
+    deleteButton = CreateFrame("Button", nil, root, "UIPanelButtonTemplate")
+    deleteButton:SetPoint("BOTTOMLEFT", 10, 6)
+    deleteButton:SetSize(80, DELETE_BUTTON_HEIGHT)
+    deleteButton:SetText(L["Delete"])
+    deleteButton:SetEnabled(false)
+    deleteButton:SetScript("OnClick", function()
+        if not CanDeleteSelectedProfile() then return end
+
+        local profileName = selectedProfileName
+        local label = GetDeleteLabel(profileName)
+        PopupDialogs:ConfirmDelete(label, function()
+            ProfileManager:DeleteProfile(profileName)
+            ProfileList:Refresh()
+        end)
+    end)
+
     -- Scroll area
     scrollBox = CreateFrame("Frame", nil, root, "WowScrollBoxList")
     scrollBox:SetPoint("TOPLEFT", 6, -36)
-    scrollBox:SetPoint("BOTTOMRIGHT", -22, 6)
+    scrollBox:SetPoint("BOTTOMRIGHT", -22, LIST_BOTTOM_INSET)
 
     local scrollBar = CreateFrame("EventFrame", nil, root, "MinimalScrollBar")
     scrollBar:SetPoint("TOPLEFT", scrollBox, "TOPRIGHT", 4, -2)
@@ -104,6 +144,8 @@ function ProfileList:Build(region)
 
     -- Only show the scrollbar when the list actually overflows.
     scrollBar:SetHideIfUnscrollable(true)
+
+    UpdateDeleteEnabled()
 
     return self
 end
@@ -184,6 +226,8 @@ function ProfileList:Refresh()
             onSelectionChanged(nil)
         end
     end
+
+    UpdateDeleteEnabled()
 end
 
 function ProfileList:Select(profileName)
@@ -197,6 +241,7 @@ function ProfileList:Select(profileName)
         end
     end)
     if onSelectionChanged then onSelectionChanged(selectedProfileName) end
+    UpdateDeleteEnabled()
 end
 
 function ProfileList:GetSelected()

@@ -263,12 +263,6 @@ local function Build()
         profileList:ScrollToProfile(charKey)
     end)
 
-    profileDetails:OnRefresh(function()
-        profileList:Refresh()
-        profileList:ClearSelection()
-        profileDetails:SetProfile(nil)
-    end)
-
     -- Imports view: imported-container list (left) + import details (right)
     local importsView = CreateFrame("Frame", nil, frame)
     importsView:SetPoint("TOPLEFT", EDGE_INSET, contentTop)

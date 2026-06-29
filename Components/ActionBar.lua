@@ -3,19 +3,18 @@ local _, addon = ...
 --[[
     ActionBar object.
 
-    Fills an injected region with the profile action buttons: Apply, Undo, Save,
-    Delete. Each button invokes the matching callback. Buttons can be
-    enabled/disabled, and Save animates a spinner while a save is in flight and a
-    brief confirmation flourish after it stores.
+    Fills an injected region with the profile action buttons: Apply, Undo, Save.
+    Each button invokes the matching callback. Buttons can be enabled/disabled,
+    and Save animates a spinner while a save is in flight and a brief
+    confirmation flourish after it stores.
 
     addon:GetObject("ActionBar"):Build(region, {
-        onApply, onUndo, onSave, onDelete,  -- functions
+        onApply, onUndo, onSave,  -- functions
     })
         -> self {
             SetApplyEnabled(enabled),
             SetUndoEnabled(enabled),
             SetSaveEnabled(enabled),
-            SetDeleteEnabled(enabled),
             BeginSaving(),
             EndSaving(storedSnapshot),
         }
@@ -31,7 +30,6 @@ local SnapshotManager = WowSync:GetSnapshotManager()
 local applyButton
 local undoButton
 local saveButton
-local deleteButton
 
 -- Keep the spinner up at least this long so a fast save is still perceptible,
 -- then let the confirmation flourish linger for this long before restoring.
@@ -48,7 +46,6 @@ function ActionBar:Build(region, opts)
     C:Ensures(opts.onApply == nil or type(opts.onApply) == "function", "Build: 'opts.onApply' must be a function")
     C:Ensures(opts.onUndo == nil or type(opts.onUndo) == "function", "Build: 'opts.onUndo' must be a function")
     C:Ensures(opts.onSave == nil or type(opts.onSave) == "function", "Build: 'opts.onSave' must be a function")
-    C:Ensures(opts.onDelete == nil or type(opts.onDelete) == "function", "Build: 'opts.onDelete' must be a function")
 
     local root = CreateFrame("Frame", nil, region)
     root:SetAllPoints(region)
@@ -63,14 +60,9 @@ function ActionBar:Build(region, opts)
     undoButton:SetSize(80, 24)
     undoButton:SetText(L["Undo"])
 
-    deleteButton = CreateFrame("Button", nil, root, "UIPanelButtonTemplate")
-    deleteButton:SetPoint("BOTTOMRIGHT", 0, 0)
-    deleteButton:SetSize(80, 24)
-    deleteButton:SetText(L["Delete"])
-
-    -- Save, bottom-right beside Delete.
+    -- Save, bottom-right.
     saveButton = CreateFrame("Button", nil, root, "UIPanelButtonTemplate")
-    saveButton:SetPoint("BOTTOMRIGHT", deleteButton, "BOTTOMLEFT", -6, 0)
+    saveButton:SetPoint("BOTTOMRIGHT", 0, 0)
     saveButton:SetSize(80, 24)
     saveButton:SetText(L["Save"])
 
@@ -114,9 +106,6 @@ function ActionBar:Build(region, opts)
         if not saveButton:IsEnabled() then return end
         if opts.onSave then opts.onSave() end
     end)
-    deleteButton:SetScript("OnClick", function()
-        if opts.onDelete then opts.onDelete() end
-    end)
 
     return self
 end
@@ -131,10 +120,6 @@ end
 
 function ActionBar:SetSaveEnabled(enabled)
     saveButton:SetEnabled(enabled)
-end
-
-function ActionBar:SetDeleteEnabled(enabled)
-    deleteButton:SetEnabled(enabled)
 end
 
 -- Enter the saving state: hide the label, spin, and lock the button until the
