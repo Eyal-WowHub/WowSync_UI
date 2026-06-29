@@ -11,7 +11,7 @@ local _, addon = ...
         onChanged = fn,                 -- called when a row's check/mode changes
         onPreviewModule = fn(name, mode),  -- clicking a name opens its preview
     })
-        -> self {
+        -> module-list frame {
             SetSnapshot(snapshot, preview, mode),   -- (re)build rows; preview adds counts
             GetSelected() -> { [name] = true },
             GetStrategy() -> moduleSet, overrides,  -- chosen modules + per-module mode
@@ -34,36 +34,32 @@ local SnapshotView = WowSync:GetSnapshotView()
 local MODE_BUTTON_INSET = 2
 local MODE_BUTTON_VOFFSET = 3
 
-local root
-local checkboxes = {}   -- moduleName -> active checkbox
-local pool = {}
-local onChanged
-local onPreviewModule
+local Verbs = {}
 
-local function Acquire()
-    for _, checkbox in ipairs(pool) do
+local function Acquire(panel)
+    for _, checkbox in ipairs(panel._pool) do
         if not checkbox.inUse then
             checkbox.inUse = true
             return checkbox
         end
     end
 
-    local checkbox = ModuleRow:Build(root)
+    local checkbox = ModuleRow:Build(panel)
     checkbox:HookScript("OnClick", function()
-        if onChanged then onChanged() end
+        if panel._onChanged then panel._onChanged() end
     end)
     checkbox.inUse = true
-    tinsert(pool, checkbox)
+    tinsert(panel._pool, checkbox)
     return checkbox
 end
 
-local function ReleaseAll()
-    for _, checkbox in pairs(checkboxes) do
+local function ReleaseAll(panel)
+    for _, checkbox in pairs(panel._checkboxes) do
         checkbox:Hide()
         checkbox.modeButton:Hide()
         checkbox.inUse = false
     end
-    wipe(checkboxes)
+    wipe(panel._checkboxes)
 end
 
 -- The Merge/Exact support a module declares, as two booleans.
@@ -99,7 +95,7 @@ end
 
 -- Flip a togglable row between Merge and Exact, refreshing its counts and toggle
 -- label and notifying the list owner so dependent UI can update.
-local function ToggleRowMode(checkbox)
+local function ToggleRowMode(panel, checkbox)
     local state = checkbox._mode
     if not state or not state.canToggle then return end
 
@@ -110,7 +106,14 @@ local function ToggleRowMode(checkbox)
         canToggle = true,
         visible = true,
     })
-    if onChanged then onChanged() end
+    if panel._onChanged then panel._onChanged() end
+end
+
+function Verbs:Constructor(config)
+    self._checkboxes = {}   -- moduleName -> active checkbox
+    self._pool = {}
+    self._onChanged = config.onChanged
+    self._onPreviewModule = config.onPreviewModule
 end
 
 function ModuleList:Build(region, opts)
@@ -121,17 +124,23 @@ function ModuleList:Build(region, opts)
     C:Ensures(opts.onChanged == nil or type(opts.onChanged) == "function", "Build: 'opts.onChanged' must be a function")
     C:Ensures(opts.onPreviewModule == nil or type(opts.onPreviewModule) == "function", "Build: 'opts.onPreviewModule' must be a function")
 
-    onChanged = opts.onChanged
-    onPreviewModule = opts.onPreviewModule
-
-    root = CreateFrame("Frame", nil, region)
-    root:SetAllPoints(region)
-
-    return self
+    return addon:NewWidget({
+        parent = region,
+        anchor = function(self)
+            self:SetAllPoints(region)
+        end,
+        onChanged = opts.onChanged,
+        onPreviewModule = opts.onPreviewModule,
+    }, {
+        frameType = "Frame",
+        verbs = Verbs,
+    })
 end
 
-function ModuleList:SetSnapshot(snapshot, preview, mode)
-    ReleaseAll()
+function Verbs:SetSnapshot(snapshot, preview, mode)
+    local panel = self
+
+    ReleaseAll(panel)
 
     local sourceMetadata = { ClassID = snapshot and SnapshotView:GetCharacterInfo(snapshot).ClassID }
     local moduleDiffs = preview and preview.perModule
@@ -153,7 +162,7 @@ function ModuleList:SetSnapshot(snapshot, preview, mode)
             local moduleDiff = moduleDiffs and moduleDiffs[name]
             local counts = ComputeCounts(moduleDiff, rowMode, canExact)
 
-            local checkbox = Acquire()
+            local checkbox = Acquire(panel)
             checkbox._mode = {
                 name = name,
                 mode = rowMode,
@@ -170,15 +179,15 @@ function ModuleList:SetSnapshot(snapshot, preview, mode)
             })
 
             checkbox.modeButton:ClearAllPoints()
-            checkbox.modeButton:SetPoint("TOPRIGHT", root, "TOPRIGHT",
+            checkbox.modeButton:SetPoint("TOPRIGHT", panel, "TOPRIGHT",
                 -MODE_BUTTON_INSET, -yOffset - MODE_BUTTON_VOFFSET)
             checkbox.modeButton:SetScript("OnClick", function()
-                ToggleRowMode(checkbox)
+                ToggleRowMode(panel, checkbox)
             end)
 
-            if onPreviewModule then
+            if panel._onPreviewModule then
                 ModuleRow:SetNameLink(checkbox, function()
-                    onPreviewModule(name, checkbox._mode and checkbox._mode.mode or rowMode)
+                    panel._onPreviewModule(name, checkbox._mode and checkbox._mode.mode or rowMode)
                 end)
             else
                 ModuleRow:SetNameLink(checkbox, nil)
@@ -186,15 +195,15 @@ function ModuleList:SetSnapshot(snapshot, preview, mode)
 
             checkbox:Show()
 
-            checkboxes[name] = checkbox
+            panel._checkboxes[name] = checkbox
             yOffset = yOffset + UI.ModuleRow.Height + UI.ModuleRow.Padding
         end
     end
 end
 
-function ModuleList:GetSelected()
+function Verbs:GetSelected()
     local selected = {}
-    for name, checkbox in pairs(checkboxes) do
+    for name, checkbox in pairs(self._checkboxes) do
         if checkbox:GetChecked() then
             selected[name] = true
         end
@@ -204,9 +213,9 @@ end
 
 -- The chosen modules and their per-module apply mode, ready for use as
 -- strategy.overrides. Only checked rows are included.
-function ModuleList:GetStrategy()
+function Verbs:GetStrategy()
     local moduleSet, overrides = {}, {}
-    for name, checkbox in pairs(checkboxes) do
+    for name, checkbox in pairs(self._checkboxes) do
         if checkbox:GetChecked() then
             moduleSet[name] = true
             local state = checkbox._mode
@@ -218,8 +227,8 @@ function ModuleList:GetStrategy()
     return moduleSet, overrides
 end
 
-function ModuleList:SetAllChecked(checked)
-    for _, checkbox in pairs(checkboxes) do
+function Verbs:SetAllChecked(checked)
+    for _, checkbox in pairs(self._checkboxes) do
         if checkbox:IsEnabled() then
             checkbox:SetChecked(checked)
         end
@@ -228,9 +237,9 @@ end
 
 -- True only when there is at least one selectable row and every selectable
 -- row is currently checked.
-function ModuleList:AreAllSelectableChecked()
+function Verbs:AreAllSelectableChecked()
     local hasSelectable = false
-    for _, checkbox in pairs(checkboxes) do
+    for _, checkbox in pairs(self._checkboxes) do
         if checkbox:IsEnabled() then
             hasSelectable = true
             if not checkbox:GetChecked() then

@@ -11,7 +11,7 @@ local _, addon = ...
         onSelect  = fn(snapshot or nil),   -- selection changed
         onContext = fn(snapshot, anchor),  -- right-click on a row
     })
-        -> self {
+        -> import-snapshot-list frame {
             SetImport(importID),   -- (re)populate from a container; clears selection
             Refresh(),             -- re-render in place from the current container
             GetSelected() -> snapshot or nil,
@@ -28,10 +28,7 @@ local UI = addon.UI
 
 local ImportManager = WowSync:GetImportManager()
 
-local scrollBox
-local currentImportID = nil
-local selectedSnapshot = nil
-local onSelect = nil
+local Verbs = {}
 
 -- Height of a snapshot row; tall enough for the subject and the note line.
 local ROW_HEIGHT = 40
@@ -39,24 +36,25 @@ local ROW_HEIGHT = 40
 -- Vertical gap between rows.
 local ROW_PADDING = 2
 
-function ImportSnapshotList:Build(region, opts)
-    C:IsTable(region, 2)
+function Verbs:Constructor(config)
+    local panel = self
 
-    opts = opts or {}
-    onSelect = opts.onSelect
+    panel._currentImportID = nil
+    panel._selectedSnapshot = nil
+    panel._onSelect = config.onSelect
 
     local rowContext = {
         GetSelected = function()
-            return selectedSnapshot
+            return panel._selectedSnapshot
         end,
         Select = function(snapshot)
-            ImportSnapshotList:Select(snapshot)
+            panel:Select(snapshot)
         end,
-        OpenMenu = opts.onContext,
+        OpenMenu = config.onContext,
     }
 
-    scrollBox = ScrollList:Build({
-        parent = region,
+    panel._scrollBox = ScrollList:Build({
+        parent = self,
         anchor = function(sb)
             sb:SetPoint("TOPLEFT", 0, 0)
             sb:SetPoint("BOTTOMRIGHT", -16, 0)
@@ -70,50 +68,66 @@ function ImportSnapshotList:Build(region, opts)
             ImportSnapshotRow:Update(row, snapshot, rowContext)
         end,
     })
+end
 
-    return self
+function ImportSnapshotList:Build(region, opts)
+    C:IsTable(region, 2)
+
+    opts = opts or {}
+
+    return addon:NewWidget({
+        parent = region,
+        anchor = function(self)
+            self:SetAllPoints(region)
+        end,
+        onSelect = opts.onSelect,
+        onContext = opts.onContext,
+    }, {
+        frameType = "Frame",
+        verbs = Verbs,
+    })
 end
 
 -- Render the container's snapshots, newest-first (GetImportSnapshots is
 -- oldest-first).
-function ImportSnapshotList:SetImport(importID)
-    currentImportID = importID
-    selectedSnapshot = nil
+function Verbs:SetImport(importID)
+    self._currentImportID = importID
+    self._selectedSnapshot = nil
     self:Refresh()
 end
 
-function ImportSnapshotList:Refresh()
+function Verbs:Refresh()
     local dataProvider = CreateDataProvider()
-    if currentImportID then
-        local snapshots = ImportManager:GetImportSnapshots(currentImportID)
+    if self._currentImportID then
+        local snapshots = ImportManager:GetImportSnapshots(self._currentImportID)
         for index = #snapshots, 1, -1 do
             dataProvider:Insert(snapshots[index])
         end
     end
-    scrollBox:SetDataProvider(dataProvider)
+    self._scrollBox:SetDataProvider(dataProvider)
 end
 
-function ImportSnapshotList:Select(snapshot)
-    selectedSnapshot = snapshot
-    scrollBox:ForEachFrame(function(row)
+function Verbs:Select(snapshot)
+    self._selectedSnapshot = snapshot
+    self._scrollBox:ForEachFrame(function(row)
         if not row.snapshot then return end
-        if row.snapshot == selectedSnapshot then
+        if row.snapshot == self._selectedSnapshot then
             row.bg:SetColorTexture(UI.Row.Selected:GetRGBA())
         else
             row.bg:SetColorTexture(UI.Row.Normal:GetRGBA())
         end
     end)
-    if onSelect then onSelect(selectedSnapshot) end
+    if self._onSelect then self._onSelect(self._selectedSnapshot) end
 end
 
-function ImportSnapshotList:GetSelected()
-    return selectedSnapshot
+function Verbs:GetSelected()
+    return self._selectedSnapshot
 end
 
-function ImportSnapshotList:Clear()
-    currentImportID = nil
-    selectedSnapshot = nil
-    if scrollBox then
-        scrollBox:SetDataProvider(CreateDataProvider())
+function Verbs:Clear()
+    self._currentImportID = nil
+    self._selectedSnapshot = nil
+    if self._scrollBox then
+        self._scrollBox:SetDataProvider(CreateDataProvider())
     end
 end
