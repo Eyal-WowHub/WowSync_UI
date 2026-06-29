@@ -11,6 +11,7 @@ local _, addon = ...
     ctx = {
         GetSelected() -> importID or nil,
         Select(importID),
+        Rename(importID, name) -> handled,
     }
 
     addon:GetObject("ImportRow"):Build(row, ctx)
@@ -28,6 +29,12 @@ local UI = addon.UI
 local HEADER_INSET = 8
 local CONTAINER_INSET = 16
 
+-- Cap on an inline-renamed container name, matching the rename dialog.
+local MAX_RENAME_LETTERS = 64
+
+-- Two clicks closer than this on the same row count as a double-click.
+local DOUBLE_CLICK_WINDOW = 0.4
+
 -- One-line snapshot-count label for a container's info line.
 local function SnapshotCountText(count)
     if count == 1 then
@@ -42,6 +49,7 @@ function ImportRow:Build(row, ctx)
 
     C:Ensures(type(ctx.GetSelected) == "function", "Build: 'ctx.GetSelected' must be a function")
     C:Ensures(type(ctx.Select) == "function", "Build: 'ctx.Select' must be a function")
+    C:Ensures(type(ctx.Rename) == "function", "Build: 'ctx.Rename' must be a function")
 
     row.bg = row:CreateTexture(nil, "BACKGROUND")
     row.bg:SetAllPoints()
@@ -79,6 +87,24 @@ function ImportRow:Build(row, ctx)
     row.infoText:SetJustifyH("LEFT")
     row.infoText:SetWordWrap(false)
 
+    -- Inline rename box, overlaid on the name and shown only while editing.
+    row.renameBox = CreateFrame("EditBox", nil, row, "InputBoxTemplate")
+    row.renameBox:SetAutoFocus(false)
+    row.renameBox:SetMaxLetters(MAX_RENAME_LETTERS)
+    row.renameBox:SetPoint("TOPLEFT", row.nameText, "TOPLEFT", 0, 4)
+    row.renameBox:SetPoint("BOTTOMRIGHT", row.nameText, "BOTTOMRIGHT", 0, -4)
+    row.renameBox:Hide()
+    row.renameBox:SetScript("OnEscapePressed", function(self) self:Hide() end)
+    row.renameBox:SetScript("OnEditFocusLost", function(self) self:Hide() end)
+    row.renameBox:SetScript("OnEnterPressed", function(self)
+        local importID = row.importID
+        local name = self:GetText():gsub("^%s+", ""):gsub("%s+$", "")
+        self:Hide()
+        if importID and name ~= "" then
+            ctx.Rename(importID, name)
+        end
+    end)
+
     row:EnableMouse(true)
     row:SetScript("OnEnter", function(self)
         if not self.importID then return end
@@ -95,6 +121,17 @@ function ImportRow:Build(row, ctx)
     row:SetScript("OnMouseDown", function(self)
         if not self.importID then return end
         ctx.Select(self.importID)
+
+        local now = GetTime()
+        if self.lastClick and (now - self.lastClick) < DOUBLE_CLICK_WINDOW then
+            self.lastClick = nil
+            self.renameBox:SetText(self.name or "")
+            self.renameBox:Show()
+            self.renameBox:SetFocus()
+            self.renameBox:HighlightText()
+        else
+            self.lastClick = now
+        end
     end)
 end
 
@@ -109,6 +146,7 @@ function ImportRow:Update(row, elementData, ctx)
         row.classIcon:Hide()
         row.nameText:Hide()
         row.infoText:Hide()
+        row.renameBox:Hide()
         row.bg:SetColorTexture(0, 0, 0, 0)
 
         local classInfo = elementData.classID and C_CreatureInfo.GetClassInfo(elementData.classID)
@@ -130,6 +168,9 @@ function ImportRow:Update(row, elementData, ctx)
     local name = elementData.name or ""
 
     row.importID = importID
+    row.name = name
+    row.renameBox:Hide()
+    row.lastClick = nil
 
     -- Class icon and class-colored container name.
     local classInfo = elementData.classID and C_CreatureInfo.GetClassInfo(elementData.classID)

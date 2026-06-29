@@ -113,6 +113,12 @@ function ImportList:Build(region)
         Select = function(importID)
             ImportList:Select(importID)
         end,
+        Rename = function(importID, name)
+            if not ImportManager:RenameImport(importID, name) then return false end
+            ImportList:Refresh()
+            ImportList:Select(importID)
+            return true
+        end,
     }
 
     -- List view
