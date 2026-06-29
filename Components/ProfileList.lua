@@ -59,7 +59,7 @@ local function GetDeleteLabel(profileName)
 end
 
 local function CanDeleteSelectedProfile()
-    return selectedProfileName ~= nil and SnapshotHandleCache:GetLatestSaved(selectedProfileName) ~= nil
+    return selectedProfileName ~= nil
 end
 
 local function UpdateDeleteEnabled()
