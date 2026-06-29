@@ -286,7 +286,7 @@ local function Build()
         width = UI.Preview.Width,
         height = UI.Preview.Height,
     })
-    frame = dialog:GetFrame()
+    frame = dialog
 
     -- Hidden font string used to measure wrapped description heights up front,
     -- so the virtualised list can size each entry row before it is shown.

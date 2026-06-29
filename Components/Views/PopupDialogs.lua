@@ -308,7 +308,7 @@ local function BuildRenameDialog()
         height = 130,
         onHide = function() renameOnAccept = nil end,
     })
-    renameFrame = renameDialog:GetFrame()
+    renameFrame = renameDialog
 
     renameBox = CreateFrame("EditBox", nil, renameFrame, "InputBoxTemplate")
     renameBox:SetPoint("TOPLEFT", 16, -44)

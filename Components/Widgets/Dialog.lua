@@ -16,7 +16,7 @@ local _, addon = ...
         onHide = function() end,          -- optional OnHide hook
     })
 
-    dialog:GetFrame()    -- backdrop frame to parent/anchor content into
+    dialog                -- the backdrop frame itself; parent/anchor content into it
     dialog:SetTitle(text)
     dialog:Show()
     dialog:Hide()
@@ -97,24 +97,67 @@ Dialog:RegisterEvent("WOWSYNC_UI_CLOSED", function()
     end
 end)
 
--- Shared method table for every built dialog instance.
-local DialogMixin = {}
+-- The verbs every built dialog carries. The dialog IS its backdrop frame, so
+-- Show and Hide are the native frame methods -- their OnShow/OnHide scripts
+-- position, track, and release the dialog -- and only the title needs spelling
+-- out.
+local Verbs = {}
 
-function DialogMixin:GetFrame()
-    return self.frame
+function Verbs:SetTitle(text)
+    self._title:SetText(text or "")
 end
 
-function DialogMixin:SetTitle(text)
-    self.titleLabel:SetText(text or "")
-end
+function Verbs:Init(config)
+    self:SetPoint("CENTER")
+    self:SetFrameStrata("FULLSCREEN_DIALOG")
+    self:SetBackdrop({
+        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 16, edgeSize = 16,
+        insets = { left = 4, right = 4, top = 4, bottom = 4 },
+    })
+    self:SetBackdropColor(unpack(UI.Backdrop.Main))
+    self:SetBackdropBorderColor(unpack(UI.Backdrop.MainBorder))
+    self:EnableMouse(true)
+    self:SetClampedToScreen(true)
 
-function DialogMixin:Show()
-    self.frame:Show()
-    self.frame:Raise()
-end
+    -- Drag the whole body to move the window; content widgets capture their own
+    -- clicks, so only empty areas start a drag.
+    self:SetMovable(true)
+    self:RegisterForDrag("LeftButton")
+    self:SetScript("OnDragStart", self.StartMoving)
+    self:SetScript("OnDragStop", self.StopMovingOrSizing)
 
-function DialogMixin:Hide()
-    self.frame:Hide()
+    local titleLabel = self:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    titleLabel:SetPoint("TOPLEFT", 14, -12)
+    titleLabel:SetText(config.title or "")
+    self._title = titleLabel
+
+    local close = CreateFrame("Button", nil, self, "UIPanelCloseButton")
+    close:SetSize(24, 24)
+    close:SetPoint("TOPRIGHT", -3, -3)
+    close:SetScript("OnClick", function() self:Hide() end)
+
+    -- Position and track the dialog as it opens, and release it as it closes, so
+    -- dialogs stack instead of overlapping and clear out of the open set.
+    local onHide = config.onHide
+    self:SetScript("OnShow", function(dialog)
+        PositionDialog(dialog)
+        RememberOpenDialog(dialog)
+        dialog:Raise()
+    end)
+
+    self:SetScript("OnHide", function(dialog)
+        ForgetOpenDialog(dialog)
+        if onHide then
+            onHide(dialog)
+        end
+    end)
+
+    -- Registering with UISpecialFrames makes ESC close the dialog.
+    tinsert(UISpecialFrames, self:GetName())
+
+    self:Hide()
 end
 
 function Dialog:Build(opts)
@@ -122,59 +165,16 @@ function Dialog:Build(opts)
     C:Ensures(type(opts.name) == "string", "Build: 'opts.name' must be a string")
     C:Ensures(opts.onHide == nil or type(opts.onHide) == "function", "Build: 'opts.onHide' must be a function")
 
-    local frame = CreateFrame("Frame", opts.name, UIParent, "BackdropTemplate")
-    frame:SetSize(opts.width or UI.Preview.Width, opts.height or UI.Preview.Height)
-    frame:SetPoint("CENTER")
-    frame:SetFrameStrata("FULLSCREEN_DIALOG")
-    frame:SetBackdrop({
-        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        tile = true, tileSize = 16, edgeSize = 16,
-        insets = { left = 4, right = 4, top = 4, bottom = 4 },
+    return addon:NewWidget({
+        parent = UIParent,
+        width = opts.width or UI.Preview.Width,
+        height = opts.height or UI.Preview.Height,
+        title = opts.title,
+        onHide = opts.onHide,
+    }, {
+        frameType = "Frame",
+        template = "BackdropTemplate",
+        name = opts.name,
+        verbs = Verbs,
     })
-    frame:SetBackdropColor(unpack(UI.Backdrop.Main))
-    frame:SetBackdropBorderColor(unpack(UI.Backdrop.MainBorder))
-    frame:EnableMouse(true)
-    frame:SetClampedToScreen(true)
-
-    -- Drag the whole body to move the window; content widgets capture their own
-    -- clicks, so only empty areas start a drag.
-    frame:SetMovable(true)
-    frame:RegisterForDrag("LeftButton")
-    frame:SetScript("OnDragStart", frame.StartMoving)
-    frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
-
-    local titleLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    titleLabel:SetPoint("TOPLEFT", 14, -12)
-    titleLabel:SetText(opts.title or "")
-
-    local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
-    close:SetSize(24, 24)
-    close:SetPoint("TOPRIGHT", -3, -3)
-    close:SetScript("OnClick", function() frame:Hide() end)
-
-    -- Position and track the dialog as it opens, and release it as it closes, so
-    -- dialogs stack instead of overlapping and clear out of the open set.
-    frame:SetScript("OnShow", function(self)
-        PositionDialog(self)
-        RememberOpenDialog(self)
-        self:Raise()
-    end)
-
-    frame:SetScript("OnHide", function(self)
-        ForgetOpenDialog(self)
-        if opts.onHide then
-            opts.onHide(self)
-        end
-    end)
-
-    -- Registering with UISpecialFrames makes ESC close the dialog.
-    tinsert(UISpecialFrames, opts.name)
-
-    frame:Hide()
-
-    return setmetatable({
-        frame = frame,
-        titleLabel = titleLabel,
-    }, { __index = DialogMixin })
 end

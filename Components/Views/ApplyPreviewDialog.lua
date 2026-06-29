@@ -57,7 +57,7 @@ local function Build()
         width = UI.Preview.Width,
         height = UI.Preview.Height,
     })
-    frame = dialog:GetFrame()
+    frame = dialog
 
     subjectLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     subjectLabel:SetPoint("TOPLEFT", 14, -38)

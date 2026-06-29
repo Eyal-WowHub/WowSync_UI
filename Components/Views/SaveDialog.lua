@@ -112,7 +112,7 @@ local function Build()
         width = UI.Preview.Width,
         height = UI.Preview.Height,
     })
-    frame = dialog:GetFrame()
+    frame = dialog
 
     -- Optional note attached to the snapshot when the player saves.
     local noteLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")

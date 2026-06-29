@@ -85,7 +85,7 @@ local function Build()
         width = UI.Preview.Width,
         height = DIALOG_HEIGHT,
     })
-    frame = dialog:GetFrame()
+    frame = dialog
 
     -- Name for the new container.
     local nameLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")

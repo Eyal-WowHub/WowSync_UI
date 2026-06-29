@@ -13,6 +13,7 @@ local _, addon = ...
     local frame = addon:NewWidget(config, {
         frameType = "Button",                 -- optional, default "Frame"
         template  = "UIPanelButtonTemplate",  -- optional
+        name      = "GlobalFrameName",        -- optional: global name (ESC, _G lookup)
         frame     = existingFrame,            -- optional: adopt instead of create
         verbs     = ButtonVerbs,              -- optional: the widget's class
     })
@@ -45,7 +46,7 @@ end
 -- (or adopts def.frame), mixes the base + the widget's verbs onto it, lays it out,
 -- and runs the optional Init hook.
 function addon:NewWidget(config, def)
-    local frame = def.frame or CreateFrame(def.frameType or "Frame", nil, config.parent, def.template)
+    local frame = def.frame or CreateFrame(def.frameType or "Frame", def.name, config.parent, def.template)
 
     Mixin(frame, Widget, def.verbs or {})
     frame:ApplyLayout(config)

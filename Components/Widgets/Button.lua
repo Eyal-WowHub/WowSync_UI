@@ -29,16 +29,16 @@ local C = LibStub("Contracts-1.0")
 -- How long the confirmation flash rises and fades.
 local FLASH_SECONDS = 0.9
 
-local verbs = {}
+local Verbs = {}
 
-function verbs:SetLabel(text)
+function Verbs:SetLabel(text)
     self:SetText(text or "")
 end
 
 -- Enter/leave the busy state: a centered spinner replaces the label and the
 -- button locks. Leaving restores the label but not the enabled state -- "not
 -- busy" does not imply "enabled", so the caller restores that.
-function verbs:SetBusy(isBusy)
+function Verbs:SetBusy(isBusy)
     if isBusy then
         if not self._spinner then
             local spinner = CreateFrame("Frame", nil, self, "SpinnerTemplate")
@@ -59,7 +59,7 @@ function verbs:SetBusy(isBusy)
 end
 
 -- Play a one-shot confirmation that rises and fades over the button.
-function verbs:Flash(text)
+function Verbs:Flash(text)
     if not self._flash then
         local label = self:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         label:SetPoint("CENTER")
@@ -86,7 +86,7 @@ function verbs:Flash(text)
     self._flash:Restart()
 end
 
-function verbs:Init(config)
+function Verbs:Init(config)
     if config.text then self:SetLabel(config.text) end
     if config.enabled ~= nil then self:SetEnabled(config.enabled) end
     if config.onClick then
@@ -103,6 +103,6 @@ function Button:Build(config)
     return addon:NewWidget(config, {
         frameType = "Button",
         template = "UIPanelButtonTemplate",
-        verbs = verbs,
+        verbs = Verbs,
     })
 end

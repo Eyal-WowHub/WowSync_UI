@@ -35,7 +35,7 @@ local function Build()
         width = DIALOG_WIDTH,
         height = DIALOG_HEIGHT,
     })
-    frame = dialog:GetFrame()
+    frame = dialog
 
     -- Which profile and snapshot this string came from, so the user knows what
     -- they're handing out.
