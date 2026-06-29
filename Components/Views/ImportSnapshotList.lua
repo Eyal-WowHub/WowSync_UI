@@ -21,6 +21,7 @@ local _, addon = ...
 
 local ImportSnapshotList = addon:NewObject("ImportSnapshotList")
 local ImportSnapshotRow = addon:GetObject("ImportSnapshotRow")
+local ScrollList = addon:GetObject("ScrollList")
 
 local C = LibStub("Contracts-1.0")
 local UI = addon.UI
@@ -44,14 +45,6 @@ function ImportSnapshotList:Build(region, opts)
     opts = opts or {}
     onSelect = opts.onSelect
 
-    scrollBox = CreateFrame("Frame", nil, region, "WowScrollBoxList")
-    scrollBox:SetPoint("TOPLEFT", 0, 0)
-    scrollBox:SetPoint("BOTTOMRIGHT", -16, 0)
-
-    local scrollBar = CreateFrame("EventFrame", nil, region, "MinimalScrollBar")
-    scrollBar:SetPoint("TOPLEFT", scrollBox, "TOPRIGHT", 4, -2)
-    scrollBar:SetPoint("BOTTOMLEFT", scrollBox, "BOTTOMRIGHT", 4, 2)
-
     local rowContext = {
         GetSelected = function()
             return selectedSnapshot
@@ -62,23 +55,21 @@ function ImportSnapshotList:Build(region, opts)
         OpenMenu = opts.onContext,
     }
 
-    local view = CreateScrollBoxListLinearView()
-    view:SetElementExtentCalculator(function()
-        return ROW_HEIGHT
-    end)
-    view:SetPadding(0, 0, 0, 0, ROW_PADDING)
-    view:SetElementInitializer("Frame", function(row, snapshot)
-        if not row.initialized then
+    scrollBox = ScrollList:Build({
+        parent = region,
+        anchor = function(sb)
+            sb:SetPoint("TOPLEFT", 0, 0)
+            sb:SetPoint("BOTTOMRIGHT", -16, 0)
+        end,
+        extent = ROW_HEIGHT,
+        padding = ROW_PADDING,
+        build = function(row)
             ImportSnapshotRow:Build(row, rowContext)
-            row.initialized = true
-        end
-        ImportSnapshotRow:Update(row, snapshot, rowContext)
-    end)
-
-    ScrollUtil.InitScrollBoxListWithScrollBar(scrollBox, scrollBar, view)
-
-    -- Only show the scrollbar when the list actually overflows.
-    scrollBar:SetHideIfUnscrollable(true)
+        end,
+        update = function(row, snapshot)
+            ImportSnapshotRow:Update(row, snapshot, rowContext)
+        end,
+    })
 
     return self
 end

@@ -25,9 +25,9 @@ local _, addon = ...
 ]]
 
 local ListRow = addon:NewObject("ListRow")
+local SelectableRow = addon:GetObject("SelectableRow")
 
 local C = LibStub("Contracts-1.0")
-local UI = addon.UI
 
 -- Left inset of a group header and the deeper inset of the item rows grouped
 -- beneath it, so the list reads as an indented tree.
@@ -42,9 +42,7 @@ local DOUBLE_CLICK_WINDOW = 0.4
 function ListRow:BuildSkeleton(row)
     C:IsTable(row, 2)
 
-    row.bg = row:CreateTexture(nil, "BACKGROUND")
-    row.bg:SetAllPoints()
-    row.bg:SetColorTexture(0, 0, 0, 0)
+    SelectableRow:Background(row)
 
     -- Group header, shown in place of the item widgets. Bottom-anchored so the
     -- empty space above the text separates each group consistently.
@@ -88,19 +86,7 @@ function ListRow:WireSelection(row, ctx, onActivate)
     C:Ensures(type(ctx.GetSelected) == "function", "WireSelection: 'ctx.GetSelected' must be a function")
     C:Ensures(type(ctx.Select) == "function", "WireSelection: 'ctx.Select' must be a function")
 
-    row:EnableMouse(true)
-    row:SetScript("OnEnter", function(self)
-        if not self.id then return end
-        if self.id ~= ctx.GetSelected() then
-            self.bg:SetColorTexture(UI.Row.Hover:GetRGBA())
-        end
-    end)
-    row:SetScript("OnLeave", function(self)
-        if not self.id then return end
-        if self.id ~= ctx.GetSelected() then
-            self.bg:SetColorTexture(UI.Row.Normal:GetRGBA())
-        end
-    end)
+    SelectableRow:WireHover(row, "id", ctx)
     row:SetScript("OnMouseDown", function(self)
         if not self.id then return end
         ctx.Select(self.id)
@@ -165,11 +151,7 @@ function ListRow:RenderItem(row, data, ctx)
 
     row.infoText:SetText(data.info or "")
 
-    if data.id == ctx.GetSelected() then
-        row.bg:SetColorTexture(UI.Row.Selected:GetRGBA())
-    else
-        row.bg:SetColorTexture(UI.Row.Normal:GetRGBA())
-    end
+    SelectableRow:Paint(row, data.id == ctx.GetSelected())
 end
 
 -- Class-colored class name for a header, or "" when the class is unknown.

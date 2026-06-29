@@ -30,6 +30,7 @@ local _, addon = ...
 ]]
 
 local List = addon:NewObject("List")
+local ScrollList = addon:GetObject("ScrollList")
 
 local C = LibStub("Contracts-1.0")
 local UI = addon.UI
@@ -68,15 +69,6 @@ function List:Build(region, config)
 
     local bottomInset = config.bottomInset or DEFAULT_BOTTOM_INSET
 
-    local scrollBox = CreateFrame("Frame", nil, root, "WowScrollBoxList")
-    scrollBox:SetPoint("TOPLEFT", 6, -36)
-    scrollBox:SetPoint("BOTTOMRIGHT", -22, bottomInset)
-    list.scrollBox = scrollBox
-
-    local scrollBar = CreateFrame("EventFrame", nil, root, "MinimalScrollBar")
-    scrollBar:SetPoint("TOPLEFT", scrollBox, "TOPRIGHT", 4, -2)
-    scrollBar:SetPoint("BOTTOMLEFT", scrollBox, "BOTTOMRIGHT", 4, 2)
-
     -- Row context: the shared selection hooks plus any owner extras (e.g. Rename).
     local rowContext = {
         GetSelected = function()
@@ -95,26 +87,26 @@ function List:Build(region, config)
     local rowRenderer = config.rowRenderer
     local extent = config.extent
 
-    local view = CreateScrollBoxListLinearView()
-    view:SetElementExtentCalculator(function(_, elementData)
-        if extent then
-            return extent(elementData)
-        end
-        return UI.List.ItemHeight
-    end)
-    view:SetPadding(0, 0, 0, 0, UI.List.ItemPadding)
-    view:SetElementInitializer("Frame", function(row, elementData)
-        if not row.initialized then
+    list.scrollBox = ScrollList:Build({
+        parent = root,
+        anchor = function(scrollBox)
+            scrollBox:SetPoint("TOPLEFT", 6, -36)
+            scrollBox:SetPoint("BOTTOMRIGHT", -22, bottomInset)
+        end,
+        extent = function(_, elementData)
+            if extent then
+                return extent(elementData)
+            end
+            return UI.List.ItemHeight
+        end,
+        padding = UI.List.ItemPadding,
+        build = function(row)
             rowRenderer:Build(row, rowContext)
-            row.initialized = true
-        end
-        rowRenderer:Update(row, elementData, rowContext)
-    end)
-
-    ScrollUtil.InitScrollBoxListWithScrollBar(scrollBox, scrollBar, view)
-
-    -- Only show the scrollbar when the list actually overflows.
-    scrollBar:SetHideIfUnscrollable(true)
+        end,
+        update = function(row, elementData)
+            rowRenderer:Update(row, elementData, rowContext)
+        end,
+    })
 
     return list
 end

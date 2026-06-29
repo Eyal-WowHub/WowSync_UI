@@ -19,10 +19,10 @@ local _, addon = ...
 
 local ImportSnapshotRow = addon:NewObject("ImportSnapshotRow")
 local SnapshotRow = addon:GetObject("SnapshotRow")
+local SelectableRow = addon:GetObject("SelectableRow")
 
 local C = LibStub("Contracts-1.0")
 local L = addon.L
-local UI = addon.UI
 
 -- Left inset of a snapshot row's content.
 local ROW_INSET = 10
@@ -42,9 +42,7 @@ function ImportSnapshotRow:Build(row, ctx)
     C:Ensures(type(ctx.GetSelected) == "function", "Build: 'ctx.GetSelected' must be a function")
     C:Ensures(type(ctx.Select) == "function", "Build: 'ctx.Select' must be a function")
 
-    row.bg = row:CreateTexture(nil, "BACKGROUND")
-    row.bg:SetAllPoints()
-    row.bg:SetColorTexture(0, 0, 0, 0)
+    SelectableRow:Background(row)
 
     -- Right-aligned selector, top corner.
     row.selectorText = row:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
@@ -72,17 +70,7 @@ function ImportSnapshotRow:Build(row, ctx)
     row.noteText:SetJustifyH("LEFT")
     row.noteText:SetWordWrap(false)
 
-    row:EnableMouse(true)
-    row:SetScript("OnEnter", function(self)
-        if self.snapshot ~= ctx.GetSelected() then
-            self.bg:SetColorTexture(UI.Row.Hover:GetRGBA())
-        end
-    end)
-    row:SetScript("OnLeave", function(self)
-        if self.snapshot ~= ctx.GetSelected() then
-            self.bg:SetColorTexture(UI.Row.Normal:GetRGBA())
-        end
-    end)
+    SelectableRow:WireHover(row, "snapshot", ctx)
     row:SetScript("OnMouseDown", function(self)
         if self.snapshot then
             ctx.Select(self.snapshot)
@@ -108,9 +96,5 @@ function ImportSnapshotRow:Update(row, snapshot, ctx)
     row.noteText:SetText(snapshot.Notes or "")
     row.importedText:SetText(snapshot.ImportedAt and L["Imported X"]:format(date("%d %b %Y", snapshot.ImportedAt)) or "")
 
-    if snapshot == ctx.GetSelected() then
-        row.bg:SetColorTexture(UI.Row.Selected:GetRGBA())
-    else
-        row.bg:SetColorTexture(UI.Row.Normal:GetRGBA())
-    end
+    SelectableRow:Paint(row, snapshot == ctx.GetSelected())
 end

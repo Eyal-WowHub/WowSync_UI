@@ -27,6 +27,7 @@ local _, addon = ...
 
 local SnapshotList = addon:NewObject("SnapshotList")
 local SnapshotRow = addon:GetObject("SnapshotRow")
+local ScrollList = addon:GetObject("ScrollList")
 
 local C = LibStub("Contracts-1.0")
 local UI = addon.UI
@@ -136,13 +137,6 @@ function SnapshotList:Build(region, opts)
 
     onSelectionChanged = opts.onSelect
     onContext = opts.onContext
-    scrollBox = CreateFrame("Frame", nil, region, "WowScrollBoxList")
-    scrollBox:SetPoint("TOPLEFT", 0, 0)
-    scrollBox:SetPoint("BOTTOMRIGHT", -16, 0)
-
-    local scrollBar = CreateFrame("EventFrame", nil, region, "MinimalScrollBar")
-    scrollBar:SetPoint("TOPLEFT", scrollBox, "TOPRIGHT", 4, -2)
-    scrollBar:SetPoint("BOTTOMLEFT", scrollBox, "BOTTOMRIGHT", 4, 2)
 
     local rowContext = {
         GetSelected = function()
@@ -164,27 +158,27 @@ function SnapshotList:Build(region, opts)
         end,
     }
 
-    local view = CreateScrollBoxListLinearView()
-    -- Variable extents: the one expanded row is taller by its detail panel.
-    view:SetElementExtentCalculator(function(_, elementData)
-        if elementData.snapshot == expanded then
-            return UI.SnapshotDetail.SubjectZone + DetailExtent(expandedDetail)
-        end
-        return SNAPSHOT_ROW_HEIGHT
-    end)
-    view:SetPadding(0, 0, 0, 0, SNAPSHOT_ROW_PADDING)
-    view:SetElementInitializer("Frame", function(row, elementData)
-        if not row.initialized then
+    scrollBox = ScrollList:Build({
+        parent = region,
+        anchor = function(sb)
+            sb:SetPoint("TOPLEFT", 0, 0)
+            sb:SetPoint("BOTTOMRIGHT", -16, 0)
+        end,
+        -- Variable extents: the one expanded row is taller by its detail panel.
+        extent = function(_, elementData)
+            if elementData.snapshot == expanded then
+                return UI.SnapshotDetail.SubjectZone + DetailExtent(expandedDetail)
+            end
+            return SNAPSHOT_ROW_HEIGHT
+        end,
+        padding = SNAPSHOT_ROW_PADDING,
+        build = function(row)
             SnapshotRow:Build(row, rowContext)
-            row.initialized = true
-        end
-        SnapshotRow:Update(row, elementData, rowContext)
-    end)
-
-    ScrollUtil.InitScrollBoxListWithScrollBar(scrollBox, scrollBar, view)
-
-    -- Only show the scrollbar when the list actually overflows.
-    scrollBar:SetHideIfUnscrollable(true)
+        end,
+        update = function(row, elementData)
+            SnapshotRow:Update(row, elementData, rowContext)
+        end,
+    })
 
     return self
 end

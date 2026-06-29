@@ -19,6 +19,7 @@ local _, addon = ...
 ]]
 
 local UndoList = addon:NewObject("UndoList")
+local ScrollList = addon:GetObject("ScrollList")
 
 local L = addon.L
 local UI = addon.UI
@@ -86,29 +87,18 @@ function UndoList:Build(region, opts)
     hint:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -2)
     hint:SetText(L["Click an entry to undo back to that point."])
 
-    scrollBox = CreateFrame("Frame", nil, root, "WowScrollBoxList")
-    scrollBox:SetPoint("TOPLEFT", hint, "BOTTOMLEFT", 0, -8)
-    scrollBox:SetPoint("BOTTOMRIGHT", -16, 10)
-
-    local scrollBar = CreateFrame("EventFrame", nil, root, "MinimalScrollBar")
-    scrollBar:SetPoint("TOPLEFT", scrollBox, "TOPRIGHT", 4, -2)
-    scrollBar:SetPoint("BOTTOMLEFT", scrollBox, "BOTTOMRIGHT", 4, 2)
-
-    local view = CreateScrollBoxListLinearView()
-    view:SetElementExtent(UNDO_ROW_HEIGHT)
-    view:SetPadding(0, 0, 0, 0, UNDO_ROW_PADDING)
-    view:SetElementInitializer("Button", function(row, elementData)
-        if not row.initialized then
-            BuildRow(row)
-            row.initialized = true
-        end
-        UpdateRow(row, elementData)
-    end)
-
-    ScrollUtil.InitScrollBoxListWithScrollBar(scrollBox, scrollBar, view)
-
-    -- Only show the scrollbar when the list actually overflows.
-    scrollBar:SetHideIfUnscrollable(true)
+    scrollBox = ScrollList:Build({
+        parent = root,
+        anchor = function(sb)
+            sb:SetPoint("TOPLEFT", hint, "BOTTOMLEFT", 0, -8)
+            sb:SetPoint("BOTTOMRIGHT", -16, 10)
+        end,
+        elementType = "Button",
+        extent = UNDO_ROW_HEIGHT,
+        padding = UNDO_ROW_PADDING,
+        build = BuildRow,
+        update = UpdateRow,
+    })
 
     root:Hide()
     return self

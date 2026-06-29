@@ -27,6 +27,7 @@ local _, addon = ...
 ]]
 
 local SnapshotRow = addon:NewObject("SnapshotRow")
+local SelectableRow = addon:GetObject("SelectableRow")
 
 local C = LibStub("Contracts-1.0")
 local L = addon.L
@@ -77,9 +78,7 @@ function SnapshotRow:Build(row, ctx)
     C:IsTable(row, 2)
     C:IsTable(ctx, 3)
 
-    row.bg = row:CreateTexture(nil, "BACKGROUND")
-    row.bg:SetAllPoints()
-    row.bg:SetColorTexture(0, 0, 0, 0)
+    SelectableRow:Background(row)
 
     -- Timeline rail: a vertical line down the row with a node dot on it.
     row.rail = row:CreateTexture(nil, "ARTWORK")
@@ -136,17 +135,7 @@ function SnapshotRow:Build(row, ctx)
     row.textLeft = textLeft
     row.detailTop = detailTop
 
-    row:EnableMouse(true)
-    row:SetScript("OnEnter", function(self)
-        if self.snapshot ~= ctx.GetSelected() then
-            self.bg:SetColorTexture(UI.Row.Hover:GetRGBA())
-        end
-    end)
-    row:SetScript("OnLeave", function(self)
-        if self.snapshot ~= ctx.GetSelected() then
-            self.bg:SetColorTexture(UI.Row.Normal:GetRGBA())
-        end
-    end)
+    SelectableRow:WireHover(row, "snapshot", ctx)
     row:SetScript("OnMouseDown", function(self, button)
         if button == "RightButton" then
             ctx.OpenMenu(self.snapshot, self)
@@ -268,9 +257,5 @@ function SnapshotRow:Update(row, elementData, ctx)
     end
 
     -- Selection highlight
-    if row.snapshot == ctx.GetSelected() then
-        row.bg:SetColorTexture(UI.Row.Selected:GetRGBA())
-    else
-        row.bg:SetColorTexture(UI.Row.Normal:GetRGBA())
-    end
+    SelectableRow:Paint(row, row.snapshot == ctx.GetSelected())
 end

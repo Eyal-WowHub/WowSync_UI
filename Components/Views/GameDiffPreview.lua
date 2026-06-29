@@ -27,6 +27,7 @@ local _, addon = ...
 
 local GameDiffPreview = addon:NewObject("GameDiffPreview")
 local Dialog = addon:GetObject("Dialog")
+local ScrollList = addon:GetObject("ScrollList")
 
 local C = LibStub("Contracts-1.0")
 local L = addon.L
@@ -294,36 +295,26 @@ local function Build()
     measureText:SetWordWrap(true)
     measureText:SetJustifyH("LEFT")
 
-    scrollBox = CreateFrame("Frame", nil, frame, "WowScrollBoxList")
-    scrollBox:SetPoint("TOPLEFT", SCROLLBOX_LEFT_INSET, -40)
-    scrollBox:SetPoint("BOTTOMRIGHT", -SCROLLBOX_RIGHT_INSET, 14)
-
-    local scrollBar = CreateFrame("EventFrame", nil, frame, "MinimalScrollBar")
-    scrollBar:SetPoint("TOPLEFT", scrollBox, "TOPRIGHT", 4, -2)
-    scrollBar:SetPoint("BOTTOMLEFT", scrollBox, "BOTTOMRIGHT", 4, 2)
-
-    local view = CreateScrollBoxListLinearView()
-    view:SetElementExtentCalculator(function(_, data)
-        if data.kind == "module" then
-            return MODULE_HEADER_HEIGHT
-        elseif data.kind == "section" then
-            return SECTION_HEADER_HEIGHT
-        elseif data.kind == "empty" then
-            return EMPTY_HEIGHT
-        end
-        return data.height or ITEM_HEIGHT
-    end)
-    view:SetPadding(0, 0, 0, 0, UI.List.ItemPadding)
-    view:SetElementInitializer("Frame", function(row, data)
-        if not row.initialized then
-            BuildRow(row)
-            row.initialized = true
-        end
-        UpdateRow(row, data)
-    end)
-
-    ScrollUtil.InitScrollBoxListWithScrollBar(scrollBox, scrollBar, view)
-    scrollBar:SetHideIfUnscrollable(true)
+    scrollBox = ScrollList:Build({
+        parent = frame,
+        anchor = function(sb)
+            sb:SetPoint("TOPLEFT", SCROLLBOX_LEFT_INSET, -40)
+            sb:SetPoint("BOTTOMRIGHT", -SCROLLBOX_RIGHT_INSET, 14)
+        end,
+        extent = function(_, data)
+            if data.kind == "module" then
+                return MODULE_HEADER_HEIGHT
+            elseif data.kind == "section" then
+                return SECTION_HEADER_HEIGHT
+            elseif data.kind == "empty" then
+                return EMPTY_HEIGHT
+            end
+            return data.height or ITEM_HEIGHT
+        end,
+        padding = UI.List.ItemPadding,
+        build = BuildRow,
+        update = UpdateRow,
+    })
 end
 
 function GameDiffPreview:Show(opts)
