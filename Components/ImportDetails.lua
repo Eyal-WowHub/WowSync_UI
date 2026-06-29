@@ -104,11 +104,12 @@ local function OpenSnapshotMenu(snapshot, anchor)
         end)
 
         rootDescription:CreateButton(L["Preview changes"], function()
-            GameDiffPreview:Show({
-                title = subject,
-                preview = ImportManager:PreviewApplySnapshot(currentImportID, SelectorFor(snapshot)),
-                mode = "exact",
-            })
+            local preview = ImportManager:PreviewApplySnapshot(currentImportID, SelectorFor(snapshot))
+            if not preview then
+                WowSync:Print(L["Nothing saved yet to compare against."])
+                return
+            end
+            GameDiffPreview:Show({ title = subject, preview = preview, mode = "exact" })
         end)
 
         rootDescription:CreateDivider()

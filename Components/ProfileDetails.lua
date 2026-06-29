@@ -335,6 +335,17 @@ local function ShareSnapshot(snapshot)
     end
 end
 
+-- Open the diff preview for a snapshot, or report when there is no baseline to
+-- compare against yet (own head before its first saved snapshot).
+local function OpenPreview(snapshot, title)
+    local preview = SnapshotView:Preview(snapshot)
+    if not preview then
+        WowSync:Print(L["Nothing saved yet to compare against."])
+        return
+    end
+    GameDiffPreview:Show({ title = title, preview = preview, mode = "exact" })
+end
+
 -- Right-click actions for a single snapshot. The list forwards the snapshot,
 -- its display subject, the row to anchor the menu to, and whether the row is
 -- the current head.
@@ -354,11 +365,7 @@ local function OpenSnapshotMenu(snapshot, subject, anchor, isHead)
             end
 
             rootDescription:CreateButton(L["Preview changes"], function()
-                GameDiffPreview:Show({
-                    title = L["Current"],
-                    preview = SnapshotView:Preview(snapshot),
-                    mode = "exact",
-                })
+                OpenPreview(snapshot, L["Current"])
             end)
             rootDescription:CreateDivider()
 
@@ -381,11 +388,7 @@ local function OpenSnapshotMenu(snapshot, subject, anchor, isHead)
         end)
 
         rootDescription:CreateButton(L["Preview changes"], function()
-            GameDiffPreview:Show({
-                title = subject,
-                preview = SnapshotView:Preview(snapshot),
-                mode = "exact",
-            })
+            OpenPreview(snapshot, subject)
         end)
 
         rootDescription:CreateDivider()

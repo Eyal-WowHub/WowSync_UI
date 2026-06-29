@@ -63,6 +63,7 @@ L["Added (X)"] = "Added (%d)"
 L["Updated (X)"] = "Updated (%d)"
 L["Removed (X)"] = "Removed (%d)"
 L["No changes to preview."] = "No changes to preview."
+L["Nothing saved yet to compare against."] = "Nothing saved yet to compare against."
 
 -- Print feedback
 L["Snapshot saved."] = "Snapshot saved."
