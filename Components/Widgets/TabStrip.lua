@@ -81,30 +81,29 @@ local function CreateTab(parent, label, height, onClick)
     return tab
 end
 
-function TabStrip:Build(parent, opts)
-    C:IsTable(parent, 2)
+local Verbs = {}
 
-    opts = opts or {}
+-- Reflect the active tab in the visuals without firing onSelect.
+function Verbs:Select(key)
+    for tabKey, tab in pairs(self._tabs) do
+        tab:SetActive(tabKey == key)
+    end
+end
 
-    C:Ensures(type(opts.tabs) == "table" and #opts.tabs > 0, "Build: 'opts.tabs' must be a non-empty array")
-    C:Ensures(opts.onSelect == nil or type(opts.onSelect) == "function", "Build: 'opts.onSelect' must be a function")
-
-    local height = opts.height or DEFAULT_HEIGHT
-
-    local strip = CreateFrame("Frame", nil, parent)
-    strip:SetHeight(height)
+-- Build the row of tabs, anchored left to right, and seed them inactive. The
+-- strip IS this frame; the owner calls Select to mark the active tab.
+function Verbs:Constructor(config)
+    local height = config.height
+    self:SetHeight(height)
 
     local tabs = {}
     local previous
 
-    for _, tabDefinition in ipairs(opts.tabs) do
-        C:Ensures(type(tabDefinition.key) == "string", "Build: each tab needs a string 'key'")
-        C:Ensures(type(tabDefinition.label) == "string", "Build: each tab needs a string 'label'")
-
+    for _, tabDefinition in ipairs(config.tabs) do
         local key = tabDefinition.key
-        local tab = CreateTab(strip, tabDefinition.label, height, function()
-            if opts.onSelect then
-                opts.onSelect(key)
+        local tab = CreateTab(self, tabDefinition.label, height, function()
+            if config.onSelect then
+                config.onSelect(key)
             end
         end)
         if previous then
@@ -116,12 +115,29 @@ function TabStrip:Build(parent, opts)
         previous = tab
     end
 
-    -- Reflect the active tab in the visuals without firing onSelect.
-    function strip:Select(key)
-        for tabKey, tab in pairs(tabs) do
-            tab:SetActive(tabKey == key)
-        end
+    self._tabs = tabs
+end
+
+function TabStrip:Build(parent, opts)
+    C:IsTable(parent, 2)
+
+    opts = opts or {}
+
+    C:Ensures(type(opts.tabs) == "table" and #opts.tabs > 0, "Build: 'opts.tabs' must be a non-empty array")
+    C:Ensures(opts.onSelect == nil or type(opts.onSelect) == "function", "Build: 'opts.onSelect' must be a function")
+
+    for _, tabDefinition in ipairs(opts.tabs) do
+        C:Ensures(type(tabDefinition.key) == "string", "Build: each tab needs a string 'key'")
+        C:Ensures(type(tabDefinition.label) == "string", "Build: each tab needs a string 'label'")
     end
 
-    return strip
+    return addon:NewWidget({
+        parent = parent,
+        height = opts.height or DEFAULT_HEIGHT,
+        tabs = opts.tabs,
+        onSelect = opts.onSelect,
+    }, {
+        frameType = "Frame",
+        verbs = Verbs,
+    })
 end

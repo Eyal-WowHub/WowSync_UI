@@ -40,6 +40,63 @@ local LINE_END_INSET = 4
 -- Frame levels the handle sits above its pane so it stays clickable.
 local HANDLE_FRAME_LEVEL_OFFSET = 5
 
+local Verbs = {}
+
+-- When locked the handle ignores the mouse and drops back to its idle colour.
+function Verbs:SetLocked(value)
+    self._locked = value and true or false
+    self:EnableMouse(not self._locked)
+    self.line:SetColorTexture(unpack(SPLITTER_COLOR))
+end
+
+-- Build the drag handle in the gap to the right of the pane's left slot and wire
+-- the cursor-to-ratio drag. The handle IS this frame.
+function Verbs:Constructor(config)
+    local view = config.view
+    self._locked = false
+
+    self:SetWidth(UI.Splitter.Width)
+    self:SetPoint("TOPLEFT", config.leftSlot, "TOPRIGHT", 0, 0)
+    self:SetPoint("BOTTOMLEFT", config.leftSlot, "BOTTOMRIGHT", 0, 0)
+    self:SetFrameLevel(view:GetFrameLevel() + HANDLE_FRAME_LEVEL_OFFSET)
+    self:EnableMouse(true)
+
+    self.line = self:CreateTexture(nil, "OVERLAY")
+    self.line:SetPoint("TOP", 0, -LINE_END_INSET)
+    self.line:SetPoint("BOTTOM", 0, LINE_END_INSET)
+    self.line:SetWidth(LINE_THICKNESS)
+    self.line:SetColorTexture(unpack(SPLITTER_COLOR))
+
+    self:SetScript("OnEnter", function(self)
+        if not self._locked then
+            self.line:SetColorTexture(unpack(SPLITTER_HOVER_COLOR))
+        end
+    end)
+    self:SetScript("OnLeave", function(self)
+        self.line:SetColorTexture(unpack(SPLITTER_COLOR))
+    end)
+
+    local handle = self
+    DragTracker:Attach(handle, {
+        enabled = function() return not handle._locked end,
+        onUpdate = function()
+            local viewWidth = view:GetWidth()
+            local viewLeft = view:GetLeft()
+            if viewLeft and viewWidth and viewWidth > 0 then
+                local cursorX = GetCursorPosition() / view:GetEffectiveScale()
+                if config.onResize then
+                    config.onResize((cursorX - viewLeft) / viewWidth)
+                end
+            end
+        end,
+        onStop = function()
+            if config.onCommit then
+                config.onCommit()
+            end
+        end,
+    })
+end
+
 function Splitter:Build(pane, opts)
     C:IsTable(pane, 2)
 
@@ -51,56 +108,14 @@ function Splitter:Build(pane, opts)
     C:Ensures(opts.onResize == nil or type(opts.onResize) == "function", "Build: 'opts.onResize' must be a function")
     C:Ensures(opts.onCommit == nil or type(opts.onCommit) == "function", "Build: 'opts.onCommit' must be a function")
 
-    local view = pane.view
-    local locked = false
-
-    local handle = CreateFrame("Button", nil, view)
-    handle:SetWidth(UI.Splitter.Width)
-    handle:SetPoint("TOPLEFT", pane.leftSlot, "TOPRIGHT", 0, 0)
-    handle:SetPoint("BOTTOMLEFT", pane.leftSlot, "BOTTOMRIGHT", 0, 0)
-    handle:SetFrameLevel(view:GetFrameLevel() + HANDLE_FRAME_LEVEL_OFFSET)
-    handle:EnableMouse(true)
-
-    handle.line = handle:CreateTexture(nil, "OVERLAY")
-    handle.line:SetPoint("TOP", 0, -LINE_END_INSET)
-    handle.line:SetPoint("BOTTOM", 0, LINE_END_INSET)
-    handle.line:SetWidth(LINE_THICKNESS)
-    handle.line:SetColorTexture(unpack(SPLITTER_COLOR))
-
-    handle:SetScript("OnEnter", function(self)
-        if not locked then
-            self.line:SetColorTexture(unpack(SPLITTER_HOVER_COLOR))
-        end
-    end)
-    handle:SetScript("OnLeave", function(self)
-        self.line:SetColorTexture(unpack(SPLITTER_COLOR))
-    end)
-
-    DragTracker:Attach(handle, {
-        enabled = function() return not locked end,
-        onUpdate = function()
-            local viewWidth = view:GetWidth()
-            local viewLeft = view:GetLeft()
-            if viewLeft and viewWidth and viewWidth > 0 then
-                local cursorX = GetCursorPosition() / view:GetEffectiveScale()
-                if opts.onResize then
-                    opts.onResize((cursorX - viewLeft) / viewWidth)
-                end
-            end
-        end,
-        onStop = function()
-            if opts.onCommit then
-                opts.onCommit()
-            end
-        end,
+    return addon:NewWidget({
+        parent = pane.view,
+        view = pane.view,
+        leftSlot = pane.leftSlot,
+        onResize = opts.onResize,
+        onCommit = opts.onCommit,
+    }, {
+        frameType = "Button",
+        verbs = Verbs,
     })
-
-    -- When locked the handle ignores the mouse and drops back to its idle colour.
-    function handle:SetLocked(value)
-        locked = value and true or false
-        self:EnableMouse(not locked)
-        self.line:SetColorTexture(unpack(SPLITTER_COLOR))
-    end
-
-    return handle
 end

@@ -36,23 +36,29 @@ local DOUBLE_CLICK_SECONDS = 0.3
 -- Pixels of size change below which a drag counts as a click rather than a resize.
 local RESIZE_EPSILON = 1
 
-function ResizeGrip:Build(frame, opts)
-    C:IsTable(frame, 2)
+local Verbs = {}
 
-    opts = opts or {}
+-- When locked the grip hides and stops responding to the mouse.
+function Verbs:SetLocked(value)
+    self._locked = value and true or false
+    self:SetShown(not self._locked)
+end
 
-    C:Ensures(opts.onResizeStop == nil or type(opts.onResizeStop) == "function", "Build: 'opts.onResizeStop' must be a function")
-    C:Ensures(opts.onReset == nil or type(opts.onReset) == "function", "Build: 'opts.onReset' must be a function")
+-- Build the corner grab handle and wire cursor-tracked resizing with a
+-- double-click reset. The grip IS this frame; config.target is the frame it
+-- resizes (also its parent).
+function Verbs:Constructor(config)
+    local frame = config.target
+    self._locked = false
 
-    local locked = false
+    self:SetSize(RESIZE_GRIP_SIZE, RESIZE_GRIP_SIZE)
+    self:SetPoint("BOTTOMRIGHT", -GRIP_INSET, GRIP_INSET)
+    self:SetFrameLevel(frame:GetFrameLevel() + GRIP_FRAME_LEVEL_OFFSET)
+    self:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
+    self:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
+    self:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
 
-    local grip = CreateFrame("Button", nil, frame)
-    grip:SetSize(RESIZE_GRIP_SIZE, RESIZE_GRIP_SIZE)
-    grip:SetPoint("BOTTOMRIGHT", -GRIP_INSET, GRIP_INSET)
-    grip:SetFrameLevel(frame:GetFrameLevel() + GRIP_FRAME_LEVEL_OFFSET)
-    grip:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
-    grip:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
-    grip:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
+    local grip = self
 
     -- Click-tracking state: the time of the last non-resizing click and the frame
     -- size when the current drag began, used to tell a resize from a double-click.
@@ -70,7 +76,7 @@ function ResizeGrip:Build(frame, opts)
     -- to the frame's resize bounds, so crossing back over the corner re-syncs at
     -- once. A grab offset keeps the corner from jumping under the cursor.
     DragTracker:Attach(grip, {
-        enabled = function() return not locked end,
+        enabled = function() return not grip._locked end,
         onStart = function()
             widthAtDown, heightAtDown = frame:GetWidth(), frame:GetHeight()
             left, top = frame:GetLeft(), frame:GetTop()
@@ -101,8 +107,8 @@ function ResizeGrip:Build(frame, opts)
                 -- An actual resize: persist it and clear any pending double-click
                 -- so a quick click afterwards isn't mistaken for a reset.
                 lastClickTime = 0
-                if opts.onResizeStop then
-                    opts.onResizeStop(width, height)
+                if config.onResizeStop then
+                    config.onResizeStop(width, height)
                 end
                 return
             end
@@ -111,20 +117,31 @@ function ResizeGrip:Build(frame, opts)
             local now = GetTime()
             if (now - lastClickTime) <= DOUBLE_CLICK_SECONDS then
                 lastClickTime = 0
-                if opts.onReset then
-                    opts.onReset()
+                if config.onReset then
+                    config.onReset()
                 end
                 return
             end
             lastClickTime = now
         end,
     })
+end
 
-    -- When locked the grip hides and stops responding to the mouse.
-    function grip:SetLocked(value)
-        locked = value and true or false
-        self:SetShown(not locked)
-    end
+function ResizeGrip:Build(frame, opts)
+    C:IsTable(frame, 2)
 
-    return grip
+    opts = opts or {}
+
+    C:Ensures(opts.onResizeStop == nil or type(opts.onResizeStop) == "function", "Build: 'opts.onResizeStop' must be a function")
+    C:Ensures(opts.onReset == nil or type(opts.onReset) == "function", "Build: 'opts.onReset' must be a function")
+
+    return addon:NewWidget({
+        parent = frame,
+        target = frame,
+        onResizeStop = opts.onResizeStop,
+        onReset = opts.onReset,
+    }, {
+        frameType = "Button",
+        verbs = Verbs,
+    })
 end
