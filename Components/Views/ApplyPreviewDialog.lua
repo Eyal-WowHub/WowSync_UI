@@ -35,6 +35,12 @@ local C = LibStub("Contracts-1.0")
 local L = addon.L
 local UI = addon.UI
 
+-- The module list is a fixed, non-scrolling column, so the dialog must be tall
+-- enough to seat every module row clear of the action buttons. The shared
+-- preview height is too short once all modules are listed; size to the full set
+-- plus breathing room above the Apply/Cancel row.
+local DIALOG_HEIGHT = 388
+
 local SnapshotView = WowSync:GetSnapshotView()
 
 local dialog, frame
@@ -55,7 +61,7 @@ local function Build()
         name = "WowSyncApplyPreview",
         title = L["Apply snapshot"],
         width = UI.Preview.Width,
-        height = UI.Preview.Height,
+        height = DIALOG_HEIGHT,
     })
     frame = dialog
 
