@@ -21,6 +21,7 @@ local _, addon = ...
 local SaveDialog = addon:NewObject("SaveDialog")
 local Dialog = addon:GetObject("Dialog")
 local ModuleRow = addon:GetObject("ModuleRow")
+local Button = addon:GetObject("Button")
 
 local C = LibStub("Contracts-1.0")
 local L = addon.L
@@ -129,13 +130,18 @@ local function Build()
     listHeader:SetPoint("TOPLEFT", noteBox, "BOTTOMLEFT", -2, -14)
     listHeader:SetText(L["Modules to save:"])
 
-    toggleButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    toggleButton:SetSize(100, 20)
-    toggleButton:SetPoint("TOPLEFT", listHeader, "BOTTOMLEFT", 2, -6)
-    toggleButton:SetScript("OnClick", function()
-        SetAllChecked(not AreAllChecked())
-        RefreshToggle()
-    end)
+    toggleButton = Button:Build({
+        parent = frame,
+        anchor = function(button)
+            button:SetPoint("TOPLEFT", listHeader, "BOTTOMLEFT", 2, -6)
+        end,
+        width = 100,
+        height = 20,
+        onClick = function()
+            SetAllChecked(not AreAllChecked())
+            RefreshToggle()
+        end,
+    })
 
     local listSlot = CreateFrame("Frame", nil, frame)
     listSlot:SetPoint("TOPLEFT", toggleButton, "BOTTOMLEFT", -2, -8)
@@ -143,41 +149,51 @@ local function Build()
     listSlot:SetPoint("BOTTOM", frame, "BOTTOM", 0, 44)
     BuildRows(listSlot)
 
-    local saveButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    saveButton:SetSize(110, 22)
-    saveButton:SetPoint("BOTTOMRIGHT", -14, 12)
-    saveButton:SetText(L["Save"])
-    saveButton:SetScript("OnClick", function()
-        local moduleSet = {}
-        for _, name in ipairs(activeNames) do
-            if checkboxes[name]:GetChecked() then
-                moduleSet[name] = true
+    local saveButton = Button:Build({
+        parent = frame,
+        anchor = function(button)
+            button:SetPoint("BOTTOMRIGHT", -14, 12)
+        end,
+        width = 110,
+        height = 22,
+        text = L["Save"],
+        onClick = function()
+            local moduleSet = {}
+            for _, name in ipairs(activeNames) do
+                if checkboxes[name]:GetChecked() then
+                    moduleSet[name] = true
+                end
             end
-        end
-        if not next(moduleSet) then
-            WowSync:Print(L["No modules selected."])
-            return
-        end
+            if not next(moduleSet) then
+                WowSync:Print(L["No modules selected."])
+                return
+            end
 
-        local note = strtrim(noteBox:GetText())
-        if note == "" then
-            note = nil
-        end
+            local note = strtrim(noteBox:GetText())
+            if note == "" then
+                note = nil
+            end
 
-        SaveDialog:Hide()
-        if onConfirm then
-            onConfirm(moduleSet, note)
-        end
-    end)
+            SaveDialog:Hide()
+            if onConfirm then
+                onConfirm(moduleSet, note)
+            end
+        end,
+    })
 
     -- Enter in the note box confirms the save.
     noteBox:SetScript("OnEnterPressed", function() saveButton:Click() end)
 
-    local cancelButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    cancelButton:SetSize(110, 22)
-    cancelButton:SetPoint("RIGHT", saveButton, "LEFT", -8, 0)
-    cancelButton:SetText(L["Cancel"])
-    cancelButton:SetScript("OnClick", function() SaveDialog:Hide() end)
+    local cancelButton = Button:Build({
+        parent = frame,
+        anchor = function(button)
+            button:SetPoint("RIGHT", saveButton, "LEFT", -8, 0)
+        end,
+        width = 110,
+        height = 22,
+        text = L["Cancel"],
+        onClick = function() SaveDialog:Hide() end,
+    })
 end
 
 function SaveDialog:Show(opts)

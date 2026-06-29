@@ -29,6 +29,7 @@ local Dialog = addon:GetObject("Dialog")
 local GameDiffPreview = addon:GetObject("GameDiffPreview")
 local ModuleList = addon:GetObject("ModuleList")
 local SnapshotRow = addon:GetObject("SnapshotRow")
+local Button = addon:GetObject("Button")
 
 local C = LibStub("Contracts-1.0")
 local L = addon.L
@@ -67,13 +68,18 @@ local function Build()
     listHeader:SetPoint("TOPLEFT", 14, -60)
     listHeader:SetText(L["Modules to apply:"])
 
-    toggleButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    toggleButton:SetSize(100, 20)
-    toggleButton:SetPoint("TOPLEFT", 12, -76)
-    toggleButton:SetScript("OnClick", function()
-        moduleList:SetAllChecked(not moduleList:AreAllSelectableChecked())
-        RefreshToggle()
-    end)
+    toggleButton = Button:Build({
+        parent = frame,
+        anchor = function(button)
+            button:SetPoint("TOPLEFT", 12, -76)
+        end,
+        width = 100,
+        height = 20,
+        onClick = function()
+            moduleList:SetAllChecked(not moduleList:AreAllSelectableChecked())
+            RefreshToggle()
+        end,
+    })
 
     local listSlot = CreateFrame("Frame", nil, frame)
     listSlot:SetPoint("TOPLEFT", 14, -102)
@@ -93,23 +99,33 @@ local function Build()
         end,
     })
 
-    local applyButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    applyButton:SetSize(100, 22)
-    applyButton:SetPoint("BOTTOMRIGHT", -14, 12)
-    applyButton:SetText(L["Apply"])
-    applyButton:SetScript("OnClick", function()
-        local moduleSet, overrides = moduleList:GetStrategy()
-        ApplyPreviewDialog:Hide()
-        if onConfirm then
-            onConfirm(moduleSet, overrides)
-        end
-    end)
+    local applyButton = Button:Build({
+        parent = frame,
+        anchor = function(button)
+            button:SetPoint("BOTTOMRIGHT", -14, 12)
+        end,
+        width = 100,
+        height = 22,
+        text = L["Apply"],
+        onClick = function()
+            local moduleSet, overrides = moduleList:GetStrategy()
+            ApplyPreviewDialog:Hide()
+            if onConfirm then
+                onConfirm(moduleSet, overrides)
+            end
+        end,
+    })
 
-    local cancelButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    cancelButton:SetSize(100, 22)
-    cancelButton:SetPoint("RIGHT", applyButton, "LEFT", -8, 0)
-    cancelButton:SetText(L["Cancel"])
-    cancelButton:SetScript("OnClick", function() ApplyPreviewDialog:Hide() end)
+    local cancelButton = Button:Build({
+        parent = frame,
+        anchor = function(button)
+            button:SetPoint("RIGHT", applyButton, "LEFT", -8, 0)
+        end,
+        width = 100,
+        height = 22,
+        text = L["Cancel"],
+        onClick = function() ApplyPreviewDialog:Hide() end,
+    })
 end
 
 function ApplyPreviewDialog:Show(opts)

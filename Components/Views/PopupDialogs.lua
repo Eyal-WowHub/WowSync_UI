@@ -19,6 +19,7 @@ local _, addon = ...
 ]]
 
 local PopupDialogs = addon:NewObject("PopupDialogs")
+local Button = addon:GetObject("Button")
 
 local L = addon.L
 local UI = addon.UI
@@ -213,26 +214,36 @@ local function BuildEditNoteDialog()
     end)
     frame.editBox = editBox
 
-    local accept = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    accept:SetSize(110, 22)
-    accept:SetPoint("BOTTOMRIGHT", -14, 12)
-    accept:SetText(ACCEPT)
-    accept:SetScript("OnClick", function()
-        local text = strtrim(editBox:GetText())
-        -- Capture the callback before hiding: the OnHide script clears
-        -- editNoteOnAccept, so reading it after frame:Hide() would be nil.
-        local onAccept = editNoteOnAccept
-        frame:Hide()
-        if onAccept then
-            onAccept(text)
-        end
-    end)
+    local accept = Button:Build({
+        parent = frame,
+        anchor = function(button)
+            button:SetPoint("BOTTOMRIGHT", -14, 12)
+        end,
+        width = 110,
+        height = 22,
+        text = ACCEPT,
+        onClick = function()
+            local text = strtrim(editBox:GetText())
+            -- Capture the callback before hiding: the OnHide script clears
+            -- editNoteOnAccept, so reading it after frame:Hide() would be nil.
+            local onAccept = editNoteOnAccept
+            frame:Hide()
+            if onAccept then
+                onAccept(text)
+            end
+        end,
+    })
 
-    local cancel = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    cancel:SetSize(110, 22)
-    cancel:SetPoint("RIGHT", accept, "LEFT", -8, 0)
-    cancel:SetText(CANCEL)
-    cancel:SetScript("OnClick", function() frame:Hide() end)
+    local cancel = Button:Build({
+        parent = frame,
+        anchor = function(button)
+            button:SetPoint("RIGHT", accept, "LEFT", -8, 0)
+        end,
+        width = 110,
+        height = 22,
+        text = CANCEL,
+        onClick = function() frame:Hide() end,
+    })
 
     frame:SetScript("OnHide", function() editNoteOnAccept = nil end)
 
@@ -318,17 +329,27 @@ local function BuildRenameDialog()
     renameBox:SetScript("OnEnterPressed", Accept)
     renameBox:SetScript("OnEscapePressed", function() renameDialog:Hide() end)
 
-    local accept = CreateFrame("Button", nil, renameFrame, "UIPanelButtonTemplate")
-    accept:SetSize(110, 22)
-    accept:SetPoint("BOTTOMRIGHT", -14, 12)
-    accept:SetText(ACCEPT)
-    accept:SetScript("OnClick", Accept)
+    local accept = Button:Build({
+        parent = renameFrame,
+        anchor = function(button)
+            button:SetPoint("BOTTOMRIGHT", -14, 12)
+        end,
+        width = 110,
+        height = 22,
+        text = ACCEPT,
+        onClick = Accept,
+    })
 
-    local cancel = CreateFrame("Button", nil, renameFrame, "UIPanelButtonTemplate")
-    cancel:SetSize(110, 22)
-    cancel:SetPoint("RIGHT", accept, "LEFT", -8, 0)
-    cancel:SetText(CANCEL)
-    cancel:SetScript("OnClick", function() renameDialog:Hide() end)
+    local cancel = Button:Build({
+        parent = renameFrame,
+        anchor = function(button)
+            button:SetPoint("RIGHT", accept, "LEFT", -8, 0)
+        end,
+        width = 110,
+        height = 22,
+        text = CANCEL,
+        onClick = function() renameDialog:Hide() end,
+    })
 end
 
 function PopupDialogs:PromptRename(currentName, onAccept)

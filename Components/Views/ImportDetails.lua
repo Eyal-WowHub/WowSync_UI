@@ -21,6 +21,7 @@ local ApplyPreviewDialog = addon:GetObject("ApplyPreviewDialog")
 local GameDiffPreview = addon:GetObject("GameDiffPreview")
 local PopupDialogs = addon:GetObject("PopupDialogs")
 local SnapshotRow = addon:GetObject("SnapshotRow")
+local Button = addon:GetObject("Button")
 
 local C = LibStub("Contracts-1.0")
 local L = addon.L
@@ -157,20 +158,25 @@ function ImportDetails:Build(region)
     content:Hide()
 
     -- Rename, top-right of the header.
-    local renameButton = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
-    renameButton:SetPoint("TOPRIGHT", 0, 2)
-    renameButton:SetSize(70, 24)
-    renameButton:SetText(L["Rename"])
-    renameButton:SetScript("OnClick", function()
-        local record = currentImportID and ImportManager:GetImport(currentImportID)
-        if not record then return end
-        PopupDialogs:PromptRename(record.Name, function(name)
-            if ImportManager:RenameImport(currentImportID, name) then
-                titleText:SetText(name)
-                if onRefresh then onRefresh() end
-            end
-        end)
-    end)
+    local renameButton = Button:Build({
+        parent = content,
+        anchor = function(button)
+            button:SetPoint("TOPRIGHT", 0, 2)
+        end,
+        width = 70,
+        height = 24,
+        text = L["Rename"],
+        onClick = function()
+            local record = currentImportID and ImportManager:GetImport(currentImportID)
+            if not record then return end
+            PopupDialogs:PromptRename(record.Name, function(name)
+                if ImportManager:RenameImport(currentImportID, name) then
+                    titleText:SetText(name)
+                    if onRefresh then onRefresh() end
+                end
+            end)
+        end,
+    })
 
     titleText = content:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     titleText:SetPoint("TOPLEFT", 0, 0)
@@ -186,13 +192,18 @@ function ImportDetails:Build(region)
     separator:SetColorTexture(unpack(UI.Backdrop.Separator))
 
     -- Action bar: Apply selected snapshot.
-    applyButton = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
-    applyButton:SetPoint("BOTTOMLEFT", 0, 0)
-    applyButton:SetSize(80, 24)
-    applyButton:SetText(L["Apply"])
-    applyButton:SetScript("OnClick", function()
-        RequestApply(timeline:GetSelected())
-    end)
+    applyButton = Button:Build({
+        parent = content,
+        anchor = function(button)
+            button:SetPoint("BOTTOMLEFT", 0, 0)
+        end,
+        width = 80,
+        height = 24,
+        text = L["Apply"],
+        onClick = function()
+            RequestApply(timeline:GetSelected())
+        end,
+    })
 
     -- Snapshot timeline, filling the space between the title and the action bar.
     local timelineSlot = CreateFrame("Frame", nil, content)

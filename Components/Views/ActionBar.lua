@@ -21,6 +21,7 @@ local _, addon = ...
 ]]
 
 local ActionBar = addon:NewObject("ActionBar")
+local Button = addon:GetObject("Button")
 
 local C = LibStub("Contracts-1.0")
 local L = addon.L
@@ -50,21 +51,36 @@ function ActionBar:Build(region, opts)
     local root = CreateFrame("Frame", nil, region)
     root:SetAllPoints(region)
 
-    applyButton = CreateFrame("Button", nil, root, "UIPanelButtonTemplate")
-    applyButton:SetPoint("BOTTOMLEFT", 0, 0)
-    applyButton:SetSize(80, 24)
-    applyButton:SetText(L["Apply"])
+    applyButton = Button:Build({
+        parent = root,
+        anchor = function(button)
+            button:SetPoint("BOTTOMLEFT", 0, 0)
+        end,
+        width = 80,
+        height = 24,
+        text = L["Apply"],
+    })
 
-    undoButton = CreateFrame("Button", nil, root, "UIPanelButtonTemplate")
-    undoButton:SetPoint("LEFT", applyButton, "RIGHT", 6, 0)
-    undoButton:SetSize(80, 24)
-    undoButton:SetText(L["Undo"])
+    undoButton = Button:Build({
+        parent = root,
+        anchor = function(button)
+            button:SetPoint("LEFT", applyButton, "RIGHT", 6, 0)
+        end,
+        width = 80,
+        height = 24,
+        text = L["Undo"],
+    })
 
     -- Save, bottom-right.
-    saveButton = CreateFrame("Button", nil, root, "UIPanelButtonTemplate")
-    saveButton:SetPoint("BOTTOMRIGHT", 0, 0)
-    saveButton:SetSize(80, 24)
-    saveButton:SetText(L["Save"])
+    saveButton = Button:Build({
+        parent = root,
+        anchor = function(button)
+            button:SetPoint("BOTTOMRIGHT", 0, 0)
+        end,
+        width = 80,
+        height = 24,
+        text = L["Save"],
+    })
 
     -- A loading spinner shown over the button while a save is in flight. Scaled
     -- down from the 142px shared template art.

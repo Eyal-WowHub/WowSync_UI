@@ -13,6 +13,7 @@ local _, addon = ...
 ]]
 
 local ModuleRow = addon:NewObject("ModuleRow")
+local Button = addon:GetObject("Button")
 
 local C = LibStub("Contracts-1.0")
 local L = addon.L
@@ -83,8 +84,11 @@ function ModuleRow:Build(parent)
     -- Optional per-row Merge/Exact toggle, used by the apply preview. The list
     -- owner positions it at the row's right edge; rows without a choice to make
     -- (or that aren't apply rows) leave it hidden.
-    checkbox.modeButton = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
-    checkbox.modeButton:SetSize(MODE_BUTTON_WIDTH, MODE_BUTTON_HEIGHT)
+    checkbox.modeButton = Button:Build({
+        parent = parent,
+        width = MODE_BUTTON_WIDTH,
+        height = MODE_BUTTON_HEIGHT,
+    })
     checkbox.modeButton:SetScript("OnEnter", ShowModeTooltip)
     checkbox.modeButton:SetScript("OnLeave", function()
         GameTooltip:Hide()

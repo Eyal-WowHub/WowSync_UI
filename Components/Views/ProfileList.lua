@@ -21,6 +21,7 @@ local ProfileList = addon:NewObject("ProfileList")
 local ProfileRow = addon:GetObject("ProfileRow")
 local PopupDialogs = addon:GetObject("PopupDialogs")
 local List = addon:GetObject("List")
+local Button = addon:GetObject("Button")
 
 local C = LibStub("Contracts-1.0")
 local L = addon.L
@@ -87,21 +88,26 @@ function ProfileList:Build(region)
     end)
 
     -- Profile delete button, bottom-left of the panel.
-    deleteButton = CreateFrame("Button", nil, list.root, "UIPanelButtonTemplate")
-    deleteButton:SetPoint("BOTTOMLEFT", 10, 10)
-    deleteButton:SetSize(80, 24)
-    deleteButton:SetText(L["Delete"])
-    deleteButton:SetEnabled(false)
-    deleteButton:SetScript("OnClick", function()
-        if not CanDeleteSelectedProfile() then return end
+    deleteButton = Button:Build({
+        parent = list.root,
+        anchor = function(button)
+            button:SetPoint("BOTTOMLEFT", 10, 10)
+        end,
+        width = 80,
+        height = 24,
+        text = L["Delete"],
+        enabled = false,
+        onClick = function()
+            if not CanDeleteSelectedProfile() then return end
 
-        local profileName = list:GetSelected()
-        local label = GetDeleteLabel(profileName)
-        PopupDialogs:ConfirmDelete(label, function()
-            ProfileManager:DeleteProfile(profileName)
-            ProfileList:Refresh()
-        end)
-    end)
+            local profileName = list:GetSelected()
+            local label = GetDeleteLabel(profileName)
+            PopupDialogs:ConfirmDelete(label, function()
+                ProfileManager:DeleteProfile(profileName)
+                ProfileList:Refresh()
+            end)
+        end,
+    })
 
     UpdateDeleteEnabled()
 

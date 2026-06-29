@@ -27,6 +27,7 @@ Components\Widgets\TitleBar.lua
 Components\Widgets\TabStrip.lua
 Components\Widgets\ScrollList.lua
 Components\Widgets\SelectableRow.lua
+Components\Widgets\Button.lua
 Components\Widgets\List.lua
 Components\Widgets\ListRow.lua
 Components\Widgets\DragTracker.lua

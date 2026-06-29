@@ -15,6 +15,7 @@ local _, addon = ...
 
 local ImportDialog = addon:NewObject("ImportDialog")
 local Dialog = addon:GetObject("Dialog")
+local Button = addon:GetObject("Button")
 
 local C = LibStub("Contracts-1.0")
 local L = addon.L
@@ -130,17 +131,27 @@ local function Build()
     statusLabel:SetJustifyH("LEFT")
     statusLabel:SetTextColor(1, 0.3, 0.3)
 
-    local importButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    importButton:SetSize(110, 22)
-    importButton:SetPoint("BOTTOMRIGHT", -14, 12)
-    importButton:SetText(L["Import"])
-    importButton:SetScript("OnClick", AttemptImport)
+    local importButton = Button:Build({
+        parent = frame,
+        anchor = function(button)
+            button:SetPoint("BOTTOMRIGHT", -14, 12)
+        end,
+        width = 110,
+        height = 22,
+        text = L["Import"],
+        onClick = AttemptImport,
+    })
 
-    local cancelButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    cancelButton:SetSize(110, 22)
-    cancelButton:SetPoint("RIGHT", importButton, "LEFT", -8, 0)
-    cancelButton:SetText(CANCEL)
-    cancelButton:SetScript("OnClick", function() ImportDialog:Hide() end)
+    local cancelButton = Button:Build({
+        parent = frame,
+        anchor = function(button)
+            button:SetPoint("RIGHT", importButton, "LEFT", -8, 0)
+        end,
+        width = 110,
+        height = 22,
+        text = CANCEL,
+        onClick = function() ImportDialog:Hide() end,
+    })
 
     -- Enter in the name box jumps to the paste box; the paste box is multi-line,
     -- so Enter there inserts a newline rather than confirming.
