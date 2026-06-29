@@ -8,7 +8,7 @@ local _, addon = ...
     never leaks its frames.
 
     addon:GetObject("ProfileList"):Build(region)
-        -> self {
+        -> profile-list frame {
             OnSelect(callback),       -- callback(profileName or nil)
             Refresh(),
             GetSelected() -> profileName or nil,
@@ -32,10 +32,7 @@ local ProfileManager = WowSync:GetProfileManager()
 local SnapshotHandleCache = WowSync:GetSnapshotHandleCache()
 local SnapshotView = WowSync:GetSnapshotView()
 
-local list
-local deleteButton
-local currentProfileName = nil
-local onSelectionChanged = nil
+local Verbs = {}
 
 -- Height of a realm group header row; the extra space over the text gives each
 -- group a consistent leading gap. The character rows below use UI.List.ItemHeight.
@@ -56,20 +53,20 @@ local function GetDeleteLabel(profileName)
     return (latestSnapshot and SnapshotView:GetCharacterInfo(latestSnapshot).Character) or profileName
 end
 
-local function CanDeleteSelectedProfile()
-    return list:GetSelected() ~= nil
+local function CanDeleteSelectedProfile(panel)
+    return panel._list:GetSelected() ~= nil
 end
 
-local function UpdateDeleteEnabled()
-    if deleteButton then
-        deleteButton:SetEnabled(CanDeleteSelectedProfile())
+local function UpdateDeleteEnabled(panel)
+    if panel._deleteButton then
+        panel._deleteButton:SetEnabled(CanDeleteSelectedProfile(panel))
     end
 end
 
-function ProfileList:Build(region)
-    C:IsTable(region, 2)
+function Verbs:Constructor(config)
+    local panel = self
 
-    list = List:Build(region, {
+    local list = List:Build(self, {
         title = L["Profiles"],
         rowRenderer = ProfileRow,
         extent = function(elementData)
@@ -79,16 +76,17 @@ function ProfileList:Build(region)
             return UI.List.ItemHeight
         end,
     })
+    self._list = list
 
     list:OnSelect(function(profileName)
-        UpdateDeleteEnabled()
-        if onSelectionChanged then
-            onSelectionChanged(profileName)
+        UpdateDeleteEnabled(panel)
+        if panel._onSelectionChanged then
+            panel._onSelectionChanged(profileName)
         end
     end)
 
     -- Profile delete button, bottom-left of the panel.
-    deleteButton = Button:Build({
+    self._deleteButton = Button:Build({
         parent = list,
         anchor = function(button)
             button:SetPoint("BOTTOMLEFT", 10, 10)
@@ -98,27 +96,38 @@ function ProfileList:Build(region)
         text = L["Delete"],
         enabled = false,
         onClick = function()
-            if not CanDeleteSelectedProfile() then return end
+            if not CanDeleteSelectedProfile(panel) then return end
 
             local profileName = list:GetSelected()
             local label = GetDeleteLabel(profileName)
             PopupDialogs:ConfirmDelete(label, function()
                 ProfileManager:DeleteProfile(profileName)
-                ProfileList:Refresh()
+                panel:Refresh()
             end)
         end,
     })
 
-    UpdateDeleteEnabled()
-
-    return self
+    UpdateDeleteEnabled(self)
 end
 
-function ProfileList:OnSelect(callback)
-    onSelectionChanged = callback
+function ProfileList:Build(region)
+    C:IsTable(region, 2)
+    return addon:NewWidget({
+        parent = region,
+        anchor = function(self)
+            self:SetAllPoints(region)
+        end,
+    }, {
+        frameType = "Frame",
+        verbs = Verbs,
+    })
 end
 
-function ProfileList:Refresh()
+function Verbs:OnSelect(callback)
+    self._onSelectionChanged = callback
+end
+
+function Verbs:Refresh()
     -- Every character with saved history and/or a captured Current, grouped
     -- under its realm. The logged-in character's realm leads, then realms by
     -- most-recently-seen; within a realm the order GetSavedCharacters returns is
@@ -128,7 +137,7 @@ function ProfileList:Refresh()
     local groups = {}
     local realmOrder = {}
     local visibleProfiles = {}
-    currentProfileName = nil
+    self._currentProfileName = nil
 
     for _, character in ipairs(characters) do
         visibleProfiles[character.Key] = true
@@ -155,7 +164,7 @@ function ProfileList:Refresh()
         group.lastSeen = math.max(group.lastSeen, character.LastSeen or 0)
         if character.IsCurrent then
             group.hasCurrent = true
-            currentProfileName = character.Key
+            self._currentProfileName = character.Key
         end
     end
 
@@ -181,32 +190,32 @@ function ProfileList:Refresh()
         end
     end
 
-    list:SetData(dataProvider, visibleProfiles)
+    self._list:SetData(dataProvider, visibleProfiles)
 
-    UpdateDeleteEnabled()
+    UpdateDeleteEnabled(self)
 end
 
-function ProfileList:Select(profileName)
-    list:Select(profileName)
+function Verbs:Select(profileName)
+    self._list:Select(profileName)
 end
 
-function ProfileList:GetSelected()
-    return list:GetSelected()
+function Verbs:GetSelected()
+    return self._list:GetSelected()
 end
 
 -- Select the logged-in character when nothing is selected yet, so opening the
 -- window lands on a useful profile.
-function ProfileList:SelectCurrentWhenNone()
-    if list:GetSelected() or not currentProfileName then return end
-    list:Select(currentProfileName)
-    list:ScrollTo(currentProfileName)
+function Verbs:SelectCurrentWhenNone()
+    if self._list:GetSelected() or not self._currentProfileName then return end
+    self._list:Select(self._currentProfileName)
+    self._list:ScrollTo(self._currentProfileName)
 end
 
 -- Scroll the list so the named profile is visible (no-op if already on screen).
-function ProfileList:ScrollToProfile(profileName)
-    list:ScrollTo(profileName)
+function Verbs:ScrollToProfile(profileName)
+    self._list:ScrollTo(profileName)
 end
 
-function ProfileList:ClearSelection()
-    list:ClearSelection()
+function Verbs:ClearSelection()
+    self._list:ClearSelection()
 end

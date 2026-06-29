@@ -12,7 +12,7 @@ local _, addon = ...
         onSelect = function(snapshot or nil) end,
         onContext = function(snapshot, subject, anchor) end,  -- right-click menu
     })
-        -> self {
+        -> snapshot-list frame {
             SetProfile(profileName),   -- (re)populate; selects the latest snapshot
             Refresh(),                 -- re-render in place, keeping selection/expansion
             GetSelected() -> snapshot or nil,
@@ -46,14 +46,8 @@ local SNAPSHOT_DETAIL_BOTTOM_PAD = 8
 
 local SnapshotView = WowSync:GetSnapshotView()
 local SnapshotHandleCache = WowSync:GetSnapshotHandleCache()
-local scrollBox
-local entries = {}           -- ordered display rows { snapshot = <handle>, isHead = bool }
-local currentProfile = nil   -- profile name, for diffing against the live setup
-local selected = nil         -- the selected snapshot handle (identity, not its hash)
-local expanded = nil         -- the one open row (accordion), independent of selection
-local expandedDetail = nil   -- cached diff/note for the expanded row
-local onSelectionChanged = nil
-local onContext = nil        -- right-click handler (snapshot, subject, anchor)
+
+local Verbs = {}
 
 -- The detail font's real line height, measured once so reserved row height
 -- matches the rendered text exactly (a fixed guess leaves a trailing gap).
@@ -127,47 +121,47 @@ local function BuildDetail(snapshot)
     return detail
 end
 
-function SnapshotList:Build(region, opts)
-    C:IsTable(region, 2)
+function Verbs:Constructor(config)
+    local panel = self
 
-    opts = opts or {}
-
-    C:Ensures(opts.onSelect == nil or type(opts.onSelect) == "function", "Build: 'opts.onSelect' must be a function")
-    C:Ensures(opts.onContext == nil or type(opts.onContext) == "function", "Build: 'opts.onContext' must be a function")
-
-    onSelectionChanged = opts.onSelect
-    onContext = opts.onContext
+    panel._entries = {}            -- ordered display rows { snapshot = <handle>, isHead = bool }
+    panel._currentProfile = nil    -- profile name, for diffing against the live setup
+    panel._selected = nil          -- the selected snapshot handle (identity, not its hash)
+    panel._expanded = nil          -- the one open row (accordion), independent of selection
+    panel._expandedDetail = nil    -- cached diff/note for the expanded row
+    panel._onSelectionChanged = config.onSelect
+    panel._onContext = config.onContext   -- right-click handler (snapshot, subject, anchor)
 
     local rowContext = {
         GetSelected = function()
-            return selected
+            return panel._selected
         end,
         IsExpanded = function(snapshot)
-            return snapshot == expanded
+            return snapshot == panel._expanded
         end,
         GetDetail = function()
-            return expandedDetail
+            return panel._expandedDetail
         end,
         Select = function(snapshot)
-            SnapshotList:Select(snapshot)
+            panel:Select(snapshot)
         end,
         OpenMenu = function(snapshot, anchor)
-            if snapshot and onContext then
-                onContext(snapshot, SnapshotRow:FormatSubject(SnapshotView:GetTimestamp(snapshot)), anchor, SnapshotView:IsHead(snapshot))
+            if snapshot and panel._onContext then
+                panel._onContext(snapshot, SnapshotRow:FormatSubject(SnapshotView:GetTimestamp(snapshot)), anchor, SnapshotView:IsHead(snapshot))
             end
         end,
     }
 
-    scrollBox = ScrollList:Build({
-        parent = region,
+    panel._scrollBox = ScrollList:Build({
+        parent = self,
         anchor = function(sb)
             sb:SetPoint("TOPLEFT", 0, 0)
             sb:SetPoint("BOTTOMRIGHT", -16, 0)
         end,
         -- Variable extents: the one expanded row is taller by its detail panel.
         extent = function(_, elementData)
-            if elementData.snapshot == expanded then
-                return UI.SnapshotDetail.SubjectZone + DetailExtent(expandedDetail)
+            if elementData.snapshot == panel._expanded then
+                return UI.SnapshotDetail.SubjectZone + DetailExtent(panel._expandedDetail)
             end
             return SNAPSHOT_ROW_HEIGHT
         end,
@@ -179,28 +173,47 @@ function SnapshotList:Build(region, opts)
             SnapshotRow:Update(row, elementData, rowContext)
         end,
     })
+end
 
-    return self
+function SnapshotList:Build(region, opts)
+    C:IsTable(region, 2)
+
+    opts = opts or {}
+
+    C:Ensures(opts.onSelect == nil or type(opts.onSelect) == "function", "Build: 'opts.onSelect' must be a function")
+    C:Ensures(opts.onContext == nil or type(opts.onContext) == "function", "Build: 'opts.onContext' must be a function")
+
+    return addon:NewWidget({
+        parent = region,
+        anchor = function(self)
+            self:SetAllPoints(region)
+        end,
+        onSelect = opts.onSelect,
+        onContext = opts.onContext,
+    }, {
+        frameType = "Frame",
+        verbs = Verbs,
+    })
 end
 
 -- Rebuild the data provider from the cached entries. Re-setting the provider is
 -- what reruns the extent calculator and the row initializers, so it is also how
 -- an expand/collapse relayout is triggered.
-local function Rebuild()
+local function Rebuild(panel)
     local dataProvider = CreateDataProvider()
-    for _, entry in ipairs(entries) do
+    for _, entry in ipairs(panel._entries) do
         dataProvider:Insert(entry)
     end
-    scrollBox:SetDataProvider(dataProvider, ScrollBoxConstants.RetainScrollPosition)
+    panel._scrollBox:SetDataProvider(dataProvider, ScrollBoxConstants.RetainScrollPosition)
 end
 
 -- Newest-first ordering for saved history, with the persistent index as a
 -- tiebreaker so snapshots captured in the same second stay deterministic.
-local function LoadEntries()
-    wipe(entries)
-    if not currentProfile then return end
-    for _, handle in ipairs(SnapshotHandleCache:GetTimeline(currentProfile)) do
-        tinsert(entries, {
+local function LoadEntries(panel)
+    wipe(panel._entries)
+    if not panel._currentProfile then return end
+    for _, handle in ipairs(SnapshotHandleCache:GetTimeline(panel._currentProfile)) do
+        tinsert(panel._entries, {
             snapshot = handle,
             isHead = SnapshotView:IsHead(handle),
         })
@@ -211,63 +224,63 @@ end
 -- a live view of the character's present setup (live for the logged-in
 -- character, last-captured for an alt), followed by the saved history (newest
 -- first). Selects the head, or the latest saved snapshot when there is none.
-function SnapshotList:SetProfile(profileName)
-    currentProfile = profileName
-    LoadEntries()
+function Verbs:SetProfile(profileName)
+    self._currentProfile = profileName
+    LoadEntries(self)
 
     -- Default selection: the head when present, else the latest saved snapshot.
-    selected = profileName and (SnapshotHandleCache:GetHead(profileName) or SnapshotHandleCache:GetLatestSaved(profileName))
-    expanded = nil
-    expandedDetail = nil
-    Rebuild()
+    self._selected = profileName and (SnapshotHandleCache:GetHead(profileName) or SnapshotHandleCache:GetLatestSaved(profileName))
+    self._expanded = nil
+    self._expandedDetail = nil
+    Rebuild(self)
 
-    if onSelectionChanged then
-        onSelectionChanged(self:GetSelected())
+    if self._onSelectionChanged then
+        self._onSelectionChanged(self:GetSelected())
     end
 end
 
 -- Select a row and toggle its inline detail panel. Re-clicking the open row
 -- collapses it but keeps it selected.
-function SnapshotList:Select(snapshot)
-    selected = snapshot
+function Verbs:Select(snapshot)
+    self._selected = snapshot
 
-    if expanded == snapshot then
-        expanded = nil
-        expandedDetail = nil
+    if self._expanded == snapshot then
+        self._expanded = nil
+        self._expandedDetail = nil
     else
-        expanded = snapshot
-        expandedDetail = BuildDetail(snapshot)
+        self._expanded = snapshot
+        self._expandedDetail = BuildDetail(snapshot)
     end
 
-    Rebuild()
+    Rebuild(self)
 
-    if onSelectionChanged then
-        onSelectionChanged(self:GetSelected())
+    if self._onSelectionChanged then
+        self._onSelectionChanged(self:GetSelected())
     end
 end
 
 -- Re-render the visible rows in place after a snapshot was mutated (pinned or
 -- had its note edited) without disturbing the current selection or expansion.
 -- A pin/unpin changes the row's group, so the order is re-derived too.
-function SnapshotList:Refresh()
-    LoadEntries()
-    if expanded then
-        expandedDetail = BuildDetail(expanded)
+function Verbs:Refresh()
+    LoadEntries(self)
+    if self._expanded then
+        self._expandedDetail = BuildDetail(self._expanded)
     end
-    Rebuild()
+    Rebuild(self)
 end
 
-function SnapshotList:GetSelected()
-    return selected
+function Verbs:GetSelected()
+    return self._selected
 end
 
-function SnapshotList:Clear()
-    wipe(entries)
-    currentProfile = nil
-    selected = nil
-    expanded = nil
-    expandedDetail = nil
-    if scrollBox then
-        scrollBox:SetDataProvider(CreateDataProvider())
+function Verbs:Clear()
+    wipe(self._entries)
+    self._currentProfile = nil
+    self._selected = nil
+    self._expanded = nil
+    self._expandedDetail = nil
+    if self._scrollBox then
+        self._scrollBox:SetDataProvider(CreateDataProvider())
     end
 end

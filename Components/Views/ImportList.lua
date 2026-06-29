@@ -8,7 +8,7 @@ local _, addon = ...
     and exposes it through callbacks; never leaks its frames.
 
     addon:GetObject("ImportList"):Build(region)
-        -> self {
+        -> import-list frame {
             OnSelect(callback),     -- callback(importID or nil)
             Refresh(),
             GetSelected() -> importID or nil,
@@ -31,29 +31,27 @@ local UI = addon.UI
 
 local ImportManager = WowSync:GetImportManager()
 
-local list
-local deleteButton
-local onSelectionChanged = nil
+local Verbs = {}
 
 -- Height of a class group header row; the extra space over the text gives each
 -- group a consistent leading gap. The container rows use UI.List.ItemHeight.
 local CLASS_HEADER_HEIGHT = 26
 
-local function CanDeleteSelectedImport()
-    local importID = list:GetSelected()
+local function CanDeleteSelectedImport(panel)
+    local importID = panel._list:GetSelected()
     return importID ~= nil and ImportManager:GetImport(importID) ~= nil
 end
 
-local function UpdateDeleteEnabled()
-    if deleteButton then
-        deleteButton:SetEnabled(CanDeleteSelectedImport())
+local function UpdateDeleteEnabled(panel)
+    if panel._deleteButton then
+        panel._deleteButton:SetEnabled(CanDeleteSelectedImport(panel))
     end
 end
 
-function ImportList:Build(region)
-    C:IsTable(region, 2)
+function Verbs:Constructor(config)
+    local panel = self
 
-    list = List:Build(region, {
+    local list = List:Build(self, {
         title = L["Imports"],
         rowRenderer = ImportRow,
         extent = function(elementData)
@@ -65,22 +63,23 @@ function ImportList:Build(region)
         rowContext = {
             Rename = function(importID, name)
                 if not ImportManager:RenameImport(importID, name) then return false end
-                ImportList:Refresh()
-                ImportList:Select(importID)
+                panel:Refresh()
+                panel:Select(importID)
                 return true
             end,
         },
     })
+    self._list = list
 
     list:OnSelect(function(importID)
-        UpdateDeleteEnabled()
-        if onSelectionChanged then
-            onSelectionChanged(importID)
+        UpdateDeleteEnabled(panel)
+        if panel._onSelectionChanged then
+            panel._onSelectionChanged(importID)
         end
     end)
 
     -- Import button, top-right of the header.
-    local importButton = Button:Build({
+    Button:Build({
         parent = list,
         anchor = function(button)
             button:SetPoint("TOPRIGHT", -10, -6)
@@ -88,11 +87,11 @@ function ImportList:Build(region)
         width = 64,
         height = 24,
         text = L["Import"],
-        onClick = function() ImportList:BeginImport() end,
+        onClick = function() panel:BeginImport() end,
     })
 
     -- Import delete button, bottom-left of the panel.
-    deleteButton = Button:Build({
+    self._deleteButton = Button:Build({
         parent = list,
         anchor = function(button)
             button:SetPoint("BOTTOMLEFT", 10, 10)
@@ -102,7 +101,7 @@ function ImportList:Build(region)
         text = L["Delete"],
         enabled = false,
         onClick = function()
-            if not CanDeleteSelectedImport() then return end
+            if not CanDeleteSelectedImport(panel) then return end
 
             local importID = list:GetSelected()
             local record = ImportManager:GetImport(importID)
@@ -110,21 +109,32 @@ function ImportList:Build(region)
 
             PopupDialogs:ConfirmDeleteImport(record.Name, function()
                 ImportManager:DeleteImport(importID)
-                ImportList:Refresh()
+                panel:Refresh()
             end)
         end,
     })
 
-    UpdateDeleteEnabled()
-
-    return self
+    UpdateDeleteEnabled(self)
 end
 
-function ImportList:OnSelect(callback)
-    onSelectionChanged = callback
+function ImportList:Build(region)
+    C:IsTable(region, 2)
+    return addon:NewWidget({
+        parent = region,
+        anchor = function(self)
+            self:SetAllPoints(region)
+        end,
+    }, {
+        frameType = "Frame",
+        verbs = Verbs,
+    })
 end
 
-function ImportList:Refresh()
+function Verbs:OnSelect(callback)
+    self._onSelectionChanged = callback
+end
+
+function Verbs:Refresh()
     -- Imported containers grouped by class. GetImportedProfiles already returns
     -- them sorted by class then name, so a class header is emitted whenever the
     -- class changes.
@@ -151,37 +161,38 @@ function ImportList:Refresh()
         })
     end
 
-    list:SetData(dataProvider, visibleImports)
+    self._list:SetData(dataProvider, visibleImports)
 
-    UpdateDeleteEnabled()
+    UpdateDeleteEnabled(self)
 end
 
-function ImportList:Select(importID)
-    list:Select(importID)
+function Verbs:Select(importID)
+    self._list:Select(importID)
 end
 
-function ImportList:GetSelected()
-    return list:GetSelected()
+function Verbs:GetSelected()
+    return self._list:GetSelected()
 end
 
-function ImportList:ClearSelection()
-    list:ClearSelection()
+function Verbs:ClearSelection()
+    self._list:ClearSelection()
 end
 
 -- Scrolls the list to bring the given container into view.
-function ImportList:ScrollToImport(importID)
-    list:ScrollTo(importID)
+function Verbs:ScrollToImport(importID)
+    self._list:ScrollTo(importID)
 end
 
 -- Opens the import dialog; on success refreshes the list and selects the new
 -- container.
-function ImportList:BeginImport()
+function Verbs:BeginImport()
+    local panel = self
     ImportDialog:Show({
         onImported = function(importID)
-            ImportList:Refresh()
+            panel:Refresh()
             if importID then
-                ImportList:Select(importID)
-                ImportList:ScrollToImport(importID)
+                panel:Select(importID)
+                panel:ScrollToImport(importID)
             end
         end,
     })

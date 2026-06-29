@@ -9,7 +9,7 @@ local _, addon = ...
     shared apply-preview dialog), have its note edited, or be deleted.
 
     addon:GetObject("ImportDetails"):Build(region)
-        -> self {
+        -> import-details frame {
             SetImport(importID or nil),
             OnRefresh(callback),   -- fired after a rename
         }
@@ -30,13 +30,7 @@ local UI = addon.UI
 local ImportManager = WowSync:GetImportManager()
 local SnapshotManager = WowSync:GetSnapshotManager()
 
-local emptyLabel
-local content
-local titleText
-local timeline
-local applyButton
-local currentImportID
-local onRefresh
+local Verbs = {}
 
 -- The core selector for an imported snapshot: its full hash pinned to its index.
 local function SelectorFor(snapshot)
@@ -51,7 +45,7 @@ end
 
 -- Apply the chosen modules of an imported snapshot to the logged-in character,
 -- reporting per-module outcomes in chat.
-local function ApplySnapshot(snapshot, moduleSet, mode, overrides)
+local function ApplySnapshot(panel, snapshot, moduleSet, mode, overrides)
     if SnapshotManager:IsCombatLocked() then
         WowSync:Print(L["You can't do that while in combat."])
         return
@@ -62,7 +56,7 @@ local function ApplySnapshot(snapshot, moduleSet, mode, overrides)
     end
 
     local strategy = { default = mode or "exact", overrides = overrides }
-    local applyResult = ImportManager:ApplySnapshot(currentImportID, SelectorFor(snapshot), strategy, moduleSet)
+    local applyResult = ImportManager:ApplySnapshot(panel._currentImportID, SelectorFor(snapshot), strategy, moduleSet)
     if applyResult and applyResult:Any() then
         for _, name in ipairs(applyResult:Applied()) do
             WowSync:Print(L["X: applied"]:format(name))
@@ -76,36 +70,36 @@ local function ApplySnapshot(snapshot, moduleSet, mode, overrides)
 end
 
 -- Open the apply-preview dialog for an imported snapshot, defaulting to Exact.
-local function RequestApply(snapshot)
-    if not currentImportID or not snapshot then return end
+local function RequestApply(panel, snapshot)
+    if not panel._currentImportID or not snapshot then return end
 
     local selector = SelectorFor(snapshot)
     ApplyPreviewDialog:Show({
         snapshot = HandleFor(snapshot),
-        preview = ImportManager:PreviewApplySnapshot(currentImportID, selector),
+        preview = ImportManager:PreviewApplySnapshot(panel._currentImportID, selector),
         subject = SnapshotRow:FormatSubject(snapshot.Timestamp),
         mode = "exact",
         onConfirm = function(moduleSet, overrides)
             PopupDialogs:ConfirmApply("exact", function()
-                ApplySnapshot(snapshot, moduleSet, "exact", overrides)
+                ApplySnapshot(panel, snapshot, moduleSet, "exact", overrides)
             end)
         end,
     })
 end
 
-local function OpenSnapshotMenu(snapshot, anchor)
-    if not currentImportID or not snapshot then return end
+local function OpenSnapshotMenu(panel, snapshot, anchor)
+    if not panel._currentImportID or not snapshot then return end
 
     local subject = SnapshotRow:FormatSubject(snapshot.Timestamp)
     MenuUtil.CreateContextMenu(anchor, function(_, rootDescription)
         rootDescription:CreateTitle(subject)
 
         rootDescription:CreateButton(L["Apply"], function()
-            RequestApply(snapshot)
+            RequestApply(panel, snapshot)
         end)
 
         rootDescription:CreateButton(L["Preview changes"], function()
-            local preview = ImportManager:PreviewApplySnapshot(currentImportID, SelectorFor(snapshot))
+            local preview = ImportManager:PreviewApplySnapshot(panel._currentImportID, SelectorFor(snapshot))
             if not preview then
                 WowSync:Print(L["Nothing saved yet to compare against."])
                 return
@@ -117,45 +111,44 @@ local function OpenSnapshotMenu(snapshot, anchor)
 
         rootDescription:CreateButton(L["Edit note…"], function()
             PopupDialogs:PromptEditNote(snapshot.Notes, function(text)
-                ImportManager:SetSnapshotNotes(currentImportID, SelectorFor(snapshot), text)
-                timeline:Refresh()
+                ImportManager:SetSnapshotNotes(panel._currentImportID, SelectorFor(snapshot), text)
+                panel._timeline:Refresh()
             end)
         end)
 
         rootDescription:CreateButton(L["Delete snapshot"], function()
             PopupDialogs:ConfirmDeleteSnapshot(subject, function()
-                ImportManager:DeleteSnapshot(currentImportID, SelectorFor(snapshot))
-                ImportDetails:SetImport(currentImportID)
-                if onRefresh then onRefresh() end
+                ImportManager:DeleteSnapshot(panel._currentImportID, SelectorFor(snapshot))
+                panel:SetImport(panel._currentImportID)
+                if panel._onRefresh then panel._onRefresh() end
             end)
         end)
     end)
 end
 
-function ImportDetails:Build(region)
-    C:IsTable(region, 2)
+function Verbs:Constructor(config)
+    local panel = self
 
-    local root = CreateFrame("Frame", nil, region, "BackdropTemplate")
-    root:SetAllPoints(region)
-    root:SetBackdrop({
+    self:SetBackdrop({
         bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
         tile = true, tileSize = 8, edgeSize = 12,
         insets = { left = 2, right = 2, top = 2, bottom = 2 },
     })
-    root:SetBackdropColor(unpack(UI.Backdrop.Panel))
-    root:SetBackdropBorderColor(unpack(UI.Backdrop.PanelBorder))
+    self:SetBackdropColor(unpack(UI.Backdrop.Panel))
+    self:SetBackdropBorderColor(unpack(UI.Backdrop.PanelBorder))
 
     -- Empty state, shown until a container is selected.
-    emptyLabel = root:CreateFontString(nil, "OVERLAY", "GameFontDisableLarge")
-    emptyLabel:SetPoint("CENTER")
-    emptyLabel:SetText(L["Select an import"])
+    self._emptyLabel = self:CreateFontString(nil, "OVERLAY", "GameFontDisableLarge")
+    self._emptyLabel:SetPoint("CENTER")
+    self._emptyLabel:SetText(L["Select an import"])
 
     -- Content, revealed once a container is selected.
-    content = CreateFrame("Frame", nil, root)
+    local content = CreateFrame("Frame", nil, self)
     content:SetPoint("TOPLEFT", 10, -10)
     content:SetPoint("BOTTOMRIGHT", -10, 10)
     content:Hide()
+    self._content = content
 
     -- Rename, top-right of the header.
     local renameButton = Button:Build({
@@ -167,22 +160,23 @@ function ImportDetails:Build(region)
         height = 24,
         text = L["Rename"],
         onClick = function()
-            local record = currentImportID and ImportManager:GetImport(currentImportID)
+            local record = panel._currentImportID and ImportManager:GetImport(panel._currentImportID)
             if not record then return end
             PopupDialogs:PromptRename(record.Name, function(name)
-                if ImportManager:RenameImport(currentImportID, name) then
-                    titleText:SetText(name)
-                    if onRefresh then onRefresh() end
+                if ImportManager:RenameImport(panel._currentImportID, name) then
+                    panel._titleText:SetText(name)
+                    if panel._onRefresh then panel._onRefresh() end
                 end
             end)
         end,
     })
 
-    titleText = content:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    local titleText = content:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     titleText:SetPoint("TOPLEFT", 0, 0)
     titleText:SetPoint("RIGHT", renameButton, "LEFT", -8, 0)
     titleText:SetJustifyH("LEFT")
     titleText:SetWordWrap(false)
+    self._titleText = titleText
 
     -- Separator between the header and the snapshot timeline.
     local separator = content:CreateTexture(nil, "ARTWORK")
@@ -192,7 +186,7 @@ function ImportDetails:Build(region)
     separator:SetColorTexture(unpack(UI.Backdrop.Separator))
 
     -- Action bar: Apply selected snapshot.
-    applyButton = Button:Build({
+    local applyButton = Button:Build({
         parent = content,
         anchor = function(button)
             button:SetPoint("BOTTOMLEFT", 0, 0)
@@ -201,42 +195,57 @@ function ImportDetails:Build(region)
         height = 24,
         text = L["Apply"],
         onClick = function()
-            RequestApply(timeline:GetSelected())
+            RequestApply(panel, panel._timeline:GetSelected())
         end,
     })
+    self._applyButton = applyButton
 
     -- Snapshot timeline, filling the space between the title and the action bar.
     local timelineSlot = CreateFrame("Frame", nil, content)
     timelineSlot:SetPoint("TOPLEFT", separator, "BOTTOMLEFT", 2, -8)
     timelineSlot:SetPoint("RIGHT", content, "RIGHT", 0, 0)
     timelineSlot:SetPoint("BOTTOM", applyButton, "TOP", 0, 8)
-    timeline = ImportSnapshotList:Build(timelineSlot, {
+    self._timeline = ImportSnapshotList:Build(timelineSlot, {
         onSelect = function(snapshot)
             applyButton:SetEnabled(snapshot ~= nil)
         end,
-        onContext = OpenSnapshotMenu,
+        onContext = function(snapshot, anchor)
+            OpenSnapshotMenu(panel, snapshot, anchor)
+        end,
     })
-
-    return self
 end
 
-function ImportDetails:OnRefresh(callback)
-    onRefresh = callback
+function ImportDetails:Build(region)
+    C:IsTable(region, 2)
+    return addon:NewWidget({
+        parent = region,
+        anchor = function(self)
+            self:SetAllPoints(region)
+        end,
+    }, {
+        frameType = "Frame",
+        template = "BackdropTemplate",
+        verbs = Verbs,
+    })
 end
 
-function ImportDetails:SetImport(importID)
-    currentImportID = importID
+function Verbs:OnRefresh(callback)
+    self._onRefresh = callback
+end
+
+function Verbs:SetImport(importID)
+    self._currentImportID = importID
     local record = importID and ImportManager:GetImport(importID)
     if not record then
-        content:Hide()
-        emptyLabel:Show()
-        timeline:Clear()
+        self._content:Hide()
+        self._emptyLabel:Show()
+        self._timeline:Clear()
         return
     end
 
-    emptyLabel:Hide()
-    titleText:SetText(record.Name or "")
-    timeline:SetImport(importID)
-    applyButton:SetEnabled(false)
-    content:Show()
+    self._emptyLabel:Hide()
+    self._titleText:SetText(record.Name or "")
+    self._timeline:SetImport(importID)
+    self._applyButton:SetEnabled(false)
+    self._content:Show()
 end
