@@ -212,7 +212,7 @@ local function Build()
     titleSlot:SetPoint("TOPLEFT", 0, 0)
     titleSlot:SetPoint("TOPRIGHT", 0, 0)
     titleSlot:SetHeight(TITLE_BAR_HEIGHT)
-    TitleBar:Build(titleSlot, {
+    local titleBar = TitleBar:Build(titleSlot, {
         title = "|c" .. ACCENT_HEX .. "WowSync|r",
         onClose = function() frame:Hide() end,
         onToggleLock = function(value) setLocked(value) end,
@@ -341,7 +341,7 @@ local function Build()
         for _, pane in ipairs(panes) do
             pane.splitter:SetLocked(locked)
         end
-        TitleBar:SetLocked(locked)
+        titleBar:SetLocked(locked)
     end
 
     setLocked(Settings:IsLocked())

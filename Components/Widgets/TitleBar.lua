@@ -39,8 +39,72 @@ local HEADER_BOTTOM = { 0.09, 0.09, 0.11, 0.95 }
 local HEADER_HIGHLIGHT = { 0.35, 0.40, 0.50, 0.45 }
 local DIVIDER_HIGHLIGHT = { 0.6, 0.6, 0.65, 0.15 }
 
-local titleText
-local lockButton
+local Verbs = {}
+
+function Verbs:SetTitle(text)
+    self._title:SetText(text)
+end
+
+-- Reflect the locked state in the composed lock toggle.
+function Verbs:SetLocked(locked)
+    if self._lockButton then
+        self._lockButton:SetLocked(locked)
+    end
+end
+
+-- Build the banner art, centred title, close button, and composed lock toggle.
+-- The bar IS this frame; SetTitle/SetLocked drive it afterwards.
+function Verbs:Constructor(config)
+    -- Header strip behind the title, giving the bar a distinct banner like the
+    -- Blizzard Options window. A faint vertical gradient (lighter at the top)
+    -- catches the light instead of reading as one flat block of colour.
+    local header = self:CreateTexture(nil, "BACKGROUND")
+    header:SetPoint("TOPLEFT", BORDER_INSET, -BORDER_INSET)
+    header:SetPoint("BOTTOMRIGHT", -BORDER_INSET, 0)
+    header:SetColorTexture(1, 1, 1, 1)
+    header:SetGradient("VERTICAL", CreateColor(unpack(HEADER_BOTTOM)), CreateColor(unpack(HEADER_TOP)))
+
+    -- A 1px highlight along the very top edge reads as light hitting the bevel,
+    -- lifting the banner off the metal border above it.
+    local topHighlight = self:CreateTexture(nil, "ARTWORK")
+    topHighlight:SetPoint("TOPLEFT", BORDER_INSET, -BORDER_INSET)
+    topHighlight:SetPoint("TOPRIGHT", -BORDER_INSET, -BORDER_INSET)
+    topHighlight:SetHeight(1)
+    topHighlight:SetColorTexture(unpack(HEADER_HIGHLIGHT))
+
+    -- Divider separating the header from the content beneath it. A darker rule
+    -- over a faint highlight gives it a recessed, bevelled edge rather than a
+    -- single flat line.
+    local divider = self:CreateTexture(nil, "ARTWORK")
+    divider:SetPoint("BOTTOMLEFT", BORDER_INSET, 1)
+    divider:SetPoint("BOTTOMRIGHT", -BORDER_INSET, 1)
+    divider:SetHeight(1)
+    divider:SetColorTexture(unpack(UI.Backdrop.Separator))
+
+    local dividerHighlight = self:CreateTexture(nil, "ARTWORK")
+    dividerHighlight:SetPoint("BOTTOMLEFT", BORDER_INSET, 0)
+    dividerHighlight:SetPoint("BOTTOMRIGHT", -BORDER_INSET, 0)
+    dividerHighlight:SetHeight(1)
+    dividerHighlight:SetColorTexture(unpack(DIVIDER_HIGHLIGHT))
+
+    self._title = self:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    self._title:SetPoint("CENTER", 0, 0)
+    self._title:SetText(config.title or "")
+
+    local closeButton = CreateFrame("Button", nil, self, "UIPanelCloseButton")
+    closeButton:SetSize(24, 24)
+    closeButton:SetPoint("RIGHT", -3, -1)
+    closeButton:SetScript("OnClick", function()
+        if config.onClose then
+            config.onClose()
+        end
+    end)
+
+    self._lockButton = LockButton:Build(self, closeButton, {
+        onToggle = config.onToggleLock,
+        locked = config.locked,
+    })
+end
 
 function TitleBar:Build(region, opts)
     C:IsTable(region, 2)
@@ -50,69 +114,17 @@ function TitleBar:Build(region, opts)
     C:Ensures(opts.onClose == nil or type(opts.onClose) == "function", "Build: 'opts.onClose' must be a function")
     C:Ensures(opts.onToggleLock == nil or type(opts.onToggleLock) == "function", "Build: 'opts.onToggleLock' must be a function")
 
-    local root = CreateFrame("Frame", nil, region)
-    root:SetAllPoints(region)
-
-    -- Header strip behind the title, giving the bar a distinct banner like the
-    -- Blizzard Options window. A faint vertical gradient (lighter at the top)
-    -- catches the light instead of reading as one flat block of colour.
-    local header = root:CreateTexture(nil, "BACKGROUND")
-    header:SetPoint("TOPLEFT", BORDER_INSET, -BORDER_INSET)
-    header:SetPoint("BOTTOMRIGHT", -BORDER_INSET, 0)
-    header:SetColorTexture(1, 1, 1, 1)
-    header:SetGradient("VERTICAL", CreateColor(unpack(HEADER_BOTTOM)), CreateColor(unpack(HEADER_TOP)))
-
-    -- A 1px highlight along the very top edge reads as light hitting the bevel,
-    -- lifting the banner off the metal border above it.
-    local topHighlight = root:CreateTexture(nil, "ARTWORK")
-    topHighlight:SetPoint("TOPLEFT", BORDER_INSET, -BORDER_INSET)
-    topHighlight:SetPoint("TOPRIGHT", -BORDER_INSET, -BORDER_INSET)
-    topHighlight:SetHeight(1)
-    topHighlight:SetColorTexture(unpack(HEADER_HIGHLIGHT))
-
-    -- Divider separating the header from the content beneath it. A darker rule
-    -- over a faint highlight gives it a recessed, bevelled edge rather than a
-    -- single flat line.
-    local divider = root:CreateTexture(nil, "ARTWORK")
-    divider:SetPoint("BOTTOMLEFT", BORDER_INSET, 1)
-    divider:SetPoint("BOTTOMRIGHT", -BORDER_INSET, 1)
-    divider:SetHeight(1)
-    divider:SetColorTexture(unpack(UI.Backdrop.Separator))
-
-    local dividerHighlight = root:CreateTexture(nil, "ARTWORK")
-    dividerHighlight:SetPoint("BOTTOMLEFT", BORDER_INSET, 0)
-    dividerHighlight:SetPoint("BOTTOMRIGHT", -BORDER_INSET, 0)
-    dividerHighlight:SetHeight(1)
-    dividerHighlight:SetColorTexture(unpack(DIVIDER_HIGHLIGHT))
-
-    titleText = root:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    titleText:SetPoint("CENTER", 0, 0)
-    titleText:SetText(opts.title or "")
-
-    local closeButton = CreateFrame("Button", nil, root, "UIPanelCloseButton")
-    closeButton:SetSize(24, 24)
-    closeButton:SetPoint("RIGHT", -3, -1)
-    closeButton:SetScript("OnClick", function()
-        if opts.onClose then
-            opts.onClose()
-        end
-    end)
-
-    lockButton = LockButton:Build(root, closeButton, {
-        onToggle = opts.onToggleLock,
+    return addon:NewWidget({
+        parent = region,
+        anchor = function(self)
+            self:SetAllPoints(region)
+        end,
+        title = opts.title,
+        onClose = opts.onClose,
+        onToggleLock = opts.onToggleLock,
         locked = opts.locked,
+    }, {
+        frameType = "Frame",
+        verbs = Verbs,
     })
-
-    return self
-end
-
-function TitleBar:SetTitle(text)
-    titleText:SetText(text)
-end
-
--- Reflect the locked state in the composed lock toggle.
-function TitleBar:SetLocked(locked)
-    if lockButton then
-        lockButton:SetLocked(locked)
-    end
 end

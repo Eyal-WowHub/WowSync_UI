@@ -19,6 +19,63 @@ local LockButton = addon:NewObject("LockButton")
 local C = LibStub("Contracts-1.0")
 local L = addon.L
 
+local Verbs = {}
+
+-- Repaint the padlock for the current locked/hover state: a bright, fully
+-- coloured lock when locked; a dim, desaturated one when unlocked.
+function Verbs:UpdateAppearance()
+    self.icon:SetDesaturated(not self._isLocked)
+    if self._isLocked then
+        self.icon:SetVertexColor(1, 1, 1)
+        self.icon:SetAlpha(self._isHovered and 1 or 0.95)
+    else
+        self.icon:SetVertexColor(0.85, 0.85, 0.85)
+        self.icon:SetAlpha(self._isHovered and 0.9 or 0.55)
+    end
+end
+
+-- Reflect the locked state in the icon.
+function Verbs:SetLocked(locked)
+    self._isLocked = locked and true or false
+    self:UpdateAppearance()
+end
+
+function Verbs:Constructor(config)
+    self._isLocked = false
+    self._isHovered = false
+
+    self:SetSize(20, 20)
+    self:SetPoint("RIGHT", config.anchorTo, "LEFT", -2, 0)
+
+    -- A clean, centred padlock that fills its texture (unlike the legacy
+    -- LockButton-* art, which is a dark item-overlay square). State is conveyed
+    -- by brightness rather than swapping textures.
+    self.icon = self:CreateTexture(nil, "ARTWORK")
+    self.icon:SetPoint("CENTER")
+    self.icon:SetSize(16, 16)
+    self.icon:SetTexture("Interface\\PetBattles\\PetBattle-LockIcon")
+
+    self:SetScript("OnClick", function(self)
+        if config.onToggle then
+            config.onToggle(not self._isLocked)
+        end
+    end)
+    self:SetScript("OnEnter", function(self)
+        self._isHovered = true
+        self:UpdateAppearance()
+        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+        GameTooltip:SetText(self._isLocked and L["Unlock window"] or L["Lock window"])
+        GameTooltip:Show()
+    end)
+    self:SetScript("OnLeave", function(self)
+        self._isHovered = false
+        self:UpdateAppearance()
+        GameTooltip:Hide()
+    end)
+
+    self:SetLocked(config.locked)
+end
+
 function LockButton:Build(parent, anchorTo, opts)
     C:IsTable(parent, 2)
     C:IsTable(anchorTo, 3)
@@ -27,58 +84,13 @@ function LockButton:Build(parent, anchorTo, opts)
 
     C:Ensures(opts.onToggle == nil or type(opts.onToggle) == "function", "Build: 'opts.onToggle' must be a function")
 
-    local button = CreateFrame("Button", nil, parent)
-    button:SetSize(20, 20)
-    button:SetPoint("RIGHT", anchorTo, "LEFT", -2, 0)
-
-    -- A clean, centred padlock that fills its texture (unlike the legacy
-    -- LockButton-* art, which is a dark item-overlay square). State is conveyed
-    -- by brightness rather than swapping textures: a bright, fully-coloured lock
-    -- when locked; a dim, desaturated one when unlocked.
-    button.icon = button:CreateTexture(nil, "ARTWORK")
-    button.icon:SetPoint("CENTER")
-    button.icon:SetSize(16, 16)
-    button.icon:SetTexture("Interface\\PetBattles\\PetBattle-LockIcon")
-
-    local isLocked = false
-    local isHovered = false
-
-    local function UpdateAppearance()
-        button.icon:SetDesaturated(not isLocked)
-        if isLocked then
-            button.icon:SetVertexColor(1, 1, 1)
-            button.icon:SetAlpha(isHovered and 1 or 0.95)
-        else
-            button.icon:SetVertexColor(0.85, 0.85, 0.85)
-            button.icon:SetAlpha(isHovered and 0.9 or 0.55)
-        end
-    end
-
-    -- Reflect the locked state in the icon.
-    function button:SetLocked(locked)
-        isLocked = locked and true or false
-        UpdateAppearance()
-    end
-
-    button:SetScript("OnClick", function()
-        if opts.onToggle then
-            opts.onToggle(not isLocked)
-        end
-    end)
-    button:SetScript("OnEnter", function(self)
-        isHovered = true
-        UpdateAppearance()
-        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-        GameTooltip:SetText(isLocked and L["Unlock window"] or L["Lock window"])
-        GameTooltip:Show()
-    end)
-    button:SetScript("OnLeave", function()
-        isHovered = false
-        UpdateAppearance()
-        GameTooltip:Hide()
-    end)
-
-    button:SetLocked(opts.locked)
-
-    return button
+    return addon:NewWidget({
+        parent = parent,
+        anchorTo = anchorTo,
+        onToggle = opts.onToggle,
+        locked = opts.locked,
+    }, {
+        frameType = "Button",
+        verbs = Verbs,
+    })
 end
