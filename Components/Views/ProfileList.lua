@@ -20,6 +20,7 @@ local _, addon = ...
 local ProfileList = addon:NewObject("ProfileList")
 local ProfileRow = addon:GetObject("ProfileRow")
 local PopupDialogs = addon:GetObject("PopupDialogs")
+local List = addon:GetObject("List")
 
 local C = LibStub("Contracts-1.0")
 local L = addon.L
@@ -30,17 +31,14 @@ local ProfileManager = WowSync:GetProfileManager()
 local SnapshotHandleCache = WowSync:GetSnapshotHandleCache()
 local SnapshotView = WowSync:GetSnapshotView()
 
-local scrollBox
+local list
 local deleteButton
-local selectedProfileName = nil
 local currentProfileName = nil
 local onSelectionChanged = nil
 
 -- Height of a realm group header row; the extra space over the text gives each
 -- group a consistent leading gap. The character rows below use UI.List.ItemHeight.
 local REALM_HEADER_HEIGHT = 26
-
-local LIST_BOTTOM_INSET = 40
 
 -- Split a "Name - Realm" profile key on its first dash; realm is empty when the
 -- key carries no dash.
@@ -58,7 +56,7 @@ local function GetDeleteLabel(profileName)
 end
 
 local function CanDeleteSelectedProfile()
-    return selectedProfileName ~= nil
+    return list:GetSelected() ~= nil
 end
 
 local function UpdateDeleteEnabled()
@@ -70,24 +68,26 @@ end
 function ProfileList:Build(region)
     C:IsTable(region, 2)
 
-    local root = CreateFrame("Frame", nil, region, "BackdropTemplate")
-    root:SetAllPoints(region)
-    root:SetBackdrop({
-        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        tile = true, tileSize = 8, edgeSize = 12,
-        insets = { left = 2, right = 2, top = 2, bottom = 2 },
+    list = List:Build(region, {
+        title = L["Profiles"],
+        rowRenderer = ProfileRow,
+        extent = function(elementData)
+            if elementData.kind == "realm" then
+                return REALM_HEADER_HEIGHT
+            end
+            return UI.List.ItemHeight
+        end,
     })
-    root:SetBackdropColor(unpack(UI.Backdrop.Panel))
-    root:SetBackdropBorderColor(unpack(UI.Backdrop.PanelBorder))
 
-    -- Title
-    local title = root:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    title:SetPoint("TOPLEFT", 10, -8)
-    title:SetText(L["Profiles"])
+    list:OnSelect(function(profileName)
+        UpdateDeleteEnabled()
+        if onSelectionChanged then
+            onSelectionChanged(profileName)
+        end
+    end)
 
     -- Profile delete button, bottom-left of the panel.
-    deleteButton = CreateFrame("Button", nil, root, "UIPanelButtonTemplate")
+    deleteButton = CreateFrame("Button", nil, list.root, "UIPanelButtonTemplate")
     deleteButton:SetPoint("BOTTOMLEFT", 10, 10)
     deleteButton:SetSize(80, 24)
     deleteButton:SetText(L["Delete"])
@@ -95,54 +95,13 @@ function ProfileList:Build(region)
     deleteButton:SetScript("OnClick", function()
         if not CanDeleteSelectedProfile() then return end
 
-        local profileName = selectedProfileName
+        local profileName = list:GetSelected()
         local label = GetDeleteLabel(profileName)
         PopupDialogs:ConfirmDelete(label, function()
             ProfileManager:DeleteProfile(profileName)
             ProfileList:Refresh()
         end)
     end)
-
-    -- Scroll area
-    scrollBox = CreateFrame("Frame", nil, root, "WowScrollBoxList")
-    scrollBox:SetPoint("TOPLEFT", 6, -36)
-    scrollBox:SetPoint("BOTTOMRIGHT", -22, LIST_BOTTOM_INSET)
-
-    local scrollBar = CreateFrame("EventFrame", nil, root, "MinimalScrollBar")
-    scrollBar:SetPoint("TOPLEFT", scrollBox, "TOPRIGHT", 4, -2)
-    scrollBar:SetPoint("BOTTOMLEFT", scrollBox, "BOTTOMRIGHT", 4, 2)
-
-    -- Shared selection context for the pooled rows
-    local rowContext = {
-        GetSelected = function()
-            return selectedProfileName
-        end,
-        Select = function(name)
-            ProfileList:Select(name)
-        end,
-    }
-
-    -- List view
-    local view = CreateScrollBoxListLinearView()
-    view:SetElementExtentCalculator(function(_, elementData)
-        if elementData.kind == "realm" then
-            return REALM_HEADER_HEIGHT
-        end
-        return UI.List.ItemHeight
-    end)
-    view:SetPadding(0, 0, 0, 0, UI.List.ItemPadding)
-    view:SetElementInitializer("Frame", function(row, elementData)
-        if not row.initialized then
-            ProfileRow:Build(row, rowContext)
-            row.initialized = true
-        end
-        ProfileRow:Update(row, elementData, rowContext)
-    end)
-
-    ScrollUtil.InitScrollBoxListWithScrollBar(scrollBox, scrollBar, view)
-
-    -- Only show the scrollbar when the list actually overflows.
-    scrollBar:SetHideIfUnscrollable(true)
 
     UpdateDeleteEnabled()
 
@@ -216,53 +175,32 @@ function ProfileList:Refresh()
         end
     end
 
-    scrollBox:SetDataProvider(dataProvider)
-
-    -- Drop the selection if the selected character is no longer listed.
-    if selectedProfileName and not visibleProfiles[selectedProfileName] then
-        selectedProfileName = nil
-        if onSelectionChanged then
-            onSelectionChanged(nil)
-        end
-    end
+    list:SetData(dataProvider, visibleProfiles)
 
     UpdateDeleteEnabled()
 end
 
 function ProfileList:Select(profileName)
-    selectedProfileName = profileName
-    scrollBox:ForEachFrame(function(frame)
-        if not frame.profileName then return end
-        if frame.profileName == selectedProfileName then
-            frame.bg:SetColorTexture(UI.Row.Selected:GetRGBA())
-        else
-            frame.bg:SetColorTexture(UI.Row.Normal:GetRGBA())
-        end
-    end)
-    if onSelectionChanged then onSelectionChanged(selectedProfileName) end
-    UpdateDeleteEnabled()
+    list:Select(profileName)
 end
 
 function ProfileList:GetSelected()
-    return selectedProfileName
+    return list:GetSelected()
 end
 
 -- Select the logged-in character when nothing is selected yet, so opening the
 -- window lands on a useful profile.
 function ProfileList:SelectCurrentWhenNone()
-    if selectedProfileName or not currentProfileName then return end
-    self:Select(currentProfileName)
-    self:ScrollToProfile(currentProfileName)
+    if list:GetSelected() or not currentProfileName then return end
+    list:Select(currentProfileName)
+    list:ScrollTo(currentProfileName)
 end
 
 -- Scroll the list so the named profile is visible (no-op if already on screen).
 function ProfileList:ScrollToProfile(profileName)
-    if not profileName then return end
-    scrollBox:ScrollToElementDataByPredicate(function(data)
-        return data.id == profileName
-    end, ScrollBoxConstants.AlignNearest)
+    list:ScrollTo(profileName)
 end
 
 function ProfileList:ClearSelection()
-    self:Select(nil)
+    list:ClearSelection()
 end

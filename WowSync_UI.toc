@@ -25,6 +25,8 @@ Components\Widgets\Dialog.lua
 Components\Widgets\LockButton.lua
 Components\Widgets\TitleBar.lua
 Components\Widgets\TabStrip.lua
+Components\Widgets\List.lua
+Components\Widgets\ListRow.lua
 Components\Widgets\DragTracker.lua
 Components\Widgets\Splitter.lua
 Components\Widgets\ResizeGrip.lua

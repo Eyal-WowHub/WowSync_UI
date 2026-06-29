@@ -22,6 +22,7 @@ local ImportList = addon:NewObject("ImportList")
 local ImportRow = addon:GetObject("ImportRow")
 local ImportDialog = addon:GetObject("ImportDialog")
 local PopupDialogs = addon:GetObject("PopupDialogs")
+local List = addon:GetObject("List")
 
 local C = LibStub("Contracts-1.0")
 local L = addon.L
@@ -29,19 +30,17 @@ local UI = addon.UI
 
 local ImportManager = WowSync:GetImportManager()
 
-local scrollBox
+local list
 local deleteButton
-local selectedImportID = nil
 local onSelectionChanged = nil
 
 -- Height of a class group header row; the extra space over the text gives each
 -- group a consistent leading gap. The container rows use UI.List.ItemHeight.
 local CLASS_HEADER_HEIGHT = 26
 
-local LIST_BOTTOM_INSET = 40
-
 local function CanDeleteSelectedImport()
-    return selectedImportID ~= nil and ImportManager:GetImport(selectedImportID) ~= nil
+    local importID = list:GetSelected()
+    return importID ~= nil and ImportManager:GetImport(importID) ~= nil
 end
 
 local function UpdateDeleteEnabled()
@@ -53,31 +52,41 @@ end
 function ImportList:Build(region)
     C:IsTable(region, 2)
 
-    local root = CreateFrame("Frame", nil, region, "BackdropTemplate")
-    root:SetAllPoints(region)
-    root:SetBackdrop({
-        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        tile = true, tileSize = 8, edgeSize = 12,
-        insets = { left = 2, right = 2, top = 2, bottom = 2 },
+    list = List:Build(region, {
+        title = L["Imports"],
+        rowRenderer = ImportRow,
+        extent = function(elementData)
+            if elementData.kind == "class" then
+                return CLASS_HEADER_HEIGHT
+            end
+            return UI.List.ItemHeight
+        end,
+        rowContext = {
+            Rename = function(importID, name)
+                if not ImportManager:RenameImport(importID, name) then return false end
+                ImportList:Refresh()
+                ImportList:Select(importID)
+                return true
+            end,
+        },
     })
-    root:SetBackdropColor(unpack(UI.Backdrop.Panel))
-    root:SetBackdropBorderColor(unpack(UI.Backdrop.PanelBorder))
 
-    -- Title
-    local title = root:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    title:SetPoint("TOPLEFT", 10, -8)
-    title:SetText(L["Imports"])
+    list:OnSelect(function(importID)
+        UpdateDeleteEnabled()
+        if onSelectionChanged then
+            onSelectionChanged(importID)
+        end
+    end)
 
     -- Import button, top-right of the header.
-    local importButton = CreateFrame("Button", nil, root, "UIPanelButtonTemplate")
+    local importButton = CreateFrame("Button", nil, list.root, "UIPanelButtonTemplate")
     importButton:SetPoint("TOPRIGHT", -10, -6)
     importButton:SetSize(64, 24)
     importButton:SetText(L["Import"])
     importButton:SetScript("OnClick", function() ImportList:BeginImport() end)
 
     -- Import delete button, bottom-left of the panel.
-    deleteButton = CreateFrame("Button", nil, root, "UIPanelButtonTemplate")
+    deleteButton = CreateFrame("Button", nil, list.root, "UIPanelButtonTemplate")
     deleteButton:SetPoint("BOTTOMLEFT", 10, 10)
     deleteButton:SetSize(110, 24)
     deleteButton:SetText(L["Delete"])
@@ -85,7 +94,7 @@ function ImportList:Build(region)
     deleteButton:SetScript("OnClick", function()
         if not CanDeleteSelectedImport() then return end
 
-        local importID = selectedImportID
+        local importID = list:GetSelected()
         local record = ImportManager:GetImport(importID)
         if not record then return end
 
@@ -94,53 +103,6 @@ function ImportList:Build(region)
             ImportList:Refresh()
         end)
     end)
-
-    -- Scroll area
-    scrollBox = CreateFrame("Frame", nil, root, "WowScrollBoxList")
-    scrollBox:SetPoint("TOPLEFT", 6, -36)
-    scrollBox:SetPoint("BOTTOMRIGHT", -22, LIST_BOTTOM_INSET)
-
-    local scrollBar = CreateFrame("EventFrame", nil, root, "MinimalScrollBar")
-    scrollBar:SetPoint("TOPLEFT", scrollBox, "TOPRIGHT", 4, -2)
-    scrollBar:SetPoint("BOTTOMLEFT", scrollBox, "BOTTOMRIGHT", 4, 2)
-
-    -- Shared selection context for the pooled rows
-    local rowContext = {
-        GetSelected = function()
-            return selectedImportID
-        end,
-        Select = function(importID)
-            ImportList:Select(importID)
-        end,
-        Rename = function(importID, name)
-            if not ImportManager:RenameImport(importID, name) then return false end
-            ImportList:Refresh()
-            ImportList:Select(importID)
-            return true
-        end,
-    }
-
-    -- List view
-    local view = CreateScrollBoxListLinearView()
-    view:SetElementExtentCalculator(function(_, elementData)
-        if elementData.kind == "class" then
-            return CLASS_HEADER_HEIGHT
-        end
-        return UI.List.ItemHeight
-    end)
-    view:SetPadding(0, 0, 0, 0, UI.List.ItemPadding)
-    view:SetElementInitializer("Frame", function(row, elementData)
-        if not row.initialized then
-            ImportRow:Build(row, rowContext)
-            row.initialized = true
-        end
-        ImportRow:Update(row, elementData, rowContext)
-    end)
-
-    ScrollUtil.InitScrollBoxListWithScrollBar(scrollBox, scrollBar, view)
-
-    -- Only show the scrollbar when the list actually overflows.
-    scrollBar:SetHideIfUnscrollable(true)
 
     UpdateDeleteEnabled()
 
@@ -178,47 +140,26 @@ function ImportList:Refresh()
         })
     end
 
-    scrollBox:SetDataProvider(dataProvider)
-
-    -- Drop the selection if the selected container is no longer listed.
-    if selectedImportID and not visibleImports[selectedImportID] then
-        selectedImportID = nil
-        if onSelectionChanged then
-            onSelectionChanged(nil)
-        end
-    end
+    list:SetData(dataProvider, visibleImports)
 
     UpdateDeleteEnabled()
 end
 
 function ImportList:Select(importID)
-    selectedImportID = importID
-    scrollBox:ForEachFrame(function(frame)
-        if not frame.importID then return end
-        if frame.importID == selectedImportID then
-            frame.bg:SetColorTexture(UI.Row.Selected:GetRGBA())
-        else
-            frame.bg:SetColorTexture(UI.Row.Normal:GetRGBA())
-        end
-    end)
-    if onSelectionChanged then onSelectionChanged(selectedImportID) end
-    UpdateDeleteEnabled()
+    list:Select(importID)
 end
 
 function ImportList:GetSelected()
-    return selectedImportID
+    return list:GetSelected()
 end
 
 function ImportList:ClearSelection()
-    self:Select(nil)
+    list:ClearSelection()
 end
 
 -- Scrolls the list to bring the given container into view.
 function ImportList:ScrollToImport(importID)
-    if not importID then return end
-    scrollBox:ScrollToElementDataByPredicate(function(data)
-        return data.id == importID
-    end, ScrollBoxConstants.AlignNearest)
+    list:ScrollTo(importID)
 end
 
 -- Opens the import dialog; on success refreshes the list and selects the new
