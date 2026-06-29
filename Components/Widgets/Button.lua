@@ -86,7 +86,7 @@ function Verbs:Flash(text)
     self._flash:Restart()
 end
 
-function Verbs:Init(config)
+function Verbs:Constructor(config)
     if config.text then self:SetLabel(config.text) end
     if config.enabled ~= nil then self:SetEnabled(config.enabled) end
     if config.onClick then

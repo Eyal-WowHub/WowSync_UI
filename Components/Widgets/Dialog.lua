@@ -107,7 +107,7 @@ function Verbs:SetTitle(text)
     self._title:SetText(text or "")
 end
 
-function Verbs:Init(config)
+function Verbs:Constructor(config)
     self:SetPoint("CENTER")
     self:SetFrameStrata("FULLSCREEN_DIALOG")
     self:SetBackdrop({

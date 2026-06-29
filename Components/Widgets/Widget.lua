@@ -4,9 +4,9 @@ local _, addon = ...
     Widget core (the single widget model).
 
     Every widget IS a frame. A widget defines its class as a `verbs` table and
-    an optional Init(config) method; addon:NewWidget creates or adopts a frame,
-    mixes the shared base verbs and the widget's verbs onto it, applies the common
-    layout, then runs Init. Frames cannot inherit through a metatable (theirs is
+    an optional Constructor(config) method; addon:NewWidget creates or adopts a
+    frame, mixes the shared base verbs and the widget's verbs onto it, applies the
+    common layout, then runs Constructor. Frames cannot inherit through a metatable (theirs is
     reserved for the C widget dispatch), so verbs are copied on with Mixin -- once,
     here, never at the call sites.
 
@@ -19,7 +19,7 @@ local _, addon = ...
     })
 
     config carries the common layout keys ApplyLayout consumes -- parent, anchor,
-    width, height, shown -- plus whatever else the widget's Init reads.
+    width, height, shown -- plus whatever else the widget's Constructor reads.
 ]]
 
 local Widget = {}
@@ -44,15 +44,15 @@ end
 
 -- The single entry point every widget's Build funnels through. Creates the frame
 -- (or adopts def.frame), mixes the base + the widget's verbs onto it, lays it out,
--- and runs the optional Init hook.
+-- and runs the optional Constructor hook.
 function addon:NewWidget(config, def)
     local frame = def.frame or CreateFrame(def.frameType or "Frame", def.name, config.parent, def.template)
 
     Mixin(frame, Widget, def.verbs or {})
     frame:ApplyLayout(config)
 
-    if frame.Init then
-        frame:Init(config)
+    if frame.Constructor then
+        frame:Constructor(config)
     end
 
     return frame
