@@ -78,8 +78,7 @@ local SECTIONS = {
     { key = "removed", color = REMOVED_COLOR, label = L["Removed (X)"] },
 }
 
-local dialog, frame, scrollBox, measureText
-local currentPreview, currentMode, moduleFilter
+local Verbs = {}
 
 -- The label, optional icon, and optional description of a diff entry, which may
 -- be a bare string or a { label, icon, description } table.
@@ -122,11 +121,12 @@ end
 
 -- The pixel height an entry row needs: a single centred line when it has no
 -- description, or a top-aligned label plus its wrapped description otherwise.
-local function ItemHeight(item)
+local function ItemHeight(panel, item)
     if not item.description or item.description == "" then
         return ITEM_HEIGHT
     end
     local iconOffset = item.icon and (ICON_SIZE + ICON_TEXT_GAP) or 0
+    local measureText = panel._measureText
     measureText:SetWidth(ROW_WIDTH - (ITEM_INSET + iconOffset) - TEXT_RIGHT_INSET)
     measureText:SetText(item.description)
     local descHeight = math.ceil(measureText:GetStringHeight())
@@ -135,7 +135,7 @@ end
 
 -- Flatten the preview into the list's element stream: a header per changed
 -- module, then a subheader and one row per entry for each non-empty section.
-local function Populate(dataProvider, preview, filterName, mode)
+local function Populate(panel, dataProvider, preview, filterName, mode)
     local exactMode = (mode == "exact")
     local anyShown = false
 
@@ -163,7 +163,7 @@ local function Populate(dataProvider, preview, filterName, mode)
                                     icon = icon or moduleIcon,
                                     description = description,
                                 }
-                                item.height = ItemHeight(item)
+                                item.height = ItemHeight(panel, item)
                                 dataProvider:Insert(item)
                             end
                         end
@@ -271,32 +271,23 @@ local function UpdateRow(row, data)
 end
 
 -- Rebuild the element stream from the current preview, filter, and mode.
-local function Rebuild()
+local function Rebuild(panel)
     local dataProvider = CreateDataProvider()
-    Populate(dataProvider, currentPreview, moduleFilter, currentMode)
-    scrollBox:SetDataProvider(dataProvider)
+    Populate(panel, dataProvider, panel._currentPreview, panel._moduleFilter, panel._currentMode)
+    panel._scrollBox:SetDataProvider(dataProvider)
 end
 
-local function Build()
-    if frame then return end
-
-    dialog = Dialog:Build({
-        name = "WowSyncGameDiffPreview",
-        title = L["Preview changes"],
-        width = UI.Preview.Width,
-        height = UI.Preview.Height,
-    })
-    frame = dialog
-
+function Verbs:Constructor(config)
     -- Hidden font string used to measure wrapped description heights up front,
     -- so the virtualised list can size each entry row before it is shown.
-    measureText = frame:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+    local measureText = self:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
     measureText:Hide()
     measureText:SetWordWrap(true)
     measureText:SetJustifyH("LEFT")
+    self._measureText = measureText
 
-    scrollBox = ScrollList:Build({
-        parent = frame,
+    self._scrollBox = ScrollList:Build({
+        parent = self,
         anchor = function(sb)
             sb:SetPoint("TOPLEFT", SCROLLBOX_LEFT_INSET, -40)
             sb:SetPoint("BOTTOMRIGHT", -SCROLLBOX_RIGHT_INSET, 14)
@@ -317,24 +308,39 @@ local function Build()
     })
 end
 
+function Verbs:Open(opts)
+    self._currentPreview = opts.preview
+    self._currentMode = opts.mode or "exact"
+    self._moduleFilter = opts.moduleFilter
+
+    self:SetTitle(opts.title or L["Preview changes"])
+    Rebuild(self)
+
+    self:Show()
+end
+
+local function BuildWidget()
+    return addon:NewWidget({}, {
+        frame = Dialog:Build({
+            name = "WowSyncGameDiffPreview",
+            title = L["Preview changes"],
+            width = UI.Preview.Width,
+            height = UI.Preview.Height,
+        }),
+        verbs = Verbs,
+    })
+end
+
 function GameDiffPreview:Show(opts)
     C:IsTable(opts, 2)
     C:Ensures(type(opts.preview) == "table", "Show: 'opts.preview' must be a table")
 
-    Build()
-
-    currentPreview = opts.preview
-    currentMode = opts.mode or "exact"
-    moduleFilter = opts.moduleFilter
-
-    dialog:SetTitle(opts.title or L["Preview changes"])
-    Rebuild()
-
-    dialog:Show()
+    self._frame = self._frame or BuildWidget()
+    self._frame:Open(opts)
 end
 
 function GameDiffPreview:Hide()
-    if dialog then
-        dialog:Hide()
+    if self._frame then
+        self._frame:Hide()
     end
 end

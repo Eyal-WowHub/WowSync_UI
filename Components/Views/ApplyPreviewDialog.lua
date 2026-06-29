@@ -43,70 +43,61 @@ local DIALOG_HEIGHT = 388
 
 local SnapshotView = WowSync:GetSnapshotView()
 
-local dialog, frame
-local subjectLabel, moduleList, toggleButton
-local onConfirm
-local currentMode, currentPreview, currentSubject
+local Verbs = {}
 
 -- Keep the select-all toggle's label in sync with the current checkbox state.
-local function RefreshToggle()
-    if not toggleButton then return end
-    toggleButton:SetText(moduleList:AreAllSelectableChecked() and L["Deselect All"] or L["Select All"])
+local function RefreshToggle(panel)
+    if not panel._toggleButton then return end
+    panel._toggleButton:SetText(panel._moduleList:AreAllSelectableChecked() and L["Deselect All"] or L["Select All"])
 end
 
-local function Build()
-    if frame then return end
+function Verbs:Constructor(config)
+    local panel = self
 
-    dialog = Dialog:Build({
-        name = "WowSyncApplyPreview",
-        title = L["Apply snapshot"],
-        width = UI.Preview.Width,
-        height = DIALOG_HEIGHT,
-    })
-    frame = dialog
-
-    subjectLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    local subjectLabel = self:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     subjectLabel:SetPoint("TOPLEFT", 14, -38)
     subjectLabel:SetPoint("TOPRIGHT", -14, -38)
     subjectLabel:SetJustifyH("LEFT")
+    self._subjectLabel = subjectLabel
 
-    local listHeader = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    local listHeader = self:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     listHeader:SetPoint("TOPLEFT", 14, -60)
     listHeader:SetText(L["Modules to apply:"])
 
-    toggleButton = Button:Build({
-        parent = frame,
+    local toggleButton = Button:Build({
+        parent = self,
         anchor = function(button)
             button:SetPoint("TOPLEFT", 12, -76)
         end,
         width = 100,
         height = 20,
         onClick = function()
-            moduleList:SetAllChecked(not moduleList:AreAllSelectableChecked())
-            RefreshToggle()
+            panel._moduleList:SetAllChecked(not panel._moduleList:AreAllSelectableChecked())
+            RefreshToggle(panel)
         end,
     })
+    self._toggleButton = toggleButton
 
-    local listSlot = CreateFrame("Frame", nil, frame)
+    local listSlot = CreateFrame("Frame", nil, self)
     listSlot:SetPoint("TOPLEFT", 14, -102)
     listSlot:SetPoint("TOPRIGHT", -14, -102)
-    listSlot:SetPoint("BOTTOM", frame, "BOTTOM", 0, 44)
-    moduleList = ModuleList:Build(listSlot, {
-        onChanged = RefreshToggle,
+    listSlot:SetPoint("BOTTOM", self, "BOTTOM", 0, 44)
+    self._moduleList = ModuleList:Build(listSlot, {
+        onChanged = function() RefreshToggle(panel) end,
         -- Clicking a module name opens the read-only diff browser filtered to
         -- that module, in the row's current mode.
         onPreviewModule = function(name, mode)
             GameDiffPreview:Show({
-                title = currentSubject,
-                preview = currentPreview,
-                mode = mode or currentMode,
+                title = panel._currentSubject,
+                preview = panel._currentPreview,
+                mode = mode or panel._currentMode,
                 moduleFilter = name,
             })
         end,
     })
 
     local applyButton = Button:Build({
-        parent = frame,
+        parent = self,
         anchor = function(button)
             button:SetPoint("BOTTOMRIGHT", -14, 12)
         end,
@@ -114,23 +105,50 @@ local function Build()
         height = 22,
         text = L["Apply"],
         onClick = function()
-            local moduleSet, overrides = moduleList:GetStrategy()
-            ApplyPreviewDialog:Hide()
-            if onConfirm then
-                onConfirm(moduleSet, overrides)
+            local moduleSet, overrides = panel._moduleList:GetStrategy()
+            panel:Hide()
+            if panel._onConfirm then
+                panel._onConfirm(moduleSet, overrides)
             end
         end,
     })
 
     local cancelButton = Button:Build({
-        parent = frame,
+        parent = self,
         anchor = function(button)
             button:SetPoint("RIGHT", applyButton, "LEFT", -8, 0)
         end,
         width = 100,
         height = 22,
         text = L["Cancel"],
-        onClick = function() ApplyPreviewDialog:Hide() end,
+        onClick = function() panel:Hide() end,
+    })
+end
+
+function Verbs:Open(opts)
+    self._onConfirm = opts.onConfirm
+    self._currentMode = opts.mode or "exact"
+    self._currentSubject = opts.subject
+        or (SnapshotView:IsHead(opts.snapshot) and L["Current"] or SnapshotRow:FormatSubject(SnapshotView:GetTimestamp(opts.snapshot)))
+    self:SetTitle(L["Apply snapshot"])
+    self._subjectLabel:SetText(self._currentSubject)
+
+    self._currentPreview = opts.preview or SnapshotView:Preview(opts.snapshot)
+    self._moduleList:SetSnapshot(opts.snapshot, self._currentPreview, self._currentMode)
+    RefreshToggle(self)
+
+    self:Show()
+end
+
+local function BuildWidget()
+    return addon:NewWidget({}, {
+        frame = Dialog:Build({
+            name = "WowSyncApplyPreview",
+            title = L["Apply snapshot"],
+            width = UI.Preview.Width,
+            height = DIALOG_HEIGHT,
+        }),
+        verbs = Verbs,
     })
 end
 
@@ -140,24 +158,12 @@ function ApplyPreviewDialog:Show(opts)
     C:Ensures(type(opts.snapshot) == "table", "Show: 'opts.snapshot' must be a table")
     C:Ensures(opts.onConfirm == nil or type(opts.onConfirm) == "function", "Show: 'opts.onConfirm' must be a function")
 
-    Build()
-
-    onConfirm = opts.onConfirm
-    currentMode = opts.mode or "exact"
-    currentSubject = opts.subject
-        or (SnapshotView:IsHead(opts.snapshot) and L["Current"] or SnapshotRow:FormatSubject(SnapshotView:GetTimestamp(opts.snapshot)))
-    dialog:SetTitle(L["Apply snapshot"])
-    subjectLabel:SetText(currentSubject)
-
-    currentPreview = opts.preview or SnapshotView:Preview(opts.snapshot)
-    moduleList:SetSnapshot(opts.snapshot, currentPreview, currentMode)
-    RefreshToggle()
-
-    dialog:Show()
+    self._frame = self._frame or BuildWidget()
+    self._frame:Open(opts)
 end
 
 function ApplyPreviewDialog:Hide()
-    if dialog then
-        dialog:Hide()
+    if self._frame then
+        self._frame:Hide()
     end
 end

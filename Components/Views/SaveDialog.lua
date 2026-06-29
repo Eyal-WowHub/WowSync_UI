@@ -29,14 +29,10 @@ local UI = addon.UI
 
 local ModuleRegistry = WowSync:GetModuleRegistry()
 
-local dialog, frame
-local toggleButton, noteBox
-local checkboxes = {}    -- moduleName -> checkbox (one per registered module, created once)
-local activeNames = {}   -- module names currently offered/shown
-local onConfirm
+local Verbs = {}
 
-local function IsActive(moduleName)
-    for _, activeName in ipairs(activeNames) do
+local function IsActive(panel, moduleName)
+    for _, activeName in ipairs(panel._activeNames) do
         if activeName == moduleName then return true end
     end
     return false
@@ -44,31 +40,31 @@ end
 
 -- True only when there is at least one offered row and every offered row is
 -- checked.
-local function AreAllChecked()
-    if #activeNames == 0 then return false end
-    for _, name in ipairs(activeNames) do
-        if not checkboxes[name]:GetChecked() then
+local function AreAllChecked(panel)
+    if #panel._activeNames == 0 then return false end
+    for _, name in ipairs(panel._activeNames) do
+        if not panel._checkboxes[name]:GetChecked() then
             return false
         end
     end
     return true
 end
 
-local function RefreshToggle()
-    if not toggleButton then return end
-    toggleButton:SetText(AreAllChecked() and L["Deselect All"] or L["Select All"])
+local function RefreshToggle(panel)
+    if not panel._toggleButton then return end
+    panel._toggleButton:SetText(AreAllChecked(panel) and L["Deselect All"] or L["Select All"])
 end
 
-local function SetAllChecked(checked)
-    for _, name in ipairs(activeNames) do
-        checkboxes[name]:SetChecked(checked)
+local function SetAllChecked(panel, checked)
+    for _, name in ipairs(panel._activeNames) do
+        panel._checkboxes[name]:SetChecked(checked)
     end
 end
 
 -- Build one checkbox per registered module. The registered set is fixed at
 -- runtime, so the checkboxes are created once; which of them are offered (and their
 -- checked state) is decided per Show.
-local function BuildRows(listParent)
+local function BuildRows(panel, listParent)
     local moduleNames = {}
     for name in ModuleRegistry:Iterate() do
         tinsert(moduleNames, name)
@@ -77,17 +73,17 @@ local function BuildRows(listParent)
 
     for _, name in ipairs(moduleNames) do
         local checkbox = ModuleRow:Build(listParent)
-        checkbox:HookScript("OnClick", RefreshToggle)
-        checkboxes[name] = checkbox
+        checkbox:HookScript("OnClick", function() RefreshToggle(panel) end)
+        panel._checkboxes[name] = checkbox
         checkbox:Hide()
     end
 end
 
 -- Stack the offered module checkboxes top-to-bottom and hide the rest.
-local function LayoutActiveRows()
+local function LayoutActiveRows(panel)
     local yOffset = 0
-    for _, name in ipairs(activeNames) do
-        local checkbox = checkboxes[name]
+    for _, name in ipairs(panel._activeNames) do
+        local checkbox = panel._checkboxes[name]
         checkbox:ClearAllPoints()
         checkbox:SetPoint("TOPLEFT", 0, -yOffset)
         ModuleRow:Update(checkbox, name, true, nil, nil)
@@ -95,62 +91,60 @@ local function LayoutActiveRows()
         yOffset = yOffset + UI.ModuleRow.Height + UI.ModuleRow.Padding
     end
 
-    for name, checkbox in pairs(checkboxes) do
-        if not IsActive(name) then
+    for name, checkbox in pairs(panel._checkboxes) do
+        if not IsActive(panel, name) then
             checkbox:Hide()
         end
     end
 end
 
--- Build the dialog frame and its module checkbox region.
-local function Build()
-    if frame then return end
+-- Build the dialog body and its module checkbox region onto the adopted shell.
+function Verbs:Constructor(config)
+    local panel = self
 
-    dialog = Dialog:Build({
-        name = "WowSyncSaveDialog",
-        title = L["Save snapshot"],
-        width = UI.Preview.Width,
-        height = UI.Preview.Height,
-    })
-    frame = dialog
+    panel._checkboxes = {}    -- moduleName -> checkbox (one per registered module, created once)
+    panel._activeNames = {}   -- module names currently offered/shown
+    panel._onConfirm = nil
 
     -- Optional note attached to the snapshot when the player saves.
-    local noteLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    local noteLabel = self:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     noteLabel:SetPoint("TOPLEFT", 14, -44)
     noteLabel:SetText(L["Note (optional):"])
 
-    noteBox = CreateFrame("EditBox", nil, frame, "InputBoxTemplate")
+    local noteBox = CreateFrame("EditBox", nil, self, "InputBoxTemplate")
     noteBox:SetPoint("TOPLEFT", noteLabel, "BOTTOMLEFT", 2, -6)
-    noteBox:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -16, -60)
+    noteBox:SetPoint("TOPRIGHT", self, "TOPRIGHT", -16, -60)
     noteBox:SetHeight(20)
     noteBox:SetAutoFocus(false)
     noteBox:SetMaxLetters(255)
+    self._noteBox = noteBox
 
-    local listHeader = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    local listHeader = self:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     listHeader:SetPoint("TOPLEFT", noteBox, "BOTTOMLEFT", -2, -14)
     listHeader:SetText(L["Modules to save:"])
 
-    toggleButton = Button:Build({
-        parent = frame,
+    local toggleButton = Button:Build({
+        parent = self,
         anchor = function(button)
             button:SetPoint("TOPLEFT", listHeader, "BOTTOMLEFT", 2, -6)
         end,
         width = 100,
         height = 20,
         onClick = function()
-            SetAllChecked(not AreAllChecked())
-            RefreshToggle()
+            SetAllChecked(panel, not AreAllChecked(panel))
+            RefreshToggle(panel)
         end,
     })
+    self._toggleButton = toggleButton
 
-    local listSlot = CreateFrame("Frame", nil, frame)
+    local listSlot = CreateFrame("Frame", nil, self)
     listSlot:SetPoint("TOPLEFT", toggleButton, "BOTTOMLEFT", -2, -8)
-    listSlot:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -14, 0)
-    listSlot:SetPoint("BOTTOM", frame, "BOTTOM", 0, 44)
-    BuildRows(listSlot)
+    listSlot:SetPoint("TOPRIGHT", self, "TOPRIGHT", -14, 0)
+    listSlot:SetPoint("BOTTOM", self, "BOTTOM", 0, 44)
+    BuildRows(panel, listSlot)
 
     local saveButton = Button:Build({
-        parent = frame,
+        parent = self,
         anchor = function(button)
             button:SetPoint("BOTTOMRIGHT", -14, 12)
         end,
@@ -159,8 +153,8 @@ local function Build()
         text = L["Save"],
         onClick = function()
             local moduleSet = {}
-            for _, name in ipairs(activeNames) do
-                if checkboxes[name]:GetChecked() then
+            for _, name in ipairs(panel._activeNames) do
+                if panel._checkboxes[name]:GetChecked() then
                     moduleSet[name] = true
                 end
             end
@@ -169,14 +163,14 @@ local function Build()
                 return
             end
 
-            local note = strtrim(noteBox:GetText())
+            local note = strtrim(panel._noteBox:GetText())
             if note == "" then
                 note = nil
             end
 
-            SaveDialog:Hide()
-            if onConfirm then
-                onConfirm(moduleSet, note)
+            panel:Hide()
+            if panel._onConfirm then
+                panel._onConfirm(moduleSet, note)
             end
         end,
     })
@@ -185,14 +179,58 @@ local function Build()
     noteBox:SetScript("OnEnterPressed", function() saveButton:Click() end)
 
     local cancelButton = Button:Build({
-        parent = frame,
+        parent = self,
         anchor = function(button)
             button:SetPoint("RIGHT", saveButton, "LEFT", -8, 0)
         end,
         width = 110,
         height = 22,
         text = L["Cancel"],
-        onClick = function() SaveDialog:Hide() end,
+        onClick = function() panel:Hide() end,
+    })
+end
+
+-- Offer a module set, reset the note, lay out the rows, and show the dialog.
+function Verbs:Open(opts)
+    self._onConfirm = opts.onConfirm
+
+    -- Decide which modules to offer: a given subset, or every registered module.
+    wipe(self._activeNames)
+    if opts.moduleNames then
+        for _, name in ipairs(opts.moduleNames) do
+            if self._checkboxes[name] then
+                tinsert(self._activeNames, name)
+            end
+        end
+    else
+        for name in pairs(self._checkboxes) do
+            tinsert(self._activeNames, name)
+        end
+    end
+    table.sort(self._activeNames)
+
+    self:SetTitle(L["Save snapshot"])
+
+    self._noteBox:SetText("")
+    self._noteBox:ClearFocus()
+
+    LayoutActiveRows(self)
+    RefreshToggle(self)
+
+    self:Show()
+end
+
+-- Build the dialog on first use, adopting the shared Dialog shell so the body
+-- lives directly on the dialog frame.
+local function BuildWidget()
+    return addon:NewWidget({}, {
+        frame = Dialog:Build({
+            name = "WowSyncSaveDialog",
+            title = L["Save snapshot"],
+            width = UI.Preview.Width,
+            height = UI.Preview.Height,
+        }),
+        verbs = Verbs,
     })
 end
 
@@ -201,38 +239,12 @@ function SaveDialog:Show(opts)
 
     C:Ensures(opts.onConfirm == nil or type(opts.onConfirm) == "function", "Show: 'opts.onConfirm' must be a function")
 
-    Build()
-
-    onConfirm = opts.onConfirm
-
-    -- Decide which modules to offer: a given subset, or every registered module.
-    wipe(activeNames)
-    if opts.moduleNames then
-        for _, name in ipairs(opts.moduleNames) do
-            if checkboxes[name] then
-                tinsert(activeNames, name)
-            end
-        end
-    else
-        for name in pairs(checkboxes) do
-            tinsert(activeNames, name)
-        end
-    end
-    table.sort(activeNames)
-
-    dialog:SetTitle(L["Save snapshot"])
-
-    noteBox:SetText("")
-    noteBox:ClearFocus()
-
-    LayoutActiveRows()
-    RefreshToggle()
-
-    dialog:Show()
+    self._frame = self._frame or BuildWidget()
+    self._frame:Open(opts)
 end
 
 function SaveDialog:Hide()
-    if dialog then
-        dialog:Hide()
+    if self._frame then
+        self._frame:Hide()
     end
 end

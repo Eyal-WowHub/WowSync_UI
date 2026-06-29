@@ -23,9 +23,7 @@ local UI = addon.UI
 
 local ImportManager = WowSync:GetImportManager()
 
-local dialog, frame
-local nameBox, pasteBox, statusLabel
-local onImported
+local Verbs = {}
 
 -- Longest a container name may be; the core trims it and enforces uniqueness.
 local MAX_NAME_LETTERS = 64
@@ -49,67 +47,60 @@ end
 
 -- Read the fields, run the import, and either report a failure inline or close
 -- and notify the caller.
-local function AttemptImport()
-    statusLabel:SetText("")
+local function AttemptImport(panel)
+    panel._statusLabel:SetText("")
 
-    local name = strtrim(nameBox:GetText())
-    local text = strtrim(pasteBox:GetText())
+    local name = strtrim(panel._nameBox:GetText())
+    local text = strtrim(panel._pasteBox:GetText())
 
     if text == "" then
-        statusLabel:SetText(L["Paste a shared string to import."])
+        panel._statusLabel:SetText(L["Paste a shared string to import."])
         return
     end
 
     local result, reason = ImportManager:ImportString(text, { name = name })
     if not result then
-        statusLabel:SetText(ReasonText(reason))
+        panel._statusLabel:SetText(ReasonText(reason))
         return
     end
 
     local importedName = result.Name or name
-    local callback = onImported
+    local callback = panel._onImported
 
-    ImportDialog:Hide()
+    panel:Hide()
     WowSync:Print(L["Imported 'X'."]:format(importedName))
     if callback then
         callback(result.ImportID, result)
     end
 end
 
-local function Build()
-    if frame then return end
-
-    dialog = Dialog:Build({
-        name = "WowSyncImportDialog",
-        title = L["Import snapshot"],
-        width = UI.Preview.Width,
-        height = DIALOG_HEIGHT,
-    })
-    frame = dialog
+function Verbs:Constructor(config)
+    local panel = self
 
     -- Name for the new container.
-    local nameLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    local nameLabel = self:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     nameLabel:SetPoint("TOPLEFT", 14, -44)
     nameLabel:SetText(L["Name:"])
 
-    nameBox = CreateFrame("EditBox", nil, frame, "InputBoxTemplate")
+    local nameBox = CreateFrame("EditBox", nil, self, "InputBoxTemplate")
     nameBox:SetPoint("TOPLEFT", nameLabel, "BOTTOMLEFT", 2, -6)
-    nameBox:SetPoint("RIGHT", frame, "RIGHT", -16, 0)
+    nameBox:SetPoint("RIGHT", self, "RIGHT", -16, 0)
     nameBox:SetHeight(20)
     nameBox:SetAutoFocus(false)
     nameBox:SetMaxLetters(MAX_NAME_LETTERS)
+    self._nameBox = nameBox
 
     -- Pasted share string.
-    local pasteLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    local pasteLabel = self:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     pasteLabel:SetPoint("TOPLEFT", nameBox, "BOTTOMLEFT", -2, -14)
     pasteLabel:SetText(L["Paste the shared string:"])
 
-    local scroll = CreateFrame("ScrollFrame", "WowSyncImportPasteScroll", frame, "InputScrollFrameTemplate")
+    local scroll = CreateFrame("ScrollFrame", "WowSyncImportPasteScroll", self, "InputScrollFrameTemplate")
     scroll:SetPoint("TOPLEFT", pasteLabel, "BOTTOMLEFT", 2, -6)
-    scroll:SetPoint("RIGHT", frame, "RIGHT", -16, 0)
-    scroll:SetPoint("BOTTOM", frame, "BOTTOM", 0, 72)
+    scroll:SetPoint("RIGHT", self, "RIGHT", -16, 0)
+    scroll:SetPoint("BOTTOM", self, "BOTTOM", 0, 72)
 
-    pasteBox = scroll.EditBox
+    local pasteBox = scroll.EditBox
     pasteBox:SetMaxLetters(0)
     pasteBox:SetWidth(scroll:GetWidth() - 18)
     InputScrollFrame_SetInstructions(scroll, L["Paste the shared string:"])
@@ -120,37 +111,39 @@ local function Build()
     end
     -- Keep the inner edit box width in step with the (anchored) scroll frame so
     -- text wraps correctly after the frame resolves its size.
-    scroll:SetScript("OnSizeChanged", function(self, width)
-        self.EditBox:SetWidth(width - 18)
+    scroll:SetScript("OnSizeChanged", function(scrollFrame, width)
+        scrollFrame.EditBox:SetWidth(width - 18)
     end)
+    self._pasteBox = pasteBox
 
     -- Inline failure feedback, full-width above the buttons.
-    statusLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    local statusLabel = self:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     statusLabel:SetPoint("BOTTOMLEFT", 16, 44)
     statusLabel:SetPoint("BOTTOMRIGHT", -16, 44)
     statusLabel:SetJustifyH("LEFT")
     statusLabel:SetTextColor(1, 0.3, 0.3)
+    self._statusLabel = statusLabel
 
     local importButton = Button:Build({
-        parent = frame,
+        parent = self,
         anchor = function(button)
             button:SetPoint("BOTTOMRIGHT", -14, 12)
         end,
         width = 110,
         height = 22,
         text = L["Import"],
-        onClick = AttemptImport,
+        onClick = function() AttemptImport(panel) end,
     })
 
     local cancelButton = Button:Build({
-        parent = frame,
+        parent = self,
         anchor = function(button)
             button:SetPoint("RIGHT", importButton, "LEFT", -8, 0)
         end,
         width = 110,
         height = 22,
         text = CANCEL,
-        onClick = function() ImportDialog:Hide() end,
+        onClick = function() panel:Hide() end,
     })
 
     -- Enter in the name box jumps to the paste box; the paste box is multi-line,
@@ -158,24 +151,39 @@ local function Build()
     nameBox:SetScript("OnEnterPressed", function() pasteBox:SetFocus() end)
 end
 
+function Verbs:Open(opts)
+    self._onImported = opts.onImported
+
+    self._nameBox:SetText("")
+    self._pasteBox:SetText("")
+    self._statusLabel:SetText("")
+
+    self:Show()
+    self._nameBox:SetFocus()
+end
+
+local function BuildWidget()
+    return addon:NewWidget({}, {
+        frame = Dialog:Build({
+            name = "WowSyncImportDialog",
+            title = L["Import snapshot"],
+            width = UI.Preview.Width,
+            height = DIALOG_HEIGHT,
+        }),
+        verbs = Verbs,
+    })
+end
+
 function ImportDialog:Show(opts)
     C:IsTable(opts, 2)
     C:Ensures(opts.onImported == nil or type(opts.onImported) == "function", "Show: 'opts.onImported' must be a function")
 
-    Build()
-
-    onImported = opts.onImported
-
-    nameBox:SetText("")
-    pasteBox:SetText("")
-    statusLabel:SetText("")
-
-    dialog:Show()
-    nameBox:SetFocus()
+    self._frame = self._frame or BuildWidget()
+    self._frame:Open(opts)
 end
 
 function ImportDialog:Hide()
-    if dialog then
-        dialog:Hide()
+    if self._frame then
+        self._frame:Hide()
     end
 end
