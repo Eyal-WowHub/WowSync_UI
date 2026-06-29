@@ -6,8 +6,8 @@ local _, addon = ...
     Builds a bordered panel with a title and a virtualised, single-selection
     scroll list, owning the selection state and scroll plumbing shared by the
     profile and import lists. The owner supplies the row renderer, per-element
-    extents, and the data; it attaches its own buttons to list.root and feeds
-    rows by building a data provider and calling list:SetData.
+    extents, and the data; it attaches its own buttons to the panel frame itself
+    and feeds rows by building a data provider and calling list:SetData.
 
     A row carries its identifier on row.id (set by the row renderer), which the
     selection highlight and scroll-to predicate rely on.
@@ -20,7 +20,7 @@ local _, addon = ...
         bottomInset = 40,                           -- optional, room for owner bottom buttons
     })
 
-    list.root                                       -- the panel Frame, for owner buttons
+    list                                            -- IS the panel Frame, for owner buttons
     list:OnSelect(callback)                         -- callback(id or nil)
     list:SetData(dataProvider, visibleIDs)          -- swap contents; drops a vanished selection
     list:GetSelected() -> id or nil
@@ -31,6 +31,7 @@ local _, addon = ...
 
 local List = addon:NewObject("List")
 local ScrollList = addon:GetObject("ScrollList")
+local SelectableRow = addon:GetObject("SelectableRow")
 
 local C = LibStub("Contracts-1.0")
 local UI = addon.UI
@@ -38,38 +39,55 @@ local UI = addon.UI
 -- Leaves room below the scroll area for the owner's bottom-left buttons.
 local DEFAULT_BOTTOM_INSET = 40
 
-local ListMethods = {}
-local ListMeta = { __index = ListMethods }
+local Verbs = {}
 
 function List:Build(region, config)
     C:IsTable(region, 2)
     C:IsTable(config, 3)
     C:Ensures(type(config.rowRenderer) == "table", "Build: 'config.rowRenderer' must be a table")
 
-    local list = setmetatable({}, ListMeta)
-    list.selectedID = nil
-    list.onSelectionChanged = nil
+    return addon:NewWidget({
+        parent = region,
+        anchor = function(self)
+            self:SetAllPoints(region)
+        end,
+        title = config.title,
+        rowRenderer = config.rowRenderer,
+        extent = config.extent,
+        rowContext = config.rowContext,
+        bottomInset = config.bottomInset,
+    }, {
+        frameType = "Frame",
+        template = "BackdropTemplate",
+        verbs = Verbs,
+    })
+end
 
-    local root = CreateFrame("Frame", nil, region, "BackdropTemplate")
-    root:SetAllPoints(region)
-    root:SetBackdrop({
+-- Build the panel chrome (border, title) and the virtualised scroll list, and
+-- seed the selection state. The list IS this frame; the owner anchors its
+-- buttons onto it directly.
+function Verbs:Constructor(config)
+    self:SetBackdrop({
         bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
         tile = true, tileSize = 8, edgeSize = 12,
         insets = { left = 2, right = 2, top = 2, bottom = 2 },
     })
-    root:SetBackdropColor(unpack(UI.Backdrop.Panel))
-    root:SetBackdropBorderColor(unpack(UI.Backdrop.PanelBorder))
-    list.root = root
+    self:SetBackdropColor(unpack(UI.Backdrop.Panel))
+    self:SetBackdropBorderColor(unpack(UI.Backdrop.PanelBorder))
 
-    local title = root:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    self.selectedID = nil
+    self.onSelectionChanged = nil
+
+    local title = self:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", 10, -8)
     title:SetText(config.title or "")
-    list.title = title
+    self.title = title
 
     local bottomInset = config.bottomInset or DEFAULT_BOTTOM_INSET
 
     -- Row context: the shared selection hooks plus any owner extras (e.g. Rename).
+    local list = self
     local rowContext = {
         GetSelected = function()
             return list.selectedID
@@ -87,8 +105,8 @@ function List:Build(region, config)
     local rowRenderer = config.rowRenderer
     local extent = config.extent
 
-    list.scrollBox = ScrollList:Build({
-        parent = root,
+    self.scrollBox = ScrollList:Build({
+        parent = self,
         anchor = function(scrollBox)
             scrollBox:SetPoint("TOPLEFT", 6, -36)
             scrollBox:SetPoint("BOTTOMRIGHT", -22, bottomInset)
@@ -107,17 +125,15 @@ function List:Build(region, config)
             rowRenderer:Update(row, elementData, rowContext)
         end,
     })
-
-    return list
 end
 
-function ListMethods:OnSelect(callback)
+function Verbs:OnSelect(callback)
     self.onSelectionChanged = callback
 end
 
 -- Swap the list contents. Drops the selection (notifying once) when the
 -- selected id is no longer among the visible ids.
-function ListMethods:SetData(dataProvider, visibleIDs)
+function Verbs:SetData(dataProvider, visibleIDs)
     self.scrollBox:SetDataProvider(dataProvider)
 
     if self.selectedID and visibleIDs and not visibleIDs[self.selectedID] then
@@ -128,31 +144,27 @@ function ListMethods:SetData(dataProvider, visibleIDs)
     end
 end
 
-function ListMethods:GetSelected()
+function Verbs:GetSelected()
     return self.selectedID
 end
 
-function ListMethods:Select(id)
+function Verbs:Select(id)
     self.selectedID = id
     self.scrollBox:ForEachFrame(function(frame)
         if not frame.id then return end
-        if frame.id == id then
-            frame.bg:SetColorTexture(UI.Row.Selected:GetRGBA())
-        else
-            frame.bg:SetColorTexture(UI.Row.Normal:GetRGBA())
-        end
+        SelectableRow:Paint(frame, frame.id == id)
     end)
     if self.onSelectionChanged then
         self.onSelectionChanged(id)
     end
 end
 
-function ListMethods:ClearSelection()
+function Verbs:ClearSelection()
     self:Select(nil)
 end
 
 -- Scroll the list so the element with the given id is visible (no-op if absent).
-function ListMethods:ScrollTo(id)
+function Verbs:ScrollTo(id)
     if not id then return end
     self.scrollBox:ScrollToElementDataByPredicate(function(data)
         return data.id == id

@@ -89,7 +89,7 @@ function ProfileList:Build(region)
 
     -- Profile delete button, bottom-left of the panel.
     deleteButton = Button:Build({
-        parent = list.root,
+        parent = list,
         anchor = function(button)
             button:SetPoint("BOTTOMLEFT", 10, 10)
         end,

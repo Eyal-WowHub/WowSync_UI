@@ -81,7 +81,7 @@ function ImportList:Build(region)
 
     -- Import button, top-right of the header.
     local importButton = Button:Build({
-        parent = list.root,
+        parent = list,
         anchor = function(button)
             button:SetPoint("TOPRIGHT", -10, -6)
         end,
@@ -93,7 +93,7 @@ function ImportList:Build(region)
 
     -- Import delete button, bottom-left of the panel.
     deleteButton = Button:Build({
-        parent = list.root,
+        parent = list,
         anchor = function(button)
             button:SetPoint("BOTTOMLEFT", 10, 10)
         end,

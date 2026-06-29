@@ -25,20 +25,15 @@ local ScrollList = addon:NewObject("ScrollList")
 
 local C = LibStub("Contracts-1.0")
 
-function ScrollList:Build(config)
-    C:IsTable(config, 2)
-    C:Ensures(config.parent ~= nil, "Build: 'config.parent' is required")
-    C:Ensures(type(config.anchor) == "function", "Build: 'config.anchor' must be a function")
-    C:Ensures(config.extent ~= nil, "Build: 'config.extent' is required")
-    C:Ensures(type(config.build) == "function", "Build: 'config.build' must be a function")
-    C:Ensures(type(config.update) == "function", "Build: 'config.update' must be a function")
+local Verbs = {}
 
-    local scrollBox = CreateFrame("Frame", nil, config.parent, "WowScrollBoxList")
-    config.anchor(scrollBox)
-
+-- Wire the scrollbar and the linear view onto the scroll box, with a
+-- build-once/update element initializer. The scroll box is already anchored by
+-- the shared layout, so only the scrollbar and view plumbing remain here.
+function Verbs:Constructor(config)
     local scrollBar = CreateFrame("EventFrame", nil, config.parent, "MinimalScrollBar")
-    scrollBar:SetPoint("TOPLEFT", scrollBox, "TOPRIGHT", 4, -2)
-    scrollBar:SetPoint("BOTTOMLEFT", scrollBox, "BOTTOMRIGHT", 4, 2)
+    scrollBar:SetPoint("TOPLEFT", self, "TOPRIGHT", 4, -2)
+    scrollBar:SetPoint("BOTTOMLEFT", self, "BOTTOMRIGHT", 4, 2)
 
     local view = CreateScrollBoxListLinearView()
     if type(config.extent) == "function" then
@@ -57,10 +52,23 @@ function ScrollList:Build(config)
         update(row, data)
     end)
 
-    ScrollUtil.InitScrollBoxListWithScrollBar(scrollBox, scrollBar, view)
+    ScrollUtil.InitScrollBoxListWithScrollBar(self, scrollBar, view)
 
     -- Only show the scrollbar when the list actually overflows.
     scrollBar:SetHideIfUnscrollable(true)
+end
 
-    return scrollBox
+function ScrollList:Build(config)
+    C:IsTable(config, 2)
+    C:Ensures(config.parent ~= nil, "Build: 'config.parent' is required")
+    C:Ensures(type(config.anchor) == "function", "Build: 'config.anchor' must be a function")
+    C:Ensures(config.extent ~= nil, "Build: 'config.extent' is required")
+    C:Ensures(type(config.build) == "function", "Build: 'config.build' must be a function")
+    C:Ensures(type(config.update) == "function", "Build: 'config.update' must be a function")
+
+    return addon:NewWidget(config, {
+        frameType = "Frame",
+        template = "WowScrollBoxList",
+        verbs = Verbs,
+    })
 end
