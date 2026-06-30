@@ -42,10 +42,10 @@ local HANDLE_FRAME_LEVEL_OFFSET = 5
 
 local Verbs = {}
 
--- When locked the handle ignores the mouse and drops back to its idle colour.
+-- When locked the handle hides and stops responding to the mouse.
 function Verbs:SetLocked(value)
     self._locked = value and true or false
-    self:EnableMouse(not self._locked)
+    self:SetShown(not self._locked)
     self.line:SetColorTexture(unpack(SPLITTER_COLOR))
 end
 
