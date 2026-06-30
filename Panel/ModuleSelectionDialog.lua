@@ -1,24 +1,28 @@
 local _, addon = ...
 
 --[[
-    SaveDialog object.
+    ModuleSelectionDialog object.
 
-    A modal window for choosing which modules a snapshot captures. It hands the
-    chosen module set back through onConfirm so the caller runs the actual save.
-    The dialog is "dumb" about saving itself — the owning character and the
-    optional note are decided by the caller, not here.
+    A modal window for choosing which modules an action covers, plus an optional
+    note. It hands the chosen module set and note back through onConfirm so the
+    caller runs the actual save or share. The dialog is "dumb" about the action
+    itself — the owning character, the title and what happens with the result are
+    decided by the caller, not here.
 
     Unlike the apply preview, this dialog owns its own (non-pooled) checkbox
     rows rather than the shared ModuleList object, because that list is a
     singleton already used by ApplyPreviewDialog.
 
-    addon:GetObject("SaveDialog"):Show({
-        moduleNames = { name, ... }, -- restrict the offered modules (optional)
+    addon:GetObject("ModuleSelectionDialog"):Show({
+        title       = L["Save snapshot"], -- window/header title
+        confirmText = L["Save"],          -- confirm button label
+        moduleNames = { name, ... },      -- restrict the offered modules (optional)
+        note        = "prefill",          -- initial note text (optional)
         onConfirm   = function(moduleSet, note) end,
     })
 ]]
 
-local SaveDialog = addon:NewObject("SaveDialog")
+local ModuleSelectionDialog = addon:NewObject("ModuleSelectionDialog")
 local Dialog = addon:GetObject("Dialog")
 local ModuleRow = addon:GetObject("ModuleRow")
 local Button = addon:GetObject("Button")
@@ -55,6 +59,30 @@ local function RefreshToggle(panel)
     panel._toggleButton:SetText(AreAllChecked(panel) and L["Deselect All"] or L["Select All"])
 end
 
+-- True when at least one offered row is checked.
+local function AreAnyChecked(panel)
+    for _, name in ipairs(panel._activeNames) do
+        if panel._checkboxes[name]:GetChecked() then
+            return true
+        end
+    end
+    return false
+end
+
+-- Keep the confirm button disabled until at least one module is selected, so
+-- the action can never run on an empty set.
+local function RefreshConfirm(panel)
+    if not panel._confirmButton then return end
+    panel._confirmButton:SetEnabled(AreAnyChecked(panel))
+end
+
+-- React to any change in the offered rows: both the select-all label and the
+-- confirm button's enabled state depend on the current checks.
+local function RefreshState(panel)
+    RefreshToggle(panel)
+    RefreshConfirm(panel)
+end
+
 local function SetAllChecked(panel, checked)
     for _, name in ipairs(panel._activeNames) do
         panel._checkboxes[name]:SetChecked(checked)
@@ -73,7 +101,7 @@ local function BuildRows(panel, listParent)
 
     for _, name in ipairs(moduleNames) do
         local checkbox = ModuleRow:Build(listParent)
-        checkbox:HookScript("OnClick", function() RefreshToggle(panel) end)
+        checkbox:HookScript("OnClick", function() RefreshState(panel) end)
         panel._checkboxes[name] = checkbox
         checkbox:Hide()
     end
@@ -106,7 +134,7 @@ function Verbs:Constructor(config)
     panel._activeNames = {}   -- module names currently offered/shown
     panel._onConfirm = nil
 
-    -- Optional note attached to the snapshot when the player saves.
+    -- Optional note attached to the snapshot for this action.
     local noteLabel = self:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     noteLabel:SetPoint("TOPLEFT", 14, -44)
     noteLabel:SetText(L["Note (optional):"])
@@ -121,7 +149,7 @@ function Verbs:Constructor(config)
 
     local listHeader = self:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     listHeader:SetPoint("TOPLEFT", noteBox, "BOTTOMLEFT", -2, -14)
-    listHeader:SetText(L["Modules to save:"])
+    listHeader:SetText(L["Modules:"])
 
     local toggleButton = Button:Build({
         parent = self,
@@ -132,7 +160,7 @@ function Verbs:Constructor(config)
         height = 20,
         onClick = function()
             SetAllChecked(panel, not AreAllChecked(panel))
-            RefreshToggle(panel)
+            RefreshState(panel)
         end,
     })
     self._toggleButton = toggleButton
@@ -144,14 +172,13 @@ function Verbs:Constructor(config)
     self._listSlot = listSlot
     BuildRows(panel, listSlot)
 
-    local saveButton = Button:Build({
+    local confirmButton = Button:Build({
         parent = self,
         anchor = function(button)
             button:SetPoint("BOTTOMRIGHT", -14, 12)
         end,
         width = 110,
         height = 22,
-        text = L["Save"],
         onClick = function()
             local moduleSet = {}
             for _, name in ipairs(panel._activeNames) do
@@ -159,10 +186,9 @@ function Verbs:Constructor(config)
                     moduleSet[name] = true
                 end
             end
-            if not next(moduleSet) then
-                WowSync:Print(L["No modules selected."])
-                return
-            end
+            -- The confirm button is disabled while the set is empty, so this is
+            -- only ever reached with at least one module chosen.
+            if not next(moduleSet) then return end
 
             local note = strtrim(panel._noteBox:GetText())
             if note == "" then
@@ -175,14 +201,17 @@ function Verbs:Constructor(config)
             end
         end,
     })
+    self._confirmButton = confirmButton
 
-    -- Enter in the note box confirms the save.
-    noteBox:SetScript("OnEnterPressed", function() saveButton:Click() end)
+    -- Enter in the note box confirms when a selection exists.
+    noteBox:SetScript("OnEnterPressed", function()
+        if confirmButton:IsEnabled() then confirmButton:Click() end
+    end)
 
     local cancelButton = Button:Build({
         parent = self,
         anchor = function(button)
-            button:SetPoint("RIGHT", saveButton, "LEFT", -8, 0)
+            button:SetPoint("RIGHT", confirmButton, "LEFT", -8, 0)
         end,
         width = 110,
         height = 22,
@@ -191,7 +220,8 @@ function Verbs:Constructor(config)
     })
 end
 
--- Offer a module set, reset the note, lay out the rows, and show the dialog.
+-- Offer a module set, apply the caller's labels and note, lay out the rows, and
+-- show the dialog.
 function Verbs:Open(opts)
     self._onConfirm = opts.onConfirm
 
@@ -210,13 +240,14 @@ function Verbs:Open(opts)
     end
     table.sort(self._activeNames)
 
-    self:SetTitle(L["Save snapshot"])
+    self:SetTitle(opts.title or L["Save snapshot"])
+    self._confirmButton:SetLabel(opts.confirmText or L["Save"])
 
-    self._noteBox:SetText("")
+    self._noteBox:SetText(opts.note or "")
     self._noteBox:ClearFocus()
 
     LayoutActiveRows(self)
-    RefreshToggle(self)
+    RefreshState(self)
 
     -- Grow the dialog to fit the offered rows so none hide behind the buttons.
     -- The list region is pinned between fixed top and bottom chrome, so the
@@ -234,7 +265,7 @@ end
 local function BuildWidget()
     return addon:NewWidget({}, {
         frame = Dialog:Build({
-            name = "WowSyncSaveDialog",
+            name = "WowSyncModuleSelectionDialog",
             title = L["Save snapshot"],
             width = UI.Preview.Width,
             height = UI.Preview.Height,
@@ -243,7 +274,7 @@ local function BuildWidget()
     })
 end
 
-function SaveDialog:Show(opts)
+function ModuleSelectionDialog:Show(opts)
     C:IsTable(opts, 2)
 
     C:Ensures(opts.onConfirm == nil or type(opts.onConfirm) == "function", "Show: 'opts.onConfirm' must be a function")
@@ -252,7 +283,7 @@ function SaveDialog:Show(opts)
     self._frame:Open(opts)
 end
 
-function SaveDialog:Hide()
+function ModuleSelectionDialog:Hide()
     if self._frame then
         self._frame:Hide()
     end

@@ -109,13 +109,6 @@ local function OpenSnapshotMenu(panel, snapshot, anchor)
 
         rootDescription:CreateDivider()
 
-        rootDescription:CreateButton(L["Edit note…"], function()
-            PopupDialogs:PromptEditNote(snapshot.Notes, function(text)
-                ImportManager:SetSnapshotNotes(panel._currentImportID, SelectorFor(snapshot), text)
-                panel._timeline:Refresh()
-            end)
-        end)
-
         rootDescription:CreateButton(L["Delete snapshot"], function()
             PopupDialogs:ConfirmDeleteSnapshot(subject, function()
                 ImportManager:DeleteSnapshot(panel._currentImportID, SelectorFor(snapshot))

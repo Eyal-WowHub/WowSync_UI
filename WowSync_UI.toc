@@ -46,7 +46,7 @@ Panel\SnapshotList.lua
 Panel\UndoList.lua
 Panel\GameDiffPreview.lua
 Panel\ApplyPreviewDialog.lua
-Panel\SaveDialog.lua
+Panel\ModuleSelectionDialog.lua
 Panel\ShareDialog.lua
 Panel\ImportDialog.lua
 Panel\ProfileList.lua

@@ -9,7 +9,7 @@ local _, addon = ...
     frame, and drive Show/Hide. ESC closes the dialog.
 
     local dialog = addon:GetObject("Dialog"):Build({
-        name   = "WowSyncSaveDialog",   -- global frame name (required, for ESC)
+        name   = "WowSyncExampleDialog", -- global frame name (required, for ESC)
         title  = L["Save snapshot"],     -- initial title text (optional)
         width  = number,                 -- defaults to UI.Preview.Width
         height = number,                 -- defaults to UI.Preview.Height

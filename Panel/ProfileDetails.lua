@@ -29,7 +29,7 @@ local UndoList = addon:GetObject("UndoList")
 local ActionBar = addon:GetObject("ActionBar")
 local ApplyPreviewDialog = addon:GetObject("ApplyPreviewDialog")
 local GameDiffPreview = addon:GetObject("GameDiffPreview")
-local SaveDialog = addon:GetObject("SaveDialog")
+local ModuleSelectionDialog = addon:GetObject("ModuleSelectionDialog")
 local ShareDialog = addon:GetObject("ShareDialog")
 
 local C = LibStub("Contracts-1.0")
@@ -324,22 +324,43 @@ local function RequestUndoSteps(panel, count, undoPoint)
     end
 end
 
--- Exports a snapshot to a share string and opens the copy dialog, reporting if
--- the snapshot couldn't be encoded.
+-- Lets the player pick which modules (and an optional note) to share, encodes
+-- that subset to a share string, and opens the copy dialog. The note defaults to
+-- the snapshot's own note so a re-share keeps it unless the player edits it.
 local function ShareSnapshot(panel, snapshot)
-    local share, reason, subject
-    if SnapshotView:IsHead(snapshot) then
+    local isHead = SnapshotView:IsHead(snapshot)
+    local subject, charKey, selector
+    if isHead then
         subject = panel._currentProfileName .. " — " .. L["Current"]
-        share, reason = ImportManager:ExportHead(SnapshotView:GetCharacterInfo(snapshot).Key)
+        charKey = SnapshotView:GetCharacterInfo(snapshot).Key
     else
         subject = panel._currentProfileName .. " — " .. SnapshotRow:FormatSubject(SnapshotView:GetTimestamp(snapshot))
-        share, reason = ImportManager:ExportSnapshot(panel._currentProfileName, SnapshotView:GetSelector(snapshot))
+        selector = SnapshotView:GetSelector(snapshot)
     end
-    if share then
-        ShareDialog:Show({ text = share, subject = subject })
-    else
-        WowSync:Print(reason or L["Couldn't export that snapshot."])
-    end
+
+    ModuleSelectionDialog:Show({
+        title = L["Share snapshot"],
+        confirmText = L["Share…"],
+        moduleNames = SnapshotView:GetModuleNames(snapshot),
+        note = SnapshotView:GetNotes(snapshot),
+        onConfirm = function(moduleSet, note)
+            -- The picker's note is authoritative for a share: pass an explicit
+            -- empty string (not nil) so clearing the prefilled note actually
+            -- drops it, instead of the export falling back to the saved note.
+            local opts = { modules = moduleSet, notes = note or "" }
+            local share, reason
+            if isHead then
+                share, reason = ImportManager:ExportHead(charKey, opts)
+            else
+                share, reason = ImportManager:ExportSnapshot(panel._currentProfileName, selector, opts)
+            end
+            if share then
+                ShareDialog:Show({ text = share, subject = subject })
+            else
+                WowSync:Print(reason or L["Couldn't export that snapshot."])
+            end
+        end,
+    })
 end
 
 -- Open the diff preview for a snapshot, or report when there is no baseline to
@@ -659,7 +680,9 @@ function Verbs:RequestSave()
         return
     end
 
-    SaveDialog:Show({
+    ModuleSelectionDialog:Show({
+        title = L["Save snapshot"],
+        confirmText = L["Save"],
         onConfirm = function(moduleSet, note)
             local evicted = SnapshotHandleCache:GetPendingEviction(charKey)
 
