@@ -112,6 +112,7 @@ end
 function Verbs:Constructor(config)
     self._checkboxes = {}   -- moduleName -> active checkbox
     self._pool = {}
+    self._contentHeight = 0
     self._onChanged = config.onChanged
     self._onPreviewModule = config.onPreviewModule
 end
@@ -199,6 +200,14 @@ function Verbs:SetSnapshot(snapshot, preview, mode)
             yOffset = yOffset + UI.ModuleRow.Height + UI.ModuleRow.Padding
         end
     end
+
+    panel._contentHeight = yOffset
+end
+
+-- The total stacked height of the rows from the last SetSnapshot, so an owner
+-- can size itself to seat every module row.
+function Verbs:GetContentHeight()
+    return self._contentHeight or 0
 end
 
 function Verbs:GetSelected()

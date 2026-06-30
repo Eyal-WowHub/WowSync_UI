@@ -141,6 +141,7 @@ function Verbs:Constructor(config)
     listSlot:SetPoint("TOPLEFT", toggleButton, "BOTTOMLEFT", -2, -8)
     listSlot:SetPoint("TOPRIGHT", self, "TOPRIGHT", -14, 0)
     listSlot:SetPoint("BOTTOM", self, "BOTTOM", 0, 44)
+    self._listSlot = listSlot
     BuildRows(panel, listSlot)
 
     local saveButton = Button:Build({
@@ -216,6 +217,14 @@ function Verbs:Open(opts)
 
     LayoutActiveRows(self)
     RefreshToggle(self)
+
+    -- Grow the dialog to fit the offered rows so none hide behind the buttons.
+    -- The list region is pinned between fixed top and bottom chrome, so the
+    -- difference between the dialog and the list is a constant; add the exact
+    -- height the stacked rows need on top of it.
+    local rowsHeight = #self._activeNames * (UI.ModuleRow.Height + UI.ModuleRow.Padding)
+    local chrome = self:GetHeight() - self._listSlot:GetHeight()
+    self:SetHeight(chrome + rowsHeight)
 
     self:Show()
 end

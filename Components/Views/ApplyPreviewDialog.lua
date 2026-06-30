@@ -35,12 +35,6 @@ local C = LibStub("Contracts-1.0")
 local L = addon.L
 local UI = addon.UI
 
--- The module list is a fixed, non-scrolling column, so the dialog must be tall
--- enough to seat every module row clear of the action buttons. The shared
--- preview height is too short once all modules are listed; size to the full set
--- plus breathing room above the Apply/Cancel row.
-local DIALOG_HEIGHT = 388
-
 local SnapshotView = WowSync:GetSnapshotView()
 
 local Verbs = {}
@@ -82,6 +76,7 @@ function Verbs:Constructor(config)
     listSlot:SetPoint("TOPLEFT", 14, -102)
     listSlot:SetPoint("TOPRIGHT", -14, -102)
     listSlot:SetPoint("BOTTOM", self, "BOTTOM", 0, 44)
+    self._listSlot = listSlot
     self._moduleList = ModuleList:Build(listSlot, {
         onChanged = function() RefreshToggle(panel) end,
         -- Clicking a module name opens the read-only diff browser filtered to
@@ -137,6 +132,12 @@ function Verbs:Open(opts)
     self._moduleList:SetSnapshot(opts.snapshot, self._currentPreview, self._currentMode)
     RefreshToggle(self)
 
+    -- Grow the dialog to seat every module row clear of the action buttons. The
+    -- list region is pinned between fixed top and bottom chrome, so the gap
+    -- between the dialog and the list is constant; add the rows' exact height.
+    local chrome = self:GetHeight() - self._listSlot:GetHeight()
+    self:SetHeight(chrome + self._moduleList:GetContentHeight())
+
     self:Show()
 end
 
@@ -146,7 +147,7 @@ local function BuildWidget()
             name = "WowSyncApplyPreview",
             title = L["Apply snapshot"],
             width = UI.Preview.Width,
-            height = DIALOG_HEIGHT,
+            height = UI.Preview.Height,
         }),
         verbs = Verbs,
     })
