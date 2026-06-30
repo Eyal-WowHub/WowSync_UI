@@ -80,6 +80,7 @@ function Verbs:Constructor(config)
     self._ctx = config.ctx
 
     self:Background()
+    self:DecorateSelection()
 
     -- Timeline rail: a vertical line down the row with a node dot on it.
     self.rail = self:CreateTexture(nil, "ARTWORK")
@@ -119,10 +120,12 @@ function Verbs:Constructor(config)
     self.detailNote:SetJustifyV("TOP")
     self.detailNote:SetHeight(UI.SnapshotDetail.NoteHeight)
     self.detailNote:SetWordWrap(true)
+    self.detailNote:SetTextColor(UI.Note.Color:GetRGB())
     self.detailNote:Hide()
 
     self.detailHeader = self:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     self.detailHeader:SetJustifyH("LEFT")
+    self.detailHeader:SetTextColor(UI.Note.HeaderColor:GetRGB())
     self.detailHeader:Hide()
 
     self.detailChanges = self:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -153,7 +156,7 @@ local function ExpandRow(row, detail)
 
     if detail and detail.hasNote then
         row.detailNote:ClearAllPoints()
-        row.detailNote:SetPoint("TOPLEFT", row, "TOPLEFT", row.textLeft, row.detailTop)
+        row.detailNote:SetPoint("TOPLEFT", row.subjectText, "BOTTOMLEFT", 0, -2)
         row.detailNote:SetPoint("RIGHT", row, "RIGHT", -8, 0)
         row.detailNote:SetText(detail.note)
         row.detailNote:Show()
@@ -164,7 +167,7 @@ local function ExpandRow(row, detail)
         row.detailNote:Hide()
 
         row.detailHeader:ClearAllPoints()
-        row.detailHeader:SetPoint("TOPLEFT", row, "TOPLEFT", row.textLeft, row.detailTop)
+        row.detailHeader:SetPoint("TOPLEFT", row.subjectText, "BOTTOMLEFT", 0, -2)
     end
 
     row.detailHeader:SetText(L["Changes vs current setup:"])
@@ -206,7 +209,7 @@ local function CollapseRow(row, snapshot, isHead)
     local note = SnapshotView:GetNotes(snapshot)
     if note ~= "" then
         row.noteText:SetText(note)
-        row.noteText:SetTextColor(DISABLED_FONT_COLOR:GetRGB())
+        row.noteText:SetTextColor(UI.Note.Color:GetRGB())
         row.noteText:Show()
     else
         row.noteText:Hide()

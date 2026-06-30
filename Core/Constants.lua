@@ -60,5 +60,26 @@ addon.UI = {
         Selected = CreateColor(0.2, 0.4, 0.6, 0.6),
         Hover = CreateColor(0.3, 0.3, 0.3, 0.4),
         Normal = CreateColor(0, 0, 0, 0),
+
+        -- Decorated selection, opted into by the snapshot rows: a bright left
+        -- accent bar, a gentle left-to-right gradient fill, and thin edge lines
+        -- so a selected row reads as a panel opening rather than a flat block.
+        Accent = CreateColor(0.30, 0.62, 0.95, 1),
+        AccentWidth = 3,
+        SelectedGradientLeft = CreateColor(0.30, 0.54, 0.80, 0.82),
+        SelectedGradientRight = CreateColor(0.30, 0.54, 0.80, 0.32),
+        SelectedEdge = CreateColor(0.35, 0.62, 0.95, 0.55),
+
+        -- Hover echoes the selected gradient in the same hue but dimmer,
+        -- so pointing at an unselected row previews the selection look.
+        HoverGradientLeft = CreateColor(0.30, 0.54, 0.80, 0.55),
+        HoverGradientRight = CreateColor(0.30, 0.54, 0.80, 0.18),
+    },
+
+    -- Snapshot annotation colours, shared by the profile and import rows so a
+    -- note and a section header read the same wherever they appear.
+    Note = {
+        Color = CreateColor(0.62, 0.80, 1.00, 1),       -- a user-written note, soft blue
+        HeaderColor = CreateColor(0.52, 0.62, 0.78, 1),  -- a detail section header
     },
 }

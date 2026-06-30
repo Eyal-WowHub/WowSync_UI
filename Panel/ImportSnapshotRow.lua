@@ -92,6 +92,7 @@ function Verbs:Constructor(config)
     self._ctx = config.ctx
 
     self:Background()
+    self:DecorateSelection()
 
     -- Right-aligned selector, top corner.
     self.selectorText = self:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
@@ -112,7 +113,7 @@ function Verbs:Constructor(config)
     self.notePreview = self:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     self.notePreview:SetJustifyH("LEFT")
     self.notePreview:SetWordWrap(false)
-    self.notePreview:SetTextColor(DISABLED_FONT_COLOR:GetRGB())
+    self.notePreview:SetTextColor(UI.Note.Color:GetRGB())
     self.notePreview:Hide()
 
     -- The expanded note wraps and auto-sizes to its content (no fixed-height
@@ -121,12 +122,14 @@ function Verbs:Constructor(config)
     self.detailNote:SetJustifyH("LEFT")
     self.detailNote:SetJustifyV("TOP")
     self.detailNote:SetWordWrap(true)
+    self.detailNote:SetTextColor(UI.Note.Color:GetRGB())
     self.detailNote:Hide()
 
     -- Section header: "Shared modules:" collapsed, "Changes vs current setup:"
     -- expanded.
     self.listHeader = self:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     self.listHeader:SetJustifyH("LEFT")
+    self.listHeader:SetTextColor(UI.Note.HeaderColor:GetRGB())
     self.listHeader:Hide()
 
     -- Right-aligned import time, sharing the header's line.
