@@ -14,8 +14,8 @@
 Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
 Libs\AceDB-3.0\AceDB-3.0.xml
 
-Infrastructure\Constants.lua
-Infrastructure\Settings.lua
+Core\Constants.lua
+Core\Settings.lua
 
 Locales\enUS.lua
 
