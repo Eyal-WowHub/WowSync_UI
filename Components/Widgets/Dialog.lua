@@ -54,35 +54,61 @@ local function ForgetOpenDialog(frame)
     end
 end
 
--- Places a dialog as it opens: centered on the main window when it is the first
--- one open, otherwise stacked to the right of the last open dialog, or to its
--- left when the right edge would run off-screen. Positions are absolute so each
--- dialog can be dragged or closed without disturbing the others.
+-- The horizontal direction the current dialog cascade grows in. The first
+-- dialog decides it from the room beside the main window, and the rest of the
+-- stack keeps it so they fan out consistently instead of overlapping the
+-- semi-transparent window.
+local cascadeDirection = "right"
+
+-- Places a dialog as it opens. The first dialog of a stack anchors to the top of
+-- the main window -- to its right when there is room, otherwise to its left --
+-- and that choice fixes the cascade direction. Each later dialog stacks beside
+-- the previous one in that direction, flipping to the opposite side only when it
+-- would run off-screen. Positions are absolute so each dialog can be dragged or
+-- closed without disturbing the others.
 local function PositionDialog(frame)
     frame:ClearAllPoints()
 
+    local width = frame:GetWidth()
+    local screenLeft = UIParent:GetLeft()
+    local screenRight = UIParent:GetRight()
+
     local anchorFrame = openDialogs[#openDialogs]
-    local anchorLeft = anchorFrame and anchorFrame:GetLeft()
-    if anchorLeft then
-        local width = frame:GetWidth()
+    if anchorFrame and anchorFrame:GetLeft() then
         local top = anchorFrame:GetTop()
-        local fitsRight = (anchorFrame:GetRight() + DIALOG_GAP + width) <= UIParent:GetRight()
-        if fitsRight then
-            frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", anchorFrame:GetRight() + DIALOG_GAP, top)
+        if cascadeDirection == "right" then
+            local rightX = anchorFrame:GetRight() + DIALOG_GAP
+            if rightX + width <= screenRight then
+                frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", rightX, top)
+            else
+                frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", anchorFrame:GetLeft() - DIALOG_GAP - width, top)
+            end
         else
-            frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", anchorLeft - DIALOG_GAP - width, top)
+            local leftX = anchorFrame:GetLeft() - DIALOG_GAP - width
+            if leftX >= screenLeft then
+                frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", leftX, top)
+            else
+                frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", anchorFrame:GetRight() + DIALOG_GAP, top)
+            end
         end
         return
     end
 
     local mainFrame = _G.WowSyncUIFrame
     if mainFrame and mainFrame:IsShown() and mainFrame:GetLeft() then
-        local centerX = mainFrame:GetLeft() + mainFrame:GetWidth() / 2
-        local centerY = mainFrame:GetBottom() + mainFrame:GetHeight() / 2
-        frame:SetPoint("CENTER", UIParent, "BOTTOMLEFT", centerX, centerY)
-    else
-        frame:SetPoint("CENTER")
+        local top = mainFrame:GetTop()
+        local rightX = mainFrame:GetRight() + DIALOG_GAP
+        if rightX + width <= screenRight then
+            cascadeDirection = "right"
+            frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", rightX, top)
+        else
+            cascadeDirection = "left"
+            frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", mainFrame:GetLeft() - DIALOG_GAP - width, top)
+        end
+        return
     end
+
+    frame:SetPoint("CENTER")
 end
 
 -- Closing the main window closes every open dialog, so stale popups never linger
