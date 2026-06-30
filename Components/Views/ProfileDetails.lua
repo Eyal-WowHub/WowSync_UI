@@ -15,7 +15,7 @@ local _, addon = ...
     addon:GetObject("ProfileDetails"):Build(region)
         -> profile-details frame {
             SetProfile(charKey or nil),
-            RequestSave(charKey or nil),  -- nil = logged-in character
+            RequestSave(),                -- saves the logged-in character only
             OnSaved(callback),            -- called after a successful save
         }
 ]]
@@ -119,11 +119,24 @@ local function ScheduleSyncRefresh(panel)
     end)
 end
 
+-- Save only ever freezes the logged-in character's live setup, so it is
+-- offered only while viewing your own profile (and only with captured data).
+local function IsViewingOwnProfile(panel)
+    return panel._currentProfileName ~= nil
+        and panel._currentProfileName == SnapshotManager:GetCurrentCharKey()
+end
+
+local function RefreshSaveState(panel)
+    panel._actionBar:SetSaveEnabled(
+        IsViewingOwnProfile(panel) and SnapshotManager:HasCapturedGameData())
+end
+
 -- Reflect the current undo point in whichever view is visible
 local function ApplyUndoState(panel)
     local hasUndo = SnapshotManager:CanUndo()
     if panel._content:IsShown() then
         panel._actionBar:SetUndoEnabled(hasUndo)
+        RefreshSaveState(panel)
     else
         -- Empty state: show the full undo history, or the placeholder when the
         -- stack is empty.
@@ -347,7 +360,8 @@ local function OpenSnapshotMenu(panel, snapshot, subject, anchor, isHead)
     if not snapshot or not panel._currentProfileName then return end
 
     -- The current head is a live view, not a stored snapshot: it can be applied
-    -- (when it differs from the logged-in setup) and frozen via "Save now".
+    -- (when it differs from the logged-in setup) and, on your own profile,
+    -- frozen via "Save now". Saving is never offered while viewing an alt.
     if isHead then
         MenuUtil.CreateContextMenu(anchor, function(_, rootDescription)
             rootDescription:CreateTitle(L["Current"])
@@ -363,9 +377,11 @@ local function OpenSnapshotMenu(panel, snapshot, subject, anchor, isHead)
             end)
             rootDescription:CreateDivider()
 
-            rootDescription:CreateButton(L["Save now"], function()
-                panel:RequestSave(SnapshotView:GetCharacterInfo(snapshot).Key)
-            end)
+            if IsViewingOwnProfile(panel) then
+                rootDescription:CreateButton(L["Save now"], function()
+                    panel:RequestSave()
+                end)
+            end
 
             rootDescription:CreateButton(L["Share…"], function()
                 ShareSnapshot(panel, snapshot)
@@ -559,11 +575,12 @@ function Verbs:Constructor(config)
         onSave = function() panel:RequestSave() end,
     })
 
-    -- Save is only meaningful when the logged-in character has something
-    -- captured; track that live and on first build.
-    self._actionBar:SetSaveEnabled(SnapshotManager:HasCapturedGameData())
+    -- Save only targets the logged-in character, so it stays disabled unless
+    -- you are viewing your own profile and have captured data. Track the
+    -- capture state live; SetProfile drives the viewed-profile half.
+    RefreshSaveState(self)
     WowSync:RegisterEvent("WOWSYNC_CURRENT_CHANGED", function()
-        panel._actionBar:SetSaveEnabled(SnapshotManager:HasCapturedGameData())
+        RefreshSaveState(panel)
     end)
 
     -- Animate the Save button for the duration of any save (including the
@@ -629,13 +646,12 @@ function Verbs:SetProfile(profileName)
     ApplyUndoState(self)
 end
 
--- Freeze a character's current setup into a new saved snapshot. The logged-in
--- character saves its live Current (every registered module is selectable); an
--- alt saves its last-captured Current (limited to the modules it captured). On
--- success the head collapses into the new latest snapshot and onSaved fires so
--- the list can refresh and re-select the character.
-function Verbs:RequestSave(charKey)
-    charKey = charKey or SnapshotManager:GetCurrentCharKey()
+-- Freeze the logged-in character's live setup into a new saved snapshot. Save
+-- is offered only for your own character, so every registered module is
+-- selectable. On success the head collapses into the new latest snapshot and
+-- onSaved fires so the list can refresh and re-select the character.
+function Verbs:RequestSave()
+    local charKey = SnapshotManager:GetCurrentCharKey()
 
     local headHandle = SnapshotHandleCache:GetHead(charKey)
     if not headHandle then
@@ -643,15 +659,7 @@ function Verbs:RequestSave(charKey)
         return
     end
 
-    local isOwn = SnapshotView:IsOwnCharacter(headHandle)
-
-    local moduleNames
-    if not isOwn then
-        moduleNames = SnapshotView:GetModuleNames(headHandle)
-    end
-
     SaveDialog:Show({
-        moduleNames = moduleNames,
         onConfirm = function(moduleSet, note)
             local evicted = SnapshotHandleCache:GetPendingEviction(charKey)
 
@@ -681,11 +689,7 @@ function Verbs:RequestSave(charKey)
                 if Debugger:IsEnabled() then
                     Debugger:RecordUI({ Action = "save", CharKey = charKey, Note = note })
                 end
-                if isOwn then
-                    SnapshotManager:SaveCurrentSnapshot(note, moduleSet, OnSaveComplete)
-                else
-                    SnapshotManager:SaveSnapshotByCharKey(charKey, moduleSet, note, OnSaveComplete)
-                end
+                SnapshotManager:SaveCurrentSnapshot(note, moduleSet, OnSaveComplete)
             end
 
             if evicted then
