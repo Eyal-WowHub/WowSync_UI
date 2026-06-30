@@ -22,8 +22,8 @@ local _, addon = ...
         OpenMenu(snapshot, anchor),     -- right-click actions for the row
     }
 
-    addon:GetObject("SnapshotRow"):Build(row, ctx)
-    addon:GetObject("SnapshotRow"):Update(row, elementData, ctx)
+    addon:GetObject("SnapshotRow"):Build(row, ctx)   -- adopts the pooled frame
+        -> snapshot-row frame { Render(elementData) }
 ]]
 
 local SnapshotRow = addon:NewObject("SnapshotRow")
@@ -34,6 +34,8 @@ local L = addon.L
 local UI = addon.UI
 
 local SnapshotView = WowSync:GetSnapshotView()
+
+local Verbs = Mixin({}, SelectableRow.Verbs)
 
 -- The shared subject format, mirroring the backend's Time:ToShortDisplay.
 local function FormatSubject(timestamp)
@@ -74,73 +76,72 @@ function SnapshotRow:FormatSubject(timestamp)
     return FormatSubject(timestamp)
 end
 
-function SnapshotRow:Build(row, ctx)
-    C:IsTable(row, 2)
-    C:IsTable(ctx, 3)
+function Verbs:Constructor(config)
+    self._ctx = config.ctx
 
-    SelectableRow:Background(row)
+    self:Background()
 
     -- Timeline rail: a vertical line down the row with a node dot on it.
-    row.rail = row:CreateTexture(nil, "ARTWORK")
-    row.rail:SetColorTexture(TIMELINE_RAIL_COLOR:GetRGBA())
-    row.rail:SetWidth(RAIL_THICKNESS)
-    row.rail:SetPoint("TOPLEFT", row, "TOPLEFT", TIMELINE_RAIL_X, 0)
-    row.rail:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", TIMELINE_RAIL_X, 0)
+    self.rail = self:CreateTexture(nil, "ARTWORK")
+    self.rail:SetColorTexture(TIMELINE_RAIL_COLOR:GetRGBA())
+    self.rail:SetWidth(RAIL_THICKNESS)
+    self.rail:SetPoint("TOPLEFT", self, "TOPLEFT", TIMELINE_RAIL_X, 0)
+    self.rail:SetPoint("BOTTOMLEFT", self, "BOTTOMLEFT", TIMELINE_RAIL_X, 0)
 
-    row.node = row:CreateTexture(nil, "OVERLAY")
-    row.node:SetTexture("Interface\\COMMON\\Indicator-Gray")
-    row.node:SetSize(NODE_SIZE, NODE_SIZE)
-    row.node:SetPoint("CENTER", row, "TOPLEFT", TIMELINE_RAIL_X + NODE_RAIL_NUDGE, -SNAPSHOT_NODE_Y)
+    self.node = self:CreateTexture(nil, "OVERLAY")
+    self.node:SetTexture("Interface\\COMMON\\Indicator-Gray")
+    self.node:SetSize(NODE_SIZE, NODE_SIZE)
+    self.node:SetPoint("CENTER", self, "TOPLEFT", TIMELINE_RAIL_X + NODE_RAIL_NUDGE, -SNAPSHOT_NODE_Y)
 
     local textLeft = TIMELINE_RAIL_X + TEXT_INDENT
 
-    row.subjectText = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    row.subjectText:SetPoint("TOPLEFT", textLeft, -6)
-    row.subjectText:SetJustifyH("LEFT")
+    self.subjectText = self:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    self.subjectText:SetPoint("TOPLEFT", textLeft, -6)
+    self.subjectText:SetJustifyH("LEFT")
 
-    row.tagText = row:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-    row.tagText:SetPoint("LEFT", row.subjectText, "RIGHT", 6, 0)
-    row.tagText:SetJustifyH("LEFT")
+    self.tagText = self:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    self.tagText:SetPoint("LEFT", self.subjectText, "RIGHT", 6, 0)
+    self.tagText:SetJustifyH("LEFT")
 
-    row.noteText = row:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-    row.noteText:SetPoint("TOPLEFT", row.subjectText, "BOTTOMLEFT", 0, -2)
-    row.noteText:SetPoint("RIGHT", -8, 0)
-    row.noteText:SetJustifyH("LEFT")
-    row.noteText:SetWordWrap(false)
+    self.noteText = self:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    self.noteText:SetPoint("TOPLEFT", self.subjectText, "BOTTOMLEFT", 0, -2)
+    self.noteText:SetPoint("RIGHT", -8, 0)
+    self.noteText:SetJustifyH("LEFT")
+    self.noteText:SetWordWrap(false)
 
     -- Inline detail panel (shown only while expanded). Anchored below the
     -- subject zone; the scroll box sizes the row tall enough to hold it.
     local detailTop = -(UI.SnapshotDetail.SubjectZone + UI.SnapshotDetail.TopPad)
 
-    row.detailNote = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    row.detailNote:SetPoint("RIGHT", -8, 0)
-    row.detailNote:SetJustifyH("LEFT")
-    row.detailNote:SetJustifyV("TOP")
-    row.detailNote:SetHeight(UI.SnapshotDetail.NoteHeight)
-    row.detailNote:SetWordWrap(true)
-    row.detailNote:Hide()
+    self.detailNote = self:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    self.detailNote:SetPoint("RIGHT", -8, 0)
+    self.detailNote:SetJustifyH("LEFT")
+    self.detailNote:SetJustifyV("TOP")
+    self.detailNote:SetHeight(UI.SnapshotDetail.NoteHeight)
+    self.detailNote:SetWordWrap(true)
+    self.detailNote:Hide()
 
-    row.detailHeader = row:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-    row.detailHeader:SetJustifyH("LEFT")
-    row.detailHeader:Hide()
+    self.detailHeader = self:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    self.detailHeader:SetJustifyH("LEFT")
+    self.detailHeader:Hide()
 
-    row.detailChanges = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    row.detailChanges:SetPoint("RIGHT", -8, 0)
-    row.detailChanges:SetJustifyH("LEFT")
-    row.detailChanges:SetJustifyV("TOP")
-    row.detailChanges:SetWordWrap(true)
-    row.detailChanges:Hide()
+    self.detailChanges = self:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    self.detailChanges:SetPoint("RIGHT", -8, 0)
+    self.detailChanges:SetJustifyH("LEFT")
+    self.detailChanges:SetJustifyV("TOP")
+    self.detailChanges:SetWordWrap(true)
+    self.detailChanges:Hide()
 
-    -- Stash anchors used by Update's dynamic detail layout.
-    row.textLeft = textLeft
-    row.detailTop = detailTop
+    -- Stash anchors used by Render's dynamic detail layout.
+    self.textLeft = textLeft
+    self.detailTop = detailTop
 
-    SelectableRow:WireHover(row, "snapshot", ctx)
-    row:SetScript("OnMouseDown", function(self, button)
+    self:WireHover("snapshot")
+    self:SetScript("OnMouseDown", function(row, button)
         if button == "RightButton" then
-            ctx.OpenMenu(self.snapshot, self)
+            row._ctx.OpenMenu(row.snapshot, row)
         else
-            ctx.Select(self.snapshot)
+            row._ctx.Select(row.snapshot)
         end
     end)
 end
@@ -212,50 +213,56 @@ local function CollapseRow(row, snapshot, isHead)
     end
 end
 
-function SnapshotRow:Update(row, elementData, ctx)
-    C:IsTable(row, 2)
-    C:IsTable(elementData, 3)
-    C:IsTable(ctx, 4)
-
+function Verbs:Render(elementData)
     local snapshot = elementData.snapshot
-    row.snapshot = snapshot
+    self.snapshot = snapshot
 
     -- The current head reads "Current" in the brand accent; saved snapshots show
     -- their capture date in the normal colour. Rows are pooled, so both the
     -- text and its colour are set explicitly on every update.
     if elementData.isHead then
-        row.subjectText:SetText(L["Current"])
-        row.subjectText:SetTextColor(TIMELINE_NODE_LATEST_COLOR:GetRGB())
+        self.subjectText:SetText(L["Current"])
+        self.subjectText:SetTextColor(TIMELINE_NODE_LATEST_COLOR:GetRGB())
     else
-        row.subjectText:SetText(FormatSubject(SnapshotView:GetTimestamp(snapshot)))
-        row.subjectText:SetTextColor(NORMAL_FONT_COLOR:GetRGB())
+        self.subjectText:SetText(FormatSubject(SnapshotView:GetTimestamp(snapshot)))
+        self.subjectText:SetTextColor(NORMAL_FONT_COLOR:GetRGB())
     end
 
     -- Tag: a saved snapshot may show a pinned marker in the warm accent; the
     -- head and ordinary snapshots carry no tag.
     if SnapshotView:IsPinned(snapshot) then
-        row.tagText:SetText(L["(pinned)"])
-        row.tagText:SetTextColor(TIMELINE_NODE_PINNED_COLOR:GetRGB())
+        self.tagText:SetText(L["(pinned)"])
+        self.tagText:SetTextColor(TIMELINE_NODE_PINNED_COLOR:GetRGB())
     else
-        row.tagText:SetText("")
+        self.tagText:SetText("")
     end
 
-    if ctx.IsExpanded(row.snapshot) then
-        ExpandRow(row, ctx.GetDetail())
+    if self._ctx.IsExpanded(self.snapshot) then
+        ExpandRow(self, self._ctx.GetDetail())
     else
-        CollapseRow(row, snapshot, elementData.isHead)
+        CollapseRow(self, snapshot, elementData.isHead)
     end
 
     -- The head node carries the brand accent; pinned nodes take the warm
     -- accent; the rest stay neutral.
     if elementData.isHead then
-        row.node:SetVertexColor(TIMELINE_NODE_LATEST_COLOR:GetRGB())
+        self.node:SetVertexColor(TIMELINE_NODE_LATEST_COLOR:GetRGB())
     elseif SnapshotView:IsPinned(snapshot) then
-        row.node:SetVertexColor(TIMELINE_NODE_PINNED_COLOR:GetRGB())
+        self.node:SetVertexColor(TIMELINE_NODE_PINNED_COLOR:GetRGB())
     else
-        row.node:SetVertexColor(TIMELINE_NODE_COLOR:GetRGB())
+        self.node:SetVertexColor(TIMELINE_NODE_COLOR:GetRGB())
     end
 
     -- Selection highlight
-    SelectableRow:Paint(row, row.snapshot == ctx.GetSelected())
+    self:Paint(self.snapshot == self._ctx.GetSelected())
+end
+
+function SnapshotRow:Build(row, ctx)
+    C:IsTable(row, 2)
+    C:IsTable(ctx, 3)
+
+    return addon:NewWidget({ ctx = ctx }, {
+        frame = row,
+        verbs = Verbs,
+    })
 end

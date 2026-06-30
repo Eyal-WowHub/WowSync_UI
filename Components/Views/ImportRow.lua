@@ -1,12 +1,12 @@
 local _, addon = ...
 
 --[[
-    ImportRow object (row renderer).
+    ImportRow widget (row renderer).
 
     Row sub-contract for the pooled scroll-list elements in ImportList. Maps an
-    imported container (or class header) onto the shared ListRow widget, adding an
-    inline rename box on top. The list-level selection state is reached through an
-    injected context.
+    imported container (or class header) onto the shared ListRow verbs, adding an
+    inline rename box on top. The list selection is reached through the context
+    the row stores on self._ctx.
 
     ctx = {
         GetSelected() -> importID or nil,
@@ -14,8 +14,8 @@ local _, addon = ...
         Rename(importID, name) -> handled,
     }
 
-    addon:GetObject("ImportRow"):Build(row, ctx)
-    addon:GetObject("ImportRow"):Update(row, elementData, ctx)
+    addon:GetObject("ImportRow"):Build(row, ctx)    -- adopts the pooled frame
+        -> import-row frame { Render(elementData) }
 ]]
 
 local ImportRow = addon:NewObject("ImportRow")
@@ -26,6 +26,8 @@ local L = addon.L
 
 -- Cap on an inline-renamed container name, matching the rename dialog.
 local MAX_RENAME_LETTERS = 64
+
+local Verbs = Mixin({}, ListRow.Verbs)
 
 -- One-line snapshot-count label for a container's info line.
 local function SnapshotCountText(count)
@@ -43,56 +45,59 @@ local function BeginRename(row)
     row.renameBox:HighlightText()
 end
 
-function ImportRow:Build(row, ctx)
-    C:IsTable(row, 2)
-    C:IsTable(ctx, 3)
-
-    C:Ensures(type(ctx.Rename) == "function", "Build: 'ctx.Rename' must be a function")
-
-    ListRow:BuildSkeleton(row)
+function Verbs:Constructor(config)
+    self._ctx = config.ctx
+    self:BuildSkeleton()
 
     -- Inline rename box, overlaid on the name and shown only while editing.
-    row.renameBox = CreateFrame("EditBox", nil, row, "InputBoxTemplate")
-    row.renameBox:SetAutoFocus(false)
-    row.renameBox:SetMaxLetters(MAX_RENAME_LETTERS)
-    row.renameBox:SetPoint("TOPLEFT", row.nameText, "TOPLEFT", 0, 4)
-    row.renameBox:SetPoint("BOTTOMRIGHT", row.nameText, "BOTTOMRIGHT", 0, -4)
-    row.renameBox:Hide()
-    row.renameBox:SetScript("OnEscapePressed", function(self) self:Hide() end)
-    row.renameBox:SetScript("OnEditFocusLost", function(self) self:Hide() end)
-    row.renameBox:SetScript("OnEnterPressed", function(self)
-        local importID = row.id
-        local name = self:GetText():gsub("^%s+", ""):gsub("%s+$", "")
-        self:Hide()
+    self.renameBox = CreateFrame("EditBox", nil, self, "InputBoxTemplate")
+    self.renameBox:SetAutoFocus(false)
+    self.renameBox:SetMaxLetters(MAX_RENAME_LETTERS)
+    self.renameBox:SetPoint("TOPLEFT", self.nameText, "TOPLEFT", 0, 4)
+    self.renameBox:SetPoint("BOTTOMRIGHT", self.nameText, "BOTTOMRIGHT", 0, -4)
+    self.renameBox:Hide()
+    self.renameBox:SetScript("OnEscapePressed", function(box) box:Hide() end)
+    self.renameBox:SetScript("OnEditFocusLost", function(box) box:Hide() end)
+    self.renameBox:SetScript("OnEnterPressed", function(box)
+        local importID = self.id
+        local name = box:GetText():gsub("^%s+", ""):gsub("%s+$", "")
+        box:Hide()
         if importID and name ~= "" then
-            ctx.Rename(importID, name)
+            self._ctx.Rename(importID, name)
         end
     end)
 
     -- A double-click on a container row opens its inline rename.
-    ListRow:WireSelection(row, ctx, BeginRename)
+    self:WireSelection(BeginRename)
 end
 
-function ImportRow:Update(row, elementData, ctx)
-    C:IsTable(row, 2)
-    C:IsTable(elementData, 3)
-    C:IsTable(ctx, 4)
-
+function Verbs:Render(elementData)
     -- Class header: just the class name, with no selection behaviour.
     if elementData.kind == "class" then
-        row.renameBox:Hide()
-        ListRow:RenderHeader(row, ListRow:ClassHeaderText(elementData.classID))
+        self.renameBox:Hide()
+        self:RenderHeader(self:ClassHeaderText(elementData.classID))
         return
     end
 
-    row.name = elementData.name or ""
-    row.renameBox:Hide()
-    row.lastClick = nil
+    self.name = elementData.name or ""
+    self.renameBox:Hide()
+    self.lastClick = nil
 
-    ListRow:RenderItem(row, {
+    self:RenderItem({
         id = elementData.id,
         classID = elementData.classID,
-        title = row.name,
+        title = self.name,
         info = SnapshotCountText(elementData.snapshotCount),
-    }, ctx)
+    })
+end
+
+function ImportRow:Build(row, ctx)
+    C:IsTable(row, 2)
+    C:IsTable(ctx, 3)
+    C:Ensures(type(ctx.Rename) == "function", "Build: 'ctx.Rename' must be a function")
+
+    return addon:NewWidget({ ctx = ctx }, {
+        frame = row,
+        verbs = Verbs,
+    })
 end

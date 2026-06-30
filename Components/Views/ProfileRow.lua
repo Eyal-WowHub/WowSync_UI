@@ -1,20 +1,20 @@
 local _, addon = ...
 
 --[[
-    ProfileRow object (row renderer).
+    ProfileRow widget (row renderer).
 
     Row sub-contract for the pooled scroll-list elements in ProfileList. Maps a
-    character (or realm header) onto the shared ListRow widget, which owns the
-    frame skeleton and the selection behaviour. The list-level selection state is
-    reached through an injected context.
+    character (or realm header) onto the shared ListRow verbs, which own the
+    frame skeleton and the selection behaviour. The list selection is reached
+    through the context the row stores on self._ctx.
 
     ctx = {
         GetSelected() -> profileName or nil,
         Select(profileName),
     }
 
-    addon:GetObject("ProfileRow"):Build(row, ctx)
-    addon:GetObject("ProfileRow"):Update(row, elementData, ctx)
+    addon:GetObject("ProfileRow"):Build(row, ctx)   -- adopts the pooled frame
+        -> profile-row frame { Render(elementData) }
 ]]
 
 local ProfileRow = addon:NewObject("ProfileRow")
@@ -23,27 +23,23 @@ local ListRow = addon:GetObject("ListRow")
 local C = LibStub("Contracts-1.0")
 local L = addon.L
 
+local Verbs = Mixin({}, ListRow.Verbs)
+
 local function FormatDate(timestamp)
     if not timestamp then return "" end
     return date("%b %d, %Y", timestamp)
 end
 
-function ProfileRow:Build(row, ctx)
-    C:IsTable(row, 2)
-    C:IsTable(ctx, 3)
-
-    ListRow:BuildSkeleton(row)
-    ListRow:WireSelection(row, ctx)
+function Verbs:Constructor(config)
+    self._ctx = config.ctx
+    self:BuildSkeleton()
+    self:WireSelection()
 end
 
-function ProfileRow:Update(row, elementData, ctx)
-    C:IsTable(row, 2)
-    C:IsTable(elementData, 3)
-    C:IsTable(ctx, 4)
-
+function Verbs:Render(elementData)
     -- Realm header: just the realm name, with no selection behaviour.
     if elementData.kind == "realm" then
-        ListRow:RenderHeader(row, elementData.realm or "")
+        self:RenderHeader(elementData.realm or "")
         return
     end
 
@@ -52,10 +48,20 @@ function ProfileRow:Update(row, elementData, ctx)
         and L["Last seen: X"]:format(FormatDate(elementData.timestamp))
         or ""
 
-    ListRow:RenderItem(row, {
+    self:RenderItem({
         id = elementData.id,
         classID = elementData.classID,
         title = elementData.character or "",
         info = info,
-    }, ctx)
+    })
+end
+
+function ProfileRow:Build(row, ctx)
+    C:IsTable(row, 2)
+    C:IsTable(ctx, 3)
+
+    return addon:NewWidget({ ctx = ctx }, {
+        frame = row,
+        verbs = Verbs,
+    })
 end

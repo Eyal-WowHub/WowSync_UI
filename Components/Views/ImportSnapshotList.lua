@@ -65,7 +65,7 @@ function Verbs:Constructor(config)
             ImportSnapshotRow:Build(row, rowContext)
         end,
         update = function(row, snapshot)
-            ImportSnapshotRow:Update(row, snapshot, rowContext)
+            row:Render(snapshot)
         end,
     })
 end

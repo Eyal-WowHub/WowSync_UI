@@ -170,7 +170,7 @@ function Verbs:Constructor(config)
             SnapshotRow:Build(row, rowContext)
         end,
         update = function(row, elementData)
-            SnapshotRow:Update(row, elementData, rowContext)
+            row:Render(elementData)
         end,
     })
 end

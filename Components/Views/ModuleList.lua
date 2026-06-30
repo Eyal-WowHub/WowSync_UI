@@ -100,8 +100,8 @@ local function ToggleRowMode(panel, checkbox)
     if not state or not state.canToggle then return end
 
     state.mode = (state.mode == "exact") and "merge" or "exact"
-    ModuleRow:RenderCounts(checkbox, ComputeCounts(state.diff, state.mode, state.canExact))
-    ModuleRow:RenderMode(checkbox, {
+    checkbox:RenderCounts(ComputeCounts(state.diff, state.mode, state.canExact))
+    checkbox:RenderMode({
         mode = state.mode,
         canToggle = true,
         visible = true,
@@ -172,7 +172,7 @@ function Verbs:SetSnapshot(snapshot, preview, mode)
             }
             checkbox:ClearAllPoints()
             checkbox:SetPoint("TOPLEFT", 0, -yOffset)
-            ModuleRow:Update(checkbox, name, canApply, reason, counts, {
+            checkbox:Update(name, canApply, reason, counts, {
                 mode = rowMode,
                 canToggle = canToggle,
                 visible = canApply,
@@ -186,11 +186,11 @@ function Verbs:SetSnapshot(snapshot, preview, mode)
             end)
 
             if panel._onPreviewModule then
-                ModuleRow:SetNameLink(checkbox, function()
+                checkbox:SetNameLink(function()
                     panel._onPreviewModule(name, checkbox._mode and checkbox._mode.mode or rowMode)
                 end)
             else
-                ModuleRow:SetNameLink(checkbox, nil)
+                checkbox:SetNameLink(nil)
             end
 
             checkbox:Show()

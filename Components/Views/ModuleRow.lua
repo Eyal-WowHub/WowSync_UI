@@ -1,15 +1,19 @@
 local _, addon = ...
 
 --[[
-    ModuleRow object (row renderer).
+    ModuleRow widget (checkbox row).
 
-    Row sub-contract for the pooled checkbox rows in ModuleList. Builds a
-    checkbox with a label and an optional warning fontstring, and updates its
-    checked/enabled state and texts. The row frames are owned by ModuleList;
-    this renderer is stateless.
+    A module checkbox row for ModuleList: a checkbox with a label, an optional
+    warning, a per-module change count, and an optional Merge/Exact toggle. The
+    row IS the CheckButton; ModuleList pools and positions it.
 
-    addon:GetObject("ModuleRow"):Build(parent) -> checkbox frame
-    addon:GetObject("ModuleRow"):Update(checkbox, name, canApply, reason, counts, modeInfo)
+    addon:GetObject("ModuleRow"):Build(parent)   -- creates the checkbox widget
+        -> checkbox frame {
+            SetNameLink(onClick),
+            Update(name, canApply, reason, counts, modeInfo),
+            RenderCounts(counts),
+            RenderMode(modeInfo),
+        }
 ]]
 
 local ModuleRow = addon:NewObject("ModuleRow")
@@ -26,6 +30,8 @@ local MODE_BUTTON_HEIGHT = 18
 -- signals the name opens that module's filtered change preview.
 local LINK_COLOR = { 1, 1, 1 }
 local LINK_HOVER_COLOR = { 0.4, 0.7, 1 }
+
+local Verbs = {}
 
 -- Title/body text for the mode toggle tooltip, per mode.
 local function ModeTooltip(mode)
@@ -50,118 +56,122 @@ local function ShowModeTooltip(button)
     GameTooltip:Show()
 end
 
-function ModuleRow:Build(parent)
-    C:IsTable(parent, 2)
+function Verbs:Constructor(config)
+    self:SetSize(24, 24)
 
-    local checkbox = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
-    checkbox:SetSize(24, 24)
-
-    checkbox.label = checkbox:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    checkbox.label:SetPoint("LEFT", checkbox, "RIGHT", 2, 0)
+    self.label = self:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    self.label:SetPoint("LEFT", self, "RIGHT", 2, 0)
 
     -- An invisible button matching the name's bounds that turns it into a link:
     -- hovering tints the name blue. The list owner opts a row in (and wires the
     -- click) through SetNameLink; rows left out stay plain text.
-    checkbox.nameLink = CreateFrame("Button", nil, checkbox)
-    checkbox.nameLink:SetAllPoints(checkbox.label)
-    checkbox.nameLink:SetScript("OnEnter", function()
-        checkbox.label:SetTextColor(unpack(LINK_HOVER_COLOR))
+    self.nameLink = CreateFrame("Button", nil, self)
+    self.nameLink:SetAllPoints(self.label)
+    self.nameLink:SetScript("OnEnter", function()
+        self.label:SetTextColor(unpack(LINK_HOVER_COLOR))
     end)
-    checkbox.nameLink:SetScript("OnLeave", function()
-        checkbox.label:SetTextColor(unpack(LINK_COLOR))
+    self.nameLink:SetScript("OnLeave", function()
+        self.label:SetTextColor(unpack(LINK_COLOR))
     end)
-    checkbox.nameLink:Hide()
+    self.nameLink:Hide()
 
-    checkbox.warning = checkbox:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-    checkbox.warning:SetPoint("LEFT", checkbox.label, "RIGHT", 6, 0)
+    self.warning = self:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    self.warning:SetPoint("LEFT", self.label, "RIGHT", 6, 0)
 
     -- Per-module change counts, shown after the name for applicable rows.
     -- Anchored to the label (not the list) so it tracks the row vertically;
     -- mutually exclusive with the warning, so they share the same slot.
-    checkbox.counts = checkbox:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    checkbox.counts:SetPoint("LEFT", checkbox.label, "RIGHT", 8, 0)
+    self.counts = self:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    self.counts:SetPoint("LEFT", self.label, "RIGHT", 8, 0)
 
     -- Optional per-row Merge/Exact toggle, used by the apply preview. The list
     -- owner positions it at the row's right edge; rows without a choice to make
     -- (or that aren't apply rows) leave it hidden.
-    checkbox.modeButton = Button:Build({
-        parent = parent,
+    self.modeButton = Button:Build({
+        parent = config.parent,
         width = MODE_BUTTON_WIDTH,
         height = MODE_BUTTON_HEIGHT,
     })
-    checkbox.modeButton:SetScript("OnEnter", ShowModeTooltip)
-    checkbox.modeButton:SetScript("OnLeave", function()
+    self.modeButton:SetScript("OnEnter", ShowModeTooltip)
+    self.modeButton:SetScript("OnLeave", function()
         GameTooltip:Hide()
     end)
-    checkbox.modeButton:Hide()
+    self.modeButton:Hide()
+end
 
-    return checkbox
+function ModuleRow:Build(parent)
+    C:IsTable(parent, 2)
+
+    return addon:NewWidget({ parent = parent }, {
+        frameType = "CheckButton",
+        template = "UICheckButtonTemplate",
+        verbs = Verbs,
+    })
 end
 
 -- Turn the module name into a clickable link with the given click handler, or
 -- restore it to plain text when no handler is given.
-function ModuleRow:SetNameLink(checkbox, onClick)
-    checkbox.label:SetTextColor(unpack(LINK_COLOR))
+function Verbs:SetNameLink(onClick)
+    self.label:SetTextColor(unpack(LINK_COLOR))
     if onClick then
-        checkbox.nameLink:SetScript("OnClick", onClick)
-        checkbox.nameLink:Show()
+        self.nameLink:SetScript("OnClick", onClick)
+        self.nameLink:Show()
     else
-        checkbox.nameLink:SetScript("OnClick", nil)
-        checkbox.nameLink:Hide()
+        self.nameLink:SetScript("OnClick", nil)
+        self.nameLink:Hide()
     end
 end
 
-function ModuleRow:Update(checkbox, moduleName, canApply, reason, counts, modeInfo)
-    C:IsTable(checkbox, 2)
-    C:IsString(moduleName, 3)
+function Verbs:Update(moduleName, canApply, reason, counts, modeInfo)
+    C:IsString(moduleName, 2)
 
-    checkbox:SetChecked(canApply)
-    checkbox:SetEnabled(canApply)
-    checkbox.label:SetText(moduleName)
+    self:SetChecked(canApply)
+    self:SetEnabled(canApply)
+    self.label:SetText(moduleName)
 
     if not canApply then
-        checkbox.warning:SetText("(" .. (reason or L["cannot apply"]) .. ")")
-        checkbox.warning:Show()
-        checkbox.counts:Hide()
-        checkbox.modeButton:Hide()
+        self.warning:SetText("(" .. (reason or L["cannot apply"]) .. ")")
+        self.warning:Show()
+        self.counts:Hide()
+        self.modeButton:Hide()
         return
     end
 
-    checkbox.warning:Hide()
-    self:RenderCounts(checkbox, counts)
-    self:RenderMode(checkbox, modeInfo)
+    self.warning:Hide()
+    self:RenderCounts(counts)
+    self:RenderMode(modeInfo)
 end
 
 -- Render the per-module change figure after the module name; hidden when the
 -- module has no pending change.
-function ModuleRow:RenderCounts(checkbox, counts)
+function Verbs:RenderCounts(counts)
     local added = counts and counts.added or 0
     local changed = counts and counts.changed or 0
     local removed = counts and counts.removed or 0
 
     if added > 0 or changed > 0 or removed > 0 then
         if removed > 0 then
-            checkbox.counts:SetText(L["+A ~C -R"]:format(added, changed, removed))
+            self.counts:SetText(L["+A ~C -R"]:format(added, changed, removed))
         else
-            checkbox.counts:SetText(L["+A ~C"]:format(added, changed))
+            self.counts:SetText(L["+A ~C"]:format(added, changed))
         end
-        checkbox.counts:Show()
+        self.counts:Show()
     else
-        checkbox.counts:Hide()
+        self.counts:Hide()
     end
 end
 
 -- Render the Merge/Exact toggle for an apply row; disabled (but shown) for
 -- modules that support a single mode, and hidden when no toggle is offered.
-function ModuleRow:RenderMode(checkbox, modeInfo)
+function Verbs:RenderMode(modeInfo)
     if not (modeInfo and modeInfo.visible) then
-        checkbox.modeButton._tooltip = nil
-        checkbox.modeButton:Hide()
+        self.modeButton._tooltip = nil
+        self.modeButton:Hide()
         return
     end
 
     local title, body = ModeTooltip(modeInfo.mode)
-    checkbox.modeButton._tooltip = {
+    self.modeButton._tooltip = {
         title = title,
         body = body,
         footer = (modeInfo.canToggle == true)
@@ -169,13 +179,13 @@ function ModuleRow:RenderMode(checkbox, modeInfo)
             or L["This module only supports X mode."]:format(title),
     }
 
-    checkbox.modeButton:SetText(title)
-    checkbox.modeButton:SetEnabled(modeInfo.canToggle == true)
-    checkbox.modeButton:Show()
+    self.modeButton:SetText(title)
+    self.modeButton:SetEnabled(modeInfo.canToggle == true)
+    self.modeButton:Show()
 
     -- Toggling is click-driven, so refresh the tooltip in place when it is
     -- already showing for this button.
-    if GameTooltip:GetOwner() == checkbox.modeButton then
-        ShowModeTooltip(checkbox.modeButton)
+    if GameTooltip:GetOwner() == self.modeButton then
+        ShowModeTooltip(self.modeButton)
     end
 end

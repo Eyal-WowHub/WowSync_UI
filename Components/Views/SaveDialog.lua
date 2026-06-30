@@ -86,7 +86,7 @@ local function LayoutActiveRows(panel)
         local checkbox = panel._checkboxes[name]
         checkbox:ClearAllPoints()
         checkbox:SetPoint("TOPLEFT", 0, -yOffset)
-        ModuleRow:Update(checkbox, name, true, nil, nil)
+        checkbox:Update(name, true, nil, nil)
         checkbox:Show()
         yOffset = yOffset + UI.ModuleRow.Height + UI.ModuleRow.Padding
     end

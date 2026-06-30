@@ -14,7 +14,7 @@ local _, addon = ...
 
     local list = addon:GetObject("List"):Build(region, {
         title = L["Profiles"],
-        rowRenderer = ProfileRow,                  -- :Build(row, ctx) / :Update(row, data, ctx)
+        rowRenderer = ProfileRow,                  -- :Build(row, ctx); rows render via row:Render(data)
         extent = function(elementData) -> height,  -- optional, default UI.List.ItemHeight
         rowContext = { Rename = fn, ... },          -- optional extras merged into the row ctx
         bottomInset = 40,                           -- optional, room for owner bottom buttons
@@ -31,7 +31,6 @@ local _, addon = ...
 
 local List = addon:NewObject("List")
 local ScrollList = addon:GetObject("ScrollList")
-local SelectableRow = addon:GetObject("SelectableRow")
 
 local C = LibStub("Contracts-1.0")
 local UI = addon.UI
@@ -122,7 +121,7 @@ function Verbs:Constructor(config)
             rowRenderer:Build(row, rowContext)
         end,
         update = function(row, elementData)
-            rowRenderer:Update(row, elementData, rowContext)
+            row:Render(elementData)
         end,
     })
 end
@@ -152,7 +151,7 @@ function Verbs:Select(id)
     self.selectedID = id
     self.scrollBox:ForEachFrame(function(frame)
         if not frame.id then return end
-        SelectableRow:Paint(frame, frame.id == id)
+        frame:Paint(frame.id == id)
     end)
     if self.onSelectionChanged then
         self.onSelectionChanged(id)
