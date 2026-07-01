@@ -74,6 +74,18 @@ function Verbs:Constructor(config)
             OpenMenu = function(importID, anchor)
                 panel:OpenRowMenu(importID, anchor)
             end,
+            MoveUp = function(importID)
+                if ImportManager:MoveImportUp(importID) then
+                    panel:Refresh()
+                    panel:Select(importID)
+                end
+            end,
+            MoveDown = function(importID)
+                if ImportManager:MoveImportDown(importID) then
+                    panel:Refresh()
+                    panel:Select(importID)
+                end
+            end,
         },
     })
     self._list = list
@@ -143,13 +155,21 @@ end
 
 function Verbs:Refresh()
     -- Imported containers grouped by class. GetImportedProfiles already returns
-    -- them sorted by class then name, so a class header is emitted whenever the
-    -- class changes.
+    -- them sorted by class then saved order, so a class header is emitted
+    -- whenever the class changes.
     local imports = ImportManager:GetImportedProfiles()
+
+    -- Container count per class, so the reorder arrows only appear when a group
+    -- has more than one container.
+    local classCounts = {}
+    for _, entry in ipairs(imports) do
+        classCounts[entry.ClassID] = (classCounts[entry.ClassID] or 0) + 1
+    end
 
     local visibleImports = {}
     local dataProvider = CreateDataProvider()
     local lastClassID
+    local classIndex = 0
 
     for _, entry in ipairs(imports) do
         visibleImports[entry.ID] = true
@@ -157,14 +177,20 @@ function Verbs:Refresh()
         if entry.ClassID ~= lastClassID then
             dataProvider:Insert({ kind = "class", classID = entry.ClassID })
             lastClassID = entry.ClassID
+            classIndex = 0
         end
+        classIndex = classIndex + 1
 
+        local count = classCounts[entry.ClassID]
         dataProvider:Insert({
             kind = "import",
             id = entry.ID,
             name = entry.Name,
             classID = entry.ClassID,
             snapshotCount = entry.SnapshotCount,
+            canReorder = count > 1,
+            canMoveUp = classIndex > 1,
+            canMoveDown = classIndex < count,
         })
     end
 

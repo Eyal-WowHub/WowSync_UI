@@ -105,6 +105,27 @@ function Verbs:WireHover(keyField)
     end)
 end
 
+-- Re-derive the hover highlight from the current pointer and selection state.
+-- Rows with child widgets (e.g. inline buttons) call this after the pointer
+-- crosses into a child, because the row's own OnLeave fires and clears the
+-- highlight even while the cursor is still within the row's bounds. keyField is
+-- the same identifier field passed to WireHover.
+function Verbs:ApplyHoverState(keyField)
+    local key = self[keyField]
+    if key == nil then return end
+    if key == self._ctx.GetSelected() then return end
+
+    local hovering = self:IsMouseOver()
+    if self._decorated then
+        self.hoverFill:SetShown(hovering)
+        self.accent:SetShown(hovering)
+    elseif hovering then
+        self.bg:SetColorTexture(UI.Row.Hover:GetRGBA())
+    else
+        self.bg:SetColorTexture(UI.Row.Normal:GetRGBA())
+    end
+end
+
 -- Paint the row for its current selection state.
 function Verbs:Paint(isSelected)
     if self._decorated then

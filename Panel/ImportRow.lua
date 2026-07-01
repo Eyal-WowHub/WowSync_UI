@@ -12,6 +12,8 @@ local _, addon = ...
         GetSelected() -> importID or nil,
         Select(importID),
         Rename(importID, name) -> handled,
+        MoveUp(importID),       -- move the container up within its class group
+        MoveDown(importID),     -- move the container down within its class group
     }
 
     addon:GetObject("ImportRow"):Build(row, ctx)    -- adopts the pooled frame
@@ -48,6 +50,48 @@ local function BeginRename(row)
     row.renameBox:HighlightText()
 end
 
+-- Build the two stacked reorder arrows on the row's right edge. They are hidden
+-- until the row is hovered or selected, and only ever shown for a container
+-- whose class group holds more than one member (see UpdateReorder).
+local function BuildReorderArrows(row)
+    row.moveUp = CreateFrame("Button", nil, row, "UIPanelScrollUpButtonTemplate")
+    row.moveUp:SetPoint("BOTTOMRIGHT", row, "RIGHT", -6, 1)
+    row.moveUp:Hide()
+    row.moveUp:SetScript("OnClick", function()
+        if row.id and row._ctx.MoveUp then
+            row._ctx.MoveUp(row.id)
+        end
+    end)
+
+    row.moveDown = CreateFrame("Button", nil, row, "UIPanelScrollDownButtonTemplate")
+    row.moveDown:SetPoint("TOPRIGHT", row, "RIGHT", -6, -1)
+    row.moveDown:Hide()
+    row.moveDown:SetScript("OnClick", function()
+        if row.id and row._ctx.MoveDown then
+            row._ctx.MoveDown(row.id)
+        end
+    end)
+
+    -- Leaving an arrow keeps the reveal active while the cursor is still over the
+    -- row, so moving between the two arrows (or arrow and row) does not flicker.
+    local function OnArrowEnter()
+        row._hovering = true
+        row:UpdateReorder()
+        row:ApplyHoverState("id")
+    end
+    local function OnArrowLeave()
+        if not row:IsMouseOver() then
+            row._hovering = false
+        end
+        row:UpdateReorder()
+        row:ApplyHoverState("id")
+    end
+    row.moveUp:HookScript("OnEnter", OnArrowEnter)
+    row.moveDown:HookScript("OnEnter", OnArrowEnter)
+    row.moveUp:SetScript("OnLeave", OnArrowLeave)
+    row.moveDown:SetScript("OnLeave", OnArrowLeave)
+end
+
 function Verbs:Constructor(config)
     self._ctx = config.ctx
     self:BuildSkeleton()
@@ -75,12 +119,56 @@ function Verbs:Constructor(config)
 
     -- A double-click on a container row opens its inline rename.
     self:WireSelection(BeginRename)
+
+    -- Reorder arrows and the hover tracking that reveals them.
+    self._hovering = false
+    BuildReorderArrows(self)
+    self:HookScript("OnEnter", function(row)
+        row._hovering = true
+        row:UpdateReorder()
+    end)
+    self:HookScript("OnLeave", function(row)
+        if not row:IsMouseOver() then
+            row._hovering = false
+        end
+        row:UpdateReorder()
+        row:ApplyHoverState("id")
+    end)
+end
+
+-- Reveal the reorder arrows when the row is a reorderable container that is
+-- hovered or selected, disabling whichever arrow sits at a group boundary so the
+-- row's width stays stable.
+function Verbs:UpdateReorder()
+    local reveal = self._canReorder
+        and (self._hovering or (self.id ~= nil and self.id == self._ctx.GetSelected()))
+    self.moveUp:SetShown(reveal)
+    self.moveDown:SetShown(reveal)
+    if reveal then
+        self.moveUp:SetEnabled(self._canMoveUp)
+        self.moveDown:SetEnabled(self._canMoveDown)
+    end
+end
+
+-- Hide the reorder arrows outright, used for class headers.
+function Verbs:HideReorder()
+    self._canReorder = false
+    self.moveUp:Hide()
+    self.moveDown:Hide()
+end
+
+-- Paint the selection state and refresh the reorder arrows, which follow the
+-- selection as well as hover.
+function Verbs:Paint(isSelected)
+    ListRow.Verbs.Paint(self, isSelected)
+    self:UpdateReorder()
 end
 
 function Verbs:Render(elementData)
     -- Class header: just the class name, with no selection behaviour.
     if elementData.kind == "class" then
         self.renameBox:Hide()
+        self:HideReorder()
         self:RenderHeader(self:ClassHeaderText(elementData.classID))
         return
     end
@@ -88,6 +176,9 @@ function Verbs:Render(elementData)
     self.name = elementData.name or ""
     self.renameBox:Hide()
     self.lastClick = nil
+    self._canReorder = elementData.canReorder == true
+    self._canMoveUp = elementData.canMoveUp == true
+    self._canMoveDown = elementData.canMoveDown == true
 
     self:RenderItem({
         id = elementData.id,
