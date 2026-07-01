@@ -114,13 +114,12 @@ local function DuplicateRef(original)
     return ("#%d"):format(original.Index or 0)
 end
 
--- Gap from the subject down to the note (or the section header when there is
--- no note).
+-- Gap from the subject down to the note.
 local NOTE_GAP = 2
 
--- Gap below the note block -- a blank line's worth so the note reads as its own
--- block above the list. Both states size the note to its content, so the same
--- gap looks identical whether collapsed or expanded.
+-- Gap above the section header -- a blank line's worth that always separates the
+-- header/note block above from the module list below, whether or not a note is
+-- present.
 local SECTION_GAP = 14
 
 -- Gap between the section header and the list beneath it.
@@ -207,9 +206,10 @@ function ImportSnapshotRow:BuildLines(snapshot, expanded, detail, original, orig
     end
 
     local lines = {
-        -- Subject + selector on the top line.
+        -- Subject + selector on the top line. A leading disclosure marker shows
+        -- whether the row is collapsed or expanded -- the only cue to its state.
         {
-            left = SnapshotRow:FormatSubject(snapshot.Timestamp),
+            left = SnapshotRow:ExpandMarker(expanded) .. SnapshotRow:FormatSubject(snapshot.Timestamp),
             right = selector,
             leftStyle = "Subject",
             rightStyle = "Label",
@@ -234,7 +234,7 @@ function ImportSnapshotRow:BuildLines(snapshot, expanded, detail, original, orig
         right = ImportedLabel(snapshot),
         leftStyle = "Header",
         rightStyle = "Label",
-        gap = hasNote and SECTION_GAP or NOTE_GAP,
+        gap = SECTION_GAP,
     }
 
     -- The list body: exported module names collapsed, change lines expanded.

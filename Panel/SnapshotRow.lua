@@ -63,8 +63,8 @@ local HEAD_HINT_COLOR = CreateColor(0.4, 0.85, 0.4, 1)
 
 -- Vertical gaps between the stacked content lines, mirroring the reserved
 -- height SnapshotList computes for a row (and the import rows' spacing).
-local NOTE_GAP = 2     -- subject -> note (or the header when there is no note)
-local SECTION_GAP = 14 -- note -> header (a blank line's worth)
+local NOTE_GAP = 2     -- subject -> note
+local SECTION_GAP = 14 -- (note or subject) -> header (a blank line's worth)
 local HEADER_GAP = 2   -- header -> change list
 
 -- The change-summary text for an expanded row: one line per changed module, or
@@ -86,6 +86,18 @@ end
 -- snapshot with the same subject the row shows.
 function SnapshotRow:FormatSubject(timestamp)
     return FormatSubject(timestamp)
+end
+
+-- Disclosure markers drawn as fixed-size textures rather than "+"/"-" glyphs:
+-- a texture keeps its own single colour (independent of the subject's) and a
+-- constant width, so toggling a row never shifts the subject sideways the way
+-- the differently-sized "+"/"-" characters did.
+local MARKER_COLLAPSED = "|TInterface\\Buttons\\UI-PlusButton-Up:14:14|t "
+local MARKER_EXPANDED = "|TInterface\\Buttons\\UI-MinusButton-Up:14:14|t "
+
+-- Exposed so the import rows render the identical open/closed marker.
+function SnapshotRow:ExpandMarker(expanded)
+    return expanded and MARKER_EXPANDED or MARKER_COLLAPSED
 end
 
 function Verbs:Constructor(config)
@@ -139,6 +151,10 @@ function SnapshotRow:BuildLines(snapshot, isHead, expanded, detail)
         end
     end
 
+    -- A leading disclosure marker shows whether the row is collapsed or
+    -- expanded -- the only cue to its state.
+    subject = SnapshotRow:ExpandMarker(expanded) .. subject
+
     local lines = {
         {
             left = subject,
@@ -161,7 +177,7 @@ function SnapshotRow:BuildLines(snapshot, isHead, expanded, detail)
         lines[#lines + 1] = {
             left = L["Changes vs current setup:"],
             leftStyle = "Header",
-            gap = (detail and detail.hasNote) and SECTION_GAP or NOTE_GAP,
+            gap = SECTION_GAP,
         }
         lines[#lines + 1] = {
             left = ChangeLines(detail),
