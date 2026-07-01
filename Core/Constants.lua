@@ -1,5 +1,8 @@
 local _, addon = ...
 
+local NOTES_COLOR = CreateColor(0.62, 0.80, 1.00, 1)            -- a user-written note, soft blue
+local NOTES_HEADER_COLOR = CreateColor(0.52, 0.62, 0.78, 1)     -- a detail section header
+
 -- Constants kept here for one of two reasons: they are shared by more than one
 -- component, or they are preferences the user may safely adjust. Values that are
 -- internal to a single component live as named locals in that component's file.
@@ -38,14 +41,6 @@ addon.UI = {
         Height = 360,
     },
 
-    -- Geometry of a snapshot row's expanded detail block, shared by the row that
-    -- draws it and the list that measures its height.
-    SnapshotDetail = {
-        SubjectZone = 24,    -- top zone holding the subject and tags
-        TopPad = 2,
-        NoteHeight = 28,
-    },
-
     -- Frame backdrop fills, borders, and divider lines { r, g, b, a }.
     Backdrop = {
         Main = { 0.08, 0.08, 0.08, 0.92 },
@@ -79,7 +74,18 @@ addon.UI = {
     -- Snapshot annotation colours, shared by the profile and import rows so a
     -- note and a section header read the same wherever they appear.
     Note = {
-        Color = CreateColor(0.62, 0.80, 1.00, 1),       -- a user-written note, soft blue
-        HeaderColor = CreateColor(0.52, 0.62, 0.78, 1),  -- a detail section header
+        Color = NOTES_COLOR,
+        HeaderColor = NOTES_HEADER_COLOR,
     },
+
+    -- Named text styles (font object + colour) for the stacked row content. A row
+    -- describes a line with a style name; ExpandableContent applies it. The note
+    -- styles reuse the file-local note colours so they stay in sync with Note above.
+    LineStyles = {
+        Subject = { font = GameFontNormal, color = NORMAL_FONT_COLOR },           -- the row's title line
+        Label = { font = GameFontDisableSmall, color = DISABLED_FONT_COLOR },     -- a short right-aligned label
+        Note = { font = GameFontHighlightSmall, color = NOTES_COLOR },            -- a user-written note
+        Header = { font = GameFontDisableSmall, color = NOTES_HEADER_COLOR },     -- a detail section header
+        Body = { font = GameFontHighlightSmall, color = HIGHLIGHT_FONT_COLOR },   -- a list or change summary
+    }
 }

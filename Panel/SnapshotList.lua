@@ -28,9 +28,9 @@ local _, addon = ...
 local SnapshotList = addon:NewObject("SnapshotList")
 local SnapshotRow = addon:GetObject("SnapshotRow")
 local ScrollList = addon:GetObject("ScrollList")
+local ExpandableContent = addon:GetObject("ExpandableContent")
 
 local C = LibStub("Contracts-1.0")
-local UI = addon.UI
 
 -- Height of a collapsed snapshot row.
 local SNAPSHOT_ROW_HEIGHT = 40
@@ -38,49 +38,19 @@ local SNAPSHOT_ROW_HEIGHT = 40
 -- Vertical gap between snapshot rows.
 local SNAPSHOT_ROW_PADDING = 2
 
--- Gap between the detail panel's header and its first change line.
-local SNAPSHOT_DETAIL_HEADER_GAP = 2
+-- Padding above and below an expanded row's content stack, matching the row's
+-- content anchor (inset from the top, lifted off the bottom).
+local CONTENT_TOP_PAD = 6
+local CONTENT_BOTTOM_PAD = 8
 
--- Padding below the last line of an expanded row's detail panel.
-local SNAPSHOT_DETAIL_BOTTOM_PAD = 8
+-- Right margin of the row content, matching the row's content anchor; paired
+-- with the row's content inset to derive the wrap width for measuring.
+local RIGHT_MARGIN = 8
 
 local SnapshotView = WowSync:GetSnapshotView()
 local SnapshotHandleCache = WowSync:GetSnapshotHandleCache()
 
 local Verbs = {}
-
--- The detail font's real line height, measured once so reserved row height
--- matches the rendered text exactly (a fixed guess leaves a trailing gap).
-local detailLineHeight
-local function DetailLineHeight()
-    if detailLineHeight then return detailLineHeight end
-    local probe = UIParent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    probe:SetText("Ag")
-    local measured = probe:GetStringHeight()
-    probe:Hide()
-    if measured and measured > 0 then
-        detailLineHeight = math.ceil(measured)
-    end
-    return detailLineHeight or 12
-end
-
--- The extra height an expanded row needs for its detail panel, derived purely
--- from the cached detail so the scroll box can size elements deterministically.
-local function DetailExtent(detail)
-    if not detail then return 0 end
-
-    local lineHeight = DetailLineHeight()
-    local height = UI.SnapshotDetail.TopPad
-    if detail.hasNote then
-        height = height + UI.SnapshotDetail.NoteHeight
-    end
-    -- The "Changes vs current setup:" header (plus the gap to the first line),
-    -- then one line per changed module (or a single "matches" line).
-    height = height + lineHeight + SNAPSHOT_DETAIL_HEADER_GAP
-    height = height + math.max(1, #detail.modules) * lineHeight
-    height = height + SNAPSHOT_DETAIL_BOTTOM_PAD
-    return height
-end
 
 -- Diff the chosen snapshot against the live setup and distil it into a small,
 -- render-ready table (note + changed-module counts).
@@ -158,12 +128,15 @@ function Verbs:Constructor(config)
             sb:SetPoint("TOPLEFT", 0, 0)
             sb:SetPoint("BOTTOMRIGHT", -16, 0)
         end,
-        -- Variable extents: the one expanded row is taller by its detail panel.
+        -- Variable extents: collapsed rows are uniform; the one expanded row is
+        -- sized to the content it renders, measured from the same line list.
         extent = function(_, elementData)
-            if elementData.snapshot == panel._expanded then
-                return UI.SnapshotDetail.SubjectZone + DetailExtent(panel._expandedDetail)
+            if elementData.snapshot ~= panel._expanded then
+                return SNAPSHOT_ROW_HEIGHT
             end
-            return SNAPSHOT_ROW_HEIGHT
+            local width = panel._scrollBox:GetWidth() - SnapshotRow.ContentInset - RIGHT_MARGIN
+            local lines = SnapshotRow:BuildLines(elementData.snapshot, elementData.isHead, true, panel._expandedDetail)
+            return CONTENT_TOP_PAD + ExpandableContent:Measure(lines, width) + CONTENT_BOTTOM_PAD
         end,
         padding = SNAPSHOT_ROW_PADDING,
         build = function(row)

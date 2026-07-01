@@ -28,6 +28,8 @@ Widgets\TitleBar.lua
 Widgets\TabStrip.lua
 Widgets\ScrollList.lua
 Widgets\SelectableRow.lua
+Widgets\ExpandableContent.lua
+Widgets\TimelineSpan.lua
 Widgets\Button.lua
 Widgets\List.lua
 Widgets\ListRow.lua

@@ -30,10 +30,14 @@ local SelectableRow = addon:GetObject("SelectableRow")
 
 local C = LibStub("Contracts-1.0")
 local L = addon.L
-local UI = addon.UI
 
 -- Left inset of a snapshot row's content.
 local ROW_INSET = 10
+
+-- Exposed so ImportSnapshotList can derive the content wrap width from the same
+-- inset the row anchors its content at, keeping measured height and layout in
+-- step.
+ImportSnapshotRow.ContentInset = ROW_INSET
 
 -- Characters of the content hash shown in the selector label.
 local HASH_PREFIX = 7
@@ -94,57 +98,15 @@ function Verbs:Constructor(config)
     self:Background()
     self:DecorateSelection()
 
-    -- Right-aligned selector, top corner.
-    self.selectorText = self:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-    self.selectorText:SetPoint("TOPRIGHT", -8, -6)
-    self.selectorText:SetJustifyH("RIGHT")
-    self.selectorText:SetWordWrap(false)
-
-    -- Capture subject, fills the top line up to the selector.
-    self.subjectText = self:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    self.subjectText:SetPoint("TOPLEFT", ROW_INSET, -6)
-    self.subjectText:SetPoint("RIGHT", self.selectorText, "LEFT", -6, 0)
-    self.subjectText:SetJustifyH("LEFT")
-    self.subjectText:SetWordWrap(false)
-
-    -- The note is always shown when present: a one-line preview while collapsed,
-    -- the full note while expanded. Two font strings keep their wrapping and
-    -- height distinct; the layout in Render picks one and hides the other.
-    self.notePreview = self:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    self.notePreview:SetJustifyH("LEFT")
-    self.notePreview:SetWordWrap(false)
-    self.notePreview:SetTextColor(UI.Note.Color:GetRGB())
-    self.notePreview:Hide()
-
-    -- The expanded note wraps and auto-sizes to its content (no fixed-height
-    -- box), so the gap below it matches the collapsed preview's exactly.
-    self.detailNote = self:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    self.detailNote:SetJustifyH("LEFT")
-    self.detailNote:SetJustifyV("TOP")
-    self.detailNote:SetWordWrap(true)
-    self.detailNote:SetTextColor(UI.Note.Color:GetRGB())
-    self.detailNote:Hide()
-
-    -- Section header: "Shared modules:" collapsed, "Changes vs current setup:"
-    -- expanded.
-    self.listHeader = self:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-    self.listHeader:SetJustifyH("LEFT")
-    self.listHeader:SetTextColor(UI.Note.HeaderColor:GetRGB())
-    self.listHeader:Hide()
-
-    -- Right-aligned import time, sharing the header's line.
-    self.importedText = self:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-    self.importedText:SetJustifyH("RIGHT")
-    self.importedText:SetWordWrap(false)
-    self.importedText:Hide()
-
-    -- The vertical list beneath the header: exported module names collapsed,
-    -- per-module change lines expanded.
-    self.listBody = self:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    self.listBody:SetJustifyH("LEFT")
-    self.listBody:SetJustifyV("TOP")
-    self.listBody:SetWordWrap(true)
-    self.listBody:Hide()
+    -- The stacked text content fills the row to the right of the inset. The
+    -- import row carries no timeline chrome, so the content starts at the inset.
+    self.content = addon:GetObject("ExpandableContent"):Build({
+        parent = self,
+        anchor = function(content)
+            content:SetPoint("TOPLEFT", self, "TOPLEFT", ROW_INSET, -6)
+            content:SetPoint("BOTTOMRIGHT", self, "BOTTOMRIGHT", -8, -6)
+        end,
+    })
 
     self:WireHover("snapshot")
     self:SetScript("OnMouseDown", function(row, button)
@@ -159,56 +121,62 @@ function Verbs:Constructor(config)
     end)
 end
 
-function Verbs:Render(snapshot)
-    self.snapshot = snapshot
-
-    self.subjectText:SetText(SnapshotRow:FormatSubject(snapshot.Timestamp))
-    self.selectorText:SetText(SelectorText(snapshot))
-
-    local expanded = self._ctx.IsExpanded(snapshot)
+-- Build the ordered content lines for an imported snapshot, shared by Render (to
+-- draw them) and ImportSnapshotList (to reserve the row height from the same
+-- description). detail supplies the expanded change summary; nil while collapsed.
+function ImportSnapshotRow:BuildLines(snapshot, expanded, detail)
     local note = snapshot.Notes
     local hasNote = note ~= nil and note ~= ""
 
-    -- Note (always shown when present), then the section header below it.
-    local anchorAbove = self.subjectText
+    local lines = {
+        -- Subject + selector on the top line.
+        {
+            left = SnapshotRow:FormatSubject(snapshot.Timestamp),
+            right = SelectorText(snapshot),
+            leftStyle = "Subject",
+            rightStyle = "Label",
+        },
+    }
+
+    -- Note, always shown when present: a one-line preview while collapsed, the
+    -- full wrapped note while expanded. Its position is the same either way, so
+    -- toggling does not move it.
     if hasNote then
-        local noteFS = expanded and self.detailNote or self.notePreview
-        local hiddenFS = expanded and self.notePreview or self.detailNote
-        hiddenFS:Hide()
-        noteFS:ClearAllPoints()
-        noteFS:SetPoint("TOPLEFT", self.subjectText, "BOTTOMLEFT", 0, -NOTE_GAP)
-        noteFS:SetPoint("RIGHT", self, "RIGHT", -8, 0)
-        noteFS:SetText(note)
-        noteFS:Show()
-        anchorAbove = noteFS
-    else
-        self.notePreview:Hide()
-        self.detailNote:Hide()
+        lines[#lines + 1] = {
+            left = note,
+            leftStyle = "Note",
+            wrap = expanded,
+            gap = NOTE_GAP,
+        }
     end
 
-    self.listHeader:ClearAllPoints()
-    if anchorAbove == self.subjectText then
-        self.listHeader:SetPoint("TOPLEFT", self.subjectText, "BOTTOMLEFT", 0, -NOTE_GAP)
-    else
-        self.listHeader:SetPoint("TOPLEFT", anchorAbove, "BOTTOMLEFT", 0, -SECTION_GAP)
-    end
-    self.listHeader:SetText(expanded and L["Changes vs current setup:"] or L["Shared modules:"])
-    self.listHeader:Show()
+    -- Section header, sharing its line with the right-aligned import time.
+    lines[#lines + 1] = {
+        left = expanded and L["Changes vs current setup:"] or L["Shared modules:"],
+        right = ImportedLabel(snapshot),
+        leftStyle = "Header",
+        rightStyle = "Label",
+        gap = hasNote and SECTION_GAP or NOTE_GAP,
+    }
 
-    -- The import time shares the header's line, right-aligned. Both font strings
-    -- span the line and justify to opposite sides, so their short texts never
-    -- collide.
-    self.importedText:ClearAllPoints()
-    self.importedText:SetPoint("TOPLEFT", self.listHeader, "TOPLEFT", 0, 0)
-    self.importedText:SetPoint("RIGHT", self, "RIGHT", -8, 0)
-    self.importedText:SetText(ImportedLabel(snapshot))
-    self.importedText:Show()
+    -- The list body: exported module names collapsed, change lines expanded.
+    lines[#lines + 1] = {
+        left = expanded and ChangeLines(detail)
+            or table.concat(ModuleNames(snapshot), "\n"),
+        leftStyle = "Body",
+        wrap = true,
+        gap = HEADER_GAP,
+    }
 
-    self.listBody:ClearAllPoints()
-    self.listBody:SetPoint("TOPLEFT", self.listHeader, "BOTTOMLEFT", 0, -HEADER_GAP)
-    self.listBody:SetPoint("RIGHT", self, "RIGHT", -8, 0)
-    self.listBody:SetText(expanded and ChangeLines(self._ctx.GetDetail()) or table.concat(ModuleNames(snapshot), "\n"))
-    self.listBody:Show()
+    return lines
+end
+
+function Verbs:Render(snapshot)
+    self.snapshot = snapshot
+
+    local expanded = self._ctx.IsExpanded(snapshot)
+    local detail = expanded and self._ctx.GetDetail() or nil
+    self.content:SetLines(ImportSnapshotRow:BuildLines(snapshot, expanded, detail))
 
     self:Paint(snapshot == self._ctx.GetSelected())
 end

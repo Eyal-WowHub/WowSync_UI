@@ -27,9 +27,9 @@ local _, addon = ...
 local ImportSnapshotList = addon:NewObject("ImportSnapshotList")
 local ImportSnapshotRow = addon:GetObject("ImportSnapshotRow")
 local ScrollList = addon:GetObject("ScrollList")
+local ExpandableContent = addon:GetObject("ExpandableContent")
 
 local C = LibStub("Contracts-1.0")
-local UI = addon.UI
 
 local ImportManager = WowSync:GetImportManager()
 
@@ -38,86 +38,19 @@ local Verbs = {}
 -- Vertical gap between rows.
 local ROW_PADDING = 2
 
--- Gaps inside a row's body, mirroring the anchors in ImportSnapshotRow so the
--- reserved height matches what is rendered.
-local NOTE_GAP = 2     -- subject -> note (or header when there is no note)
-local SECTION_GAP = 14 -- note -> header (a blank line's worth, both states)
-local HEADER_GAP = 2   -- header -> list
+-- Padding above and below a row's content stack, matching the row's content
+-- anchor (inset from the top, lifted off the bottom).
+local CONTENT_TOP_PAD = 6
+local CONTENT_BOTTOM_PAD = 8
 
--- Padding below the last list line.
-local BOTTOM_PAD = 8
-
--- Left inset of the row body, matching ROW_INSET in ImportSnapshotRow; used to
--- derive the note's wrap width.
-local ROW_INSET = 10
+-- Right margin of the row content, matching the row's content anchor; paired
+-- with the row's content inset to derive the wrap width for measuring.
+local RIGHT_MARGIN = 8
 
 -- Characters of the content hash forming a snapshot's selector. Imported
 -- snapshots are addressed by their full hash and index.
 local function SelectorFor(snapshot)
     return ("%s#%d"):format(snapshot.Hash, snapshot.Index or 0)
-end
-
--- The detail font's real line height, measured once so reserved row height
--- matches the rendered text exactly (a fixed guess leaves a trailing gap).
-local detailLineHeight
-local function DetailLineHeight()
-    if detailLineHeight then return detailLineHeight end
-    local probe = UIParent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    probe:SetText("Ag")
-    local measured = probe:GetStringHeight()
-    probe:Hide()
-    if measured and measured > 0 then
-        detailLineHeight = math.ceil(measured)
-    end
-    return detailLineHeight or 12
-end
-
--- The wrapped height the expanded note will render at, measured with the same
--- font and width as the row's note so the reserved height tracks the content
--- exactly (no trailing dead space from a fixed-size box).
-local noteProbe
-local function MeasuredNoteHeight(panel, text)
-    local lineHeight = DetailLineHeight()
-    if not text or text == "" then return lineHeight end
-
-    local width = panel._scrollBox and panel._scrollBox:GetWidth() or 0
-    width = width - ROW_INSET - 8
-    if width <= 0 then return lineHeight end
-
-    if not noteProbe then
-        noteProbe = UIParent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        noteProbe:SetJustifyH("LEFT")
-        noteProbe:SetWordWrap(true)
-        noteProbe:Hide()
-    end
-    noteProbe:SetWidth(width)
-    noteProbe:SetText(text)
-    local measured = noteProbe:GetStringHeight()
-    return (measured and measured > 0) and math.ceil(measured) or lineHeight
-end
-
--- The height a row needs, including its subject line, for the given note-block
--- height (0 when there is no note) and body line count.
-local function RowExtent(noteHeight, lineCount)
-    local lineHeight = DetailLineHeight()
-    local height = UI.SnapshotDetail.SubjectZone + NOTE_GAP
-    if noteHeight > 0 then
-        height = height + noteHeight + SECTION_GAP
-    end
-    -- The section header (plus the gap to the first line), then the list lines.
-    height = height + lineHeight + HEADER_GAP
-    height = height + math.max(1, lineCount) * lineHeight
-    height = height + BOTTOM_PAD
-    return height
-end
-
--- Number of modules an imported snapshot carries (one collapsed list line each).
-local function ModuleCount(snapshot)
-    local count = 0
-    for _ in pairs(snapshot.Modules or {}) do
-        count = count + 1
-    end
-    return count
 end
 
 -- Diff the imported snapshot against the live setup and distil it into a small,
@@ -190,16 +123,15 @@ function Verbs:Constructor(config)
             sb:SetPoint("TOPLEFT", 0, 0)
             sb:SetPoint("BOTTOMRIGHT", -16, 0)
         end,
-        -- Variable extents: a row is sized for its note and its list (the
-        -- exported modules collapsed, the change summary expanded).
+        -- Variable extents: every row is sized to the content it renders,
+        -- measured from the same line list (module names collapsed, the change
+        -- summary expanded).
         extent = function(_, snapshot)
-            if snapshot == panel._expanded then
-                local detail = panel._expandedDetail
-                local noteHeight = (detail and detail.hasNote) and MeasuredNoteHeight(panel, detail.note) or 0
-                return RowExtent(noteHeight, detail and #detail.modules or 0)
-            end
-            local hasNote = snapshot.Notes ~= nil and snapshot.Notes ~= ""
-            return RowExtent(hasNote and DetailLineHeight() or 0, ModuleCount(snapshot))
+            local expanded = snapshot == panel._expanded
+            local detail = expanded and panel._expandedDetail or nil
+            local width = panel._scrollBox:GetWidth() - ImportSnapshotRow.ContentInset - RIGHT_MARGIN
+            local lines = ImportSnapshotRow:BuildLines(snapshot, expanded, detail)
+            return CONTENT_TOP_PAD + ExpandableContent:Measure(lines, width) + CONTENT_BOTTOM_PAD
         end,
         padding = ROW_PADDING,
         build = function(row)
