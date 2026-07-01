@@ -32,6 +32,7 @@ local ExpandableContent = addon:GetObject("ExpandableContent")
 local C = LibStub("Contracts-1.0")
 
 local ImportManager = WowSync:GetImportManager()
+local ImportedHashDictionary = WowSync:GetImportedHashDictionary()
 
 local Verbs = {}
 
@@ -172,21 +173,21 @@ function ImportSnapshotList:Build(region, opts)
 end
 
 -- Rebuild the data provider from the current container, newest capture first
--- (GetImportSnapshots is import-ordered). Re-setting the provider reruns the
+-- (GetSnapshots is import-ordered). Re-setting the provider reruns the
 -- extent calculator, so it is also how an expand/collapse relayout is triggered.
 local function Rebuild(panel)
     local dataProvider = CreateDataProvider()
     local duplicates = {}
     local origin = {}
     if panel._currentImportID then
-        local snapshots = ImportManager:GetImportSnapshots(panel._currentImportID)
+        local snapshots = ImportManager:GetSnapshots(panel._currentImportID)
         -- A hash's "owner" is the container that imported it first. When this
         -- container is not the owner, every copy here points at that owner by
         -- name. Only when this container owns the hash do repeats fall back to
         -- the in-container "#N" flag against the earlier copy; the first stays
         -- unflagged either way. Owners are resolved in one pass up front so the
         -- per-row work below is a plain lookup.
-        local owners = ImportManager:GetHashOwners()
+        local owners = ImportedHashDictionary:GetHashOwners()
         local seen = {}
         for index = 1, #snapshots do
             local snapshot = snapshots[index]

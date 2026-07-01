@@ -154,10 +154,10 @@ function Verbs:OnSelect(callback)
 end
 
 function Verbs:Refresh()
-    -- Imported containers grouped by class. GetImportedProfiles already returns
+    -- Imported containers grouped by class. GetProfiles already returns
     -- them sorted by class then saved order, so a class header is emitted
     -- whenever the class changes.
-    local imports = ImportManager:GetImportedProfiles()
+    local imports = ImportManager:GetProfiles()
 
     -- Container count per class, so the reorder arrows only appear when a group
     -- has more than one container.

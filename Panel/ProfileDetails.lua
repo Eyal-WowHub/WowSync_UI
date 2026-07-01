@@ -38,7 +38,7 @@ local UI = addon.UI
 
 local SnapshotManager = WowSync:GetSnapshotManager()
 local SnapshotView = WowSync:GetSnapshotView()
-local ImportManager = WowSync:GetImportManager()
+local ExportManager = WowSync:GetExportManager()
 local SnapshotHandleCache = WowSync:GetSnapshotHandleCache()
 local Debugger = WowSync:GetDebugger()
 
@@ -350,9 +350,9 @@ local function ShareSnapshot(panel, snapshot)
             local opts = { modules = moduleSet, notes = note or "" }
             local share, reason
             if isHead then
-                share, reason = ImportManager:ExportHead(charKey, opts)
+                share, reason = ExportManager:ExportHead(charKey, opts)
             else
-                share, reason = ImportManager:ExportSnapshot(panel._currentProfileName, selector, opts)
+                share, reason = ExportManager:ExportSnapshot(panel._currentProfileName, selector, opts)
             end
             if share then
                 ShareDialog:Show({ text = share, subject = subject })
