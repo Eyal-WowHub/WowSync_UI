@@ -46,7 +46,7 @@ local Debugger = WowSync:GetDebugger()
 local SUCCESS_TEXT_COLOR = { 0.3, 0.85, 0.3, 1 }
 local WARNING_TEXT_COLOR = { 0.95, 0.75, 0.2, 1 }
 
-local Verbs = {}
+local Methods = {}
 
 -- Distil a preview's per-module diff into the panel's syncDetail: one entry per
 -- module that has a pending change, sorted by name. syncDetail backs the
@@ -460,7 +460,7 @@ local function OpenSnapshotMenu(panel, snapshot, subject, anchor, isHead)
     end)
 end
 
-function Verbs:Constructor(config)
+function Methods:Constructor(config)
     local panel = self
 
     panel._currentProfileName = nil
@@ -628,11 +628,11 @@ function ProfileDetails:Build(region)
     }, {
         frameType = "Frame",
         template = "BackdropTemplate",
-        verbs = Verbs,
+        methods = Methods,
     })
 end
 
-function Verbs:SetProfile(profileName)
+function Methods:SetProfile(profileName)
     self._currentProfileName = profileName
 
     if not profileName then
@@ -671,7 +671,7 @@ end
 -- is offered only for your own character, so every registered module is
 -- selectable. On success the head collapses into the new latest snapshot and
 -- onSaved fires so the list can refresh and re-select the character.
-function Verbs:RequestSave()
+function Methods:RequestSave()
     local charKey = SnapshotManager:GetCurrentCharKey()
 
     local headHandle = SnapshotHandleCache:GetHead(charKey)
@@ -726,7 +726,7 @@ function Verbs:RequestSave()
 end
 
 -- Exports the selected snapshot to a copy dialog, or asks for a selection first.
-function Verbs:ShareSelected()
+function Methods:ShareSelected()
     local snapshot = self._snapshotList:GetSelected()
     if not snapshot then
         WowSync:Print(L["Select a snapshot to share first."])
@@ -735,6 +735,6 @@ function Verbs:ShareSelected()
     ShareSnapshot(self, snapshot)
 end
 
-function Verbs:OnSaved(callback)
+function Methods:OnSaved(callback)
     self._onSaved = callback
 end

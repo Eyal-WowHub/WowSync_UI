@@ -36,10 +36,10 @@ local DOUBLE_CLICK_SECONDS = 0.3
 -- Pixels of size change below which a drag counts as a click rather than a resize.
 local RESIZE_EPSILON = 1
 
-local Verbs = {}
+local Methods = {}
 
 -- When locked the grip hides and stops responding to the mouse.
-function Verbs:SetLocked(value)
+function Methods:SetLocked(value)
     self._locked = value and true or false
     self:SetShown(not self._locked)
 end
@@ -47,7 +47,7 @@ end
 -- Build the corner grab handle and wire cursor-tracked resizing with a
 -- double-click reset. The grip IS this frame; config.target is the frame it
 -- resizes (also its parent).
-function Verbs:Constructor(config)
+function Methods:Constructor(config)
     local frame = config.target
     self._locked = false
 
@@ -142,6 +142,6 @@ function ResizeGrip:Build(frame, opts)
         onReset = opts.onReset,
     }, {
         frameType = "Button",
-        verbs = Verbs,
+        methods = Methods,
     })
 end

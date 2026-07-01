@@ -1,18 +1,18 @@
 local _, addon = ...
 
 --[[
-    SelectableRow verbs (shared selectable-row behaviour).
+    SelectableRow methods (shared selectable-row behaviour).
 
     The selection visuals every pooled, single-select scroll-list row repeats:
     a transparent background texture, hover highlighting that yields to the
     current selection, and the selected/normal paint. These are mixed into a
-    row widget's verbs, so a row frame carries them as its own methods.
+    row widget's methods, so a row frame carries them as its own methods.
 
     A row identifies itself through a field named by the keyField passed to
     WireHover (e.g. "id" or "snapshot"); the list selection is read through
     self._ctx.GetSelected, stored on the row by its Constructor.
 
-    local Verbs = Mixin({}, addon:GetObject("SelectableRow").Verbs)
+    local Methods = Mixin({}, addon:GetObject("SelectableRow").Methods)
         self:Background()           -- create self.bg
         self:DecorateSelection()    -- optional: accent bar + gradient + edges
         self:WireHover(keyField)    -- hover highlight via self._ctx
@@ -23,10 +23,10 @@ local SelectableRow = addon:NewObject("SelectableRow")
 
 local UI = addon.UI
 
-local Verbs = {}
+local Methods = {}
 
 -- Create the row's background texture, transparent until painted.
-function Verbs:Background()
+function Methods:Background()
     self.bg = self:CreateTexture(nil, "BACKGROUND")
     self.bg:SetAllPoints()
     self.bg:SetColorTexture(0, 0, 0, 0)
@@ -36,7 +36,7 @@ end
 -- Opt a row into the richer selection look: a bright left accent bar, a gentle
 -- left-to-right gradient fill, and thin top/bottom edge lines, all revealed only
 -- while the row is selected. Plain rows skip this and keep the flat fill.
-function Verbs:DecorateSelection()
+function Methods:DecorateSelection()
     self._decorated = true
 
     self.selFill = self:CreateTexture(nil, "BACKGROUND", nil, 2)
@@ -77,7 +77,7 @@ end
 
 -- Install hover highlighting. A row with no key (e.g. a group header) is inert,
 -- and the hover never overrides the current selection.
-function Verbs:WireHover(keyField)
+function Methods:WireHover(keyField)
     self:EnableMouse(true)
     self:SetScript("OnEnter", function(row)
         local key = row[keyField]
@@ -110,7 +110,7 @@ end
 -- crosses into a child, because the row's own OnLeave fires and clears the
 -- highlight even while the cursor is still within the row's bounds. keyField is
 -- the same identifier field passed to WireHover.
-function Verbs:ApplyHoverState(keyField)
+function Methods:ApplyHoverState(keyField)
     local key = self[keyField]
     if key == nil then return end
     if key == self._ctx.GetSelected() then return end
@@ -127,7 +127,7 @@ function Verbs:ApplyHoverState(keyField)
 end
 
 -- Paint the row for its current selection state.
-function Verbs:Paint(isSelected)
+function Methods:Paint(isSelected)
     if self._decorated then
         -- The gradient fill and edge decorations carry the selection; the base
         -- texture stays clear so hover can still tint an unselected row.
@@ -149,4 +149,4 @@ function Verbs:Paint(isSelected)
     end
 end
 
-SelectableRow.Verbs = Verbs
+SelectableRow.Methods = Methods

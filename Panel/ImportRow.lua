@@ -4,7 +4,7 @@ local _, addon = ...
     ImportRow widget (row renderer).
 
     Row sub-contract for the pooled scroll-list elements in ImportList. Maps an
-    imported container (or class header) onto the shared ListRow verbs, adding an
+    imported container (or class header) onto the shared ListRow methods, adding an
     inline rename box on top. The list selection is reached through the context
     the row stores on self._ctx.
 
@@ -29,7 +29,7 @@ local L = addon.L
 -- Cap on an inline-renamed container name, matching the rename dialog.
 local MAX_RENAME_LETTERS = 64
 
-local Verbs = Mixin({}, ListRow.Verbs)
+local Methods = Mixin({}, ListRow.Methods)
 
 -- One-line snapshot-count label for a container's info line.
 local function SnapshotCountText(count)
@@ -92,7 +92,7 @@ local function BuildReorderArrows(row)
     row.moveDown:SetScript("OnLeave", OnArrowLeave)
 end
 
-function Verbs:Constructor(config)
+function Methods:Constructor(config)
     self._ctx = config.ctx
     self:BuildSkeleton()
 
@@ -139,7 +139,7 @@ end
 -- Reveal the reorder arrows when the row is a reorderable container that is
 -- hovered or selected, disabling whichever arrow sits at a group boundary so the
 -- row's width stays stable.
-function Verbs:UpdateReorder()
+function Methods:UpdateReorder()
     local reveal = self._canReorder
         and (self._hovering or (self.id ~= nil and self.id == self._ctx.GetSelected()))
     self.moveUp:SetShown(reveal)
@@ -151,7 +151,7 @@ function Verbs:UpdateReorder()
 end
 
 -- Hide the reorder arrows outright, used for class headers.
-function Verbs:HideReorder()
+function Methods:HideReorder()
     self._canReorder = false
     self.moveUp:Hide()
     self.moveDown:Hide()
@@ -159,12 +159,12 @@ end
 
 -- Paint the selection state and refresh the reorder arrows, which follow the
 -- selection as well as hover.
-function Verbs:Paint(isSelected)
-    ListRow.Verbs.Paint(self, isSelected)
+function Methods:Paint(isSelected)
+    ListRow.Methods.Paint(self, isSelected)
     self:UpdateReorder()
 end
 
-function Verbs:Render(elementData)
+function Methods:Render(elementData)
     -- Class header: just the class name, with no selection behaviour.
     if elementData.kind == "class" then
         self.renameBox:Hide()
@@ -195,6 +195,6 @@ function ImportRow:Build(row, ctx)
 
     return addon:NewWidget({ ctx = ctx }, {
         frame = row,
-        verbs = Verbs,
+        methods = Methods,
     })
 end

@@ -30,7 +30,7 @@ local UI = addon.UI
 local ImportManager = WowSync:GetImportManager()
 local SnapshotManager = WowSync:GetSnapshotManager()
 
-local Verbs = {}
+local Methods = {}
 
 -- The core selector for an imported snapshot: its full hash pinned to its index.
 local function SelectorFor(snapshot)
@@ -134,7 +134,7 @@ local function OpenSnapshotMenu(panel, snapshot, anchor)
     end)
 end
 
-function Verbs:Constructor(config)
+function Methods:Constructor(config)
     local panel = self
 
     self:SetBackdrop({
@@ -233,15 +233,15 @@ function ImportDetails:Build(region)
     }, {
         frameType = "Frame",
         template = "BackdropTemplate",
-        verbs = Verbs,
+        methods = Methods,
     })
 end
 
-function Verbs:OnRefresh(callback)
+function Methods:OnRefresh(callback)
     self._onRefresh = callback
 end
 
-function Verbs:SetImport(importID)
+function Methods:SetImport(importID)
     self._currentImportID = importID
     local record = importID and ImportManager:GetImport(importID)
     if not record then

@@ -31,9 +31,9 @@ local SnapshotManager = WowSync:GetSnapshotManager()
 -- Keep the spinner up at least this long so a fast save is still perceptible.
 local SAVE_SPINNER_MIN_SECONDS = 0.5
 
-local Verbs = {}
+local Methods = {}
 
-function Verbs:Constructor(config)
+function Methods:Constructor(config)
     local applyButton = Button:Build({
         parent = self,
         anchor = function(button)
@@ -82,21 +82,21 @@ function Verbs:Constructor(config)
     self._savingStartedAt = nil
 end
 
-function Verbs:SetApplyEnabled(enabled)
+function Methods:SetApplyEnabled(enabled)
     self._applyButton:SetEnabled(enabled)
 end
 
-function Verbs:SetUndoEnabled(enabled)
+function Methods:SetUndoEnabled(enabled)
     self._undoButton:SetEnabled(enabled)
 end
 
-function Verbs:SetSaveEnabled(enabled)
+function Methods:SetSaveEnabled(enabled)
     self._saveButton:SetEnabled(enabled)
 end
 
 -- Enter the saving state: hide the label, spin, and lock the button until the
 -- save finishes.
-function Verbs:BeginSaving()
+function Methods:BeginSaving()
     self._savingStartedAt = GetTime()
     self._saveButton:SetBusy(true)
 end
@@ -104,7 +104,7 @@ end
 -- Leave the saving state once the spinner has shown for its minimum time, then
 -- play the confirmation flourish (only for a save that actually stored) and
 -- restore the button.
-function Verbs:EndSaving(storedSnapshot)
+function Methods:EndSaving(storedSnapshot)
     local bar = self
     local startedAt = self._savingStartedAt
     local elapsed = GetTime() - (startedAt or 0)
@@ -143,6 +143,6 @@ function ActionBar:Build(region, opts)
         onSave = opts.onSave,
     }, {
         frameType = "Frame",
-        verbs = Verbs,
+        methods = Methods,
     })
 end

@@ -123,17 +123,17 @@ Dialog:RegisterEvent("WOWSYNC_UI_CLOSED", function()
     end
 end)
 
--- The verbs every built dialog carries. The dialog IS its backdrop frame, so
+-- The methods every built dialog carries. The dialog IS its backdrop frame, so
 -- Show and Hide are the native frame methods -- their OnShow/OnHide scripts
 -- position, track, and release the dialog -- and only the title needs spelling
 -- out.
-local Verbs = {}
+local Methods = {}
 
-function Verbs:SetTitle(text)
+function Methods:SetTitle(text)
     self._title:SetText(text or "")
 end
 
-function Verbs:Constructor(config)
+function Methods:Constructor(config)
     self:SetPoint("CENTER")
     self:SetFrameStrata("FULLSCREEN_DIALOG")
     self:SetBackdrop({
@@ -201,6 +201,6 @@ function Dialog:Build(opts)
         frameType = "Frame",
         template = "BackdropTemplate",
         name = opts.name,
-        verbs = Verbs,
+        methods = Methods,
     })
 end

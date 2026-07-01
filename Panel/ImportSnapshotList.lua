@@ -34,7 +34,7 @@ local C = LibStub("Contracts-1.0")
 local ImportManager = WowSync:GetImportManager()
 local ImportedHashDictionary = WowSync:GetImportedHashDictionary()
 
-local Verbs = {}
+local Methods = {}
 
 -- Vertical gap between rows.
 local ROW_PADDING = 2
@@ -93,7 +93,7 @@ local function BuildDetail(importID, snapshot)
     return detail
 end
 
-function Verbs:Constructor(config)
+function Methods:Constructor(config)
     local panel = self
 
     panel._currentImportID = nil
@@ -168,7 +168,7 @@ function ImportSnapshotList:Build(region, opts)
         onContext = opts.onContext,
     }, {
         frameType = "Frame",
-        verbs = Verbs,
+        methods = Methods,
     })
 end
 
@@ -232,7 +232,7 @@ local function Rebuild(panel)
 end
 
 -- Render the container's snapshots, newest capture first.
-function Verbs:SetImport(importID)
+function Methods:SetImport(importID)
     self._currentImportID = importID
     self._selectedSnapshot = nil
     self._expanded = nil
@@ -240,7 +240,7 @@ function Verbs:SetImport(importID)
     Rebuild(self)
 end
 
-function Verbs:Refresh()
+function Methods:Refresh()
     if self._expanded then
         self._expandedDetail = BuildDetail(self._currentImportID, self._expanded)
     end
@@ -249,7 +249,7 @@ end
 
 -- Select a row and toggle its inline detail panel. Re-clicking the open row
 -- collapses it but keeps it selected.
-function Verbs:Select(snapshot)
+function Methods:Select(snapshot)
     self._selectedSnapshot = snapshot
 
     if self._expanded == snapshot then
@@ -265,11 +265,11 @@ function Verbs:Select(snapshot)
     if self._onSelect then self._onSelect(self._selectedSnapshot) end
 end
 
-function Verbs:GetSelected()
+function Methods:GetSelected()
     return self._selectedSnapshot
 end
 
-function Verbs:Clear()
+function Methods:Clear()
     self._currentImportID = nil
     self._selectedSnapshot = nil
     self._expanded = nil

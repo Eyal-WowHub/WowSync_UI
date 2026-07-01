@@ -38,7 +38,7 @@ local UI = addon.UI
 -- Leaves room below the scroll area for the owner's bottom-left buttons.
 local DEFAULT_BOTTOM_INSET = 40
 
-local Verbs = {}
+local Methods = {}
 
 function List:Build(region, config)
     C:IsTable(region, 2)
@@ -58,14 +58,14 @@ function List:Build(region, config)
     }, {
         frameType = "Frame",
         template = "BackdropTemplate",
-        verbs = Verbs,
+        methods = Methods,
     })
 end
 
 -- Build the panel chrome (border, title) and the virtualised scroll list, and
 -- seed the selection state. The list IS this frame; the owner anchors its
 -- buttons onto it directly.
-function Verbs:Constructor(config)
+function Methods:Constructor(config)
     self:SetBackdrop({
         bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
@@ -126,13 +126,13 @@ function Verbs:Constructor(config)
     })
 end
 
-function Verbs:OnSelect(callback)
+function Methods:OnSelect(callback)
     self.onSelectionChanged = callback
 end
 
 -- Swap the list contents. Drops the selection (notifying once) when the
 -- selected id is no longer among the visible ids.
-function Verbs:SetData(dataProvider, visibleIDs)
+function Methods:SetData(dataProvider, visibleIDs)
     self.scrollBox:SetDataProvider(dataProvider)
 
     if self.selectedID and visibleIDs and not visibleIDs[self.selectedID] then
@@ -143,11 +143,11 @@ function Verbs:SetData(dataProvider, visibleIDs)
     end
 end
 
-function Verbs:GetSelected()
+function Methods:GetSelected()
     return self.selectedID
 end
 
-function Verbs:Select(id)
+function Methods:Select(id)
     self.selectedID = id
     self.scrollBox:ForEachFrame(function(frame)
         if not frame.id then return end
@@ -158,12 +158,12 @@ function Verbs:Select(id)
     end
 end
 
-function Verbs:ClearSelection()
+function Methods:ClearSelection()
     self:Select(nil)
 end
 
 -- Scroll the list so the element with the given id is visible (no-op if absent).
-function Verbs:ScrollTo(id)
+function Methods:ScrollTo(id)
     if not id then return end
     self.scrollBox:ScrollToElementDataByPredicate(function(data)
         return data.id == id

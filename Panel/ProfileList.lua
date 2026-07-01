@@ -32,7 +32,7 @@ local ProfileManager = WowSync:GetProfileManager()
 local SnapshotHandleCache = WowSync:GetSnapshotHandleCache()
 local SnapshotView = WowSync:GetSnapshotView()
 
-local Verbs = {}
+local Methods = {}
 
 -- Height of a realm group header row; the extra space over the text gives each
 -- group a consistent leading gap. The character rows below use UI.List.ItemHeight.
@@ -63,7 +63,7 @@ local function UpdateDeleteEnabled(panel)
     end
 end
 
-function Verbs:Constructor(config)
+function Methods:Constructor(config)
     local panel = self
 
     local list = List:Build(self, {
@@ -119,15 +119,15 @@ function ProfileList:Build(region)
         end,
     }, {
         frameType = "Frame",
-        verbs = Verbs,
+        methods = Methods,
     })
 end
 
-function Verbs:OnSelect(callback)
+function Methods:OnSelect(callback)
     self._onSelectionChanged = callback
 end
 
-function Verbs:Refresh()
+function Methods:Refresh()
     -- Every character with saved history and/or a captured Current, grouped
     -- under its realm. The logged-in character's realm leads, then realms by
     -- most-recently-seen; within a realm the order GetSavedCharacters returns is
@@ -195,27 +195,27 @@ function Verbs:Refresh()
     UpdateDeleteEnabled(self)
 end
 
-function Verbs:Select(profileName)
+function Methods:Select(profileName)
     self._list:Select(profileName)
 end
 
-function Verbs:GetSelected()
+function Methods:GetSelected()
     return self._list:GetSelected()
 end
 
 -- Select the logged-in character when nothing is selected yet, so opening the
 -- window lands on a useful profile.
-function Verbs:SelectCurrentWhenNone()
+function Methods:SelectCurrentWhenNone()
     if self._list:GetSelected() or not self._currentProfileName then return end
     self._list:Select(self._currentProfileName)
     self._list:ScrollTo(self._currentProfileName)
 end
 
 -- Scroll the list so the named profile is visible (no-op if already on screen).
-function Verbs:ScrollToProfile(profileName)
+function Methods:ScrollToProfile(profileName)
     self._list:ScrollTo(profileName)
 end
 
-function Verbs:ClearSelection()
+function Methods:ClearSelection()
     self._list:ClearSelection()
 end

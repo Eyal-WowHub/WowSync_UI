@@ -18,9 +18,9 @@ local L = addon.L
 
 local SnapshotView = WowSync:GetSnapshotView()
 
-local Verbs = {}
+local Methods = {}
 
-function Verbs:Constructor(config)
+function Methods:Constructor(config)
     self._titleText = self:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     self._titleText:SetPoint("TOPLEFT", 0, 0)
 
@@ -28,7 +28,7 @@ function Verbs:Constructor(config)
     self._infoText:SetPoint("TOPLEFT", self._titleText, "BOTTOMLEFT", 0, -4)
 end
 
-function Verbs:SetProfile(character, snapshot)
+function Methods:SetProfile(character, snapshot)
     local characterInfo = snapshot and SnapshotView:GetCharacterInfo(snapshot)
     character = character or (characterInfo and characterInfo.Character) or L["Unknown"]
 
@@ -59,6 +59,6 @@ function ProfileHeader:Build(region)
         end,
     }, {
         frameType = "Frame",
-        verbs = Verbs,
+        methods = Methods,
     })
 end

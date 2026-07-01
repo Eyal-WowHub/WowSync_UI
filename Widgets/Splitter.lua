@@ -40,10 +40,10 @@ local LINE_END_INSET = 4
 -- Frame levels the handle sits above its pane so it stays clickable.
 local HANDLE_FRAME_LEVEL_OFFSET = 5
 
-local Verbs = {}
+local Methods = {}
 
 -- When locked the handle hides and stops responding to the mouse.
-function Verbs:SetLocked(value)
+function Methods:SetLocked(value)
     self._locked = value and true or false
     self:SetShown(not self._locked)
     self.line:SetColorTexture(unpack(SPLITTER_COLOR))
@@ -51,7 +51,7 @@ end
 
 -- Build the drag handle in the gap to the right of the pane's left slot and wire
 -- the cursor-to-ratio drag. The handle IS this frame.
-function Verbs:Constructor(config)
+function Methods:Constructor(config)
     local view = config.view
     self._locked = false
 
@@ -116,6 +116,6 @@ function Splitter:Build(pane, opts)
         onCommit = opts.onCommit,
     }, {
         frameType = "Button",
-        verbs = Verbs,
+        methods = Methods,
     })
 end

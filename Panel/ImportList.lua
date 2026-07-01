@@ -35,7 +35,7 @@ local UI = addon.UI
 
 local ImportManager = WowSync:GetImportManager()
 
-local Verbs = {}
+local Methods = {}
 
 -- Height of a class group header row; the extra space over the text gives each
 -- group a consistent leading gap. The container rows use UI.List.ItemHeight.
@@ -52,7 +52,7 @@ local function UpdateDeleteEnabled(panel)
     end
 end
 
-function Verbs:Constructor(config)
+function Methods:Constructor(config)
     local panel = self
 
     local list = List:Build(self, {
@@ -145,15 +145,15 @@ function ImportList:Build(region)
         end,
     }, {
         frameType = "Frame",
-        verbs = Verbs,
+        methods = Methods,
     })
 end
 
-function Verbs:OnSelect(callback)
+function Methods:OnSelect(callback)
     self._onSelectionChanged = callback
 end
 
-function Verbs:Refresh()
+function Methods:Refresh()
     -- Imported containers grouped by class. GetProfiles already returns
     -- them sorted by class then saved order, so a class header is emitted
     -- whenever the class changes.
@@ -199,26 +199,26 @@ function Verbs:Refresh()
     UpdateDeleteEnabled(self)
 end
 
-function Verbs:Select(importID)
+function Methods:Select(importID)
     self._list:Select(importID)
 end
 
-function Verbs:GetSelected()
+function Methods:GetSelected()
     return self._list:GetSelected()
 end
 
-function Verbs:ClearSelection()
+function Methods:ClearSelection()
     self._list:ClearSelection()
 end
 
 -- Scrolls the list to bring the given container into view.
-function Verbs:ScrollToImport(importID)
+function Methods:ScrollToImport(importID)
     self._list:ScrollTo(importID)
 end
 
 -- Opens the import dialog; on success refreshes the list and selects the new
 -- container.
-function Verbs:BeginImport()
+function Methods:BeginImport()
     local panel = self
     ImportDialog:Show({
         onImported = function(importID)
@@ -234,7 +234,7 @@ end
 -- Opens the import dialog scoped to an existing container so a further snapshot
 -- (of the same class) can be appended; on success refreshes and reselects it so
 -- the details pane shows the new snapshot.
-function Verbs:BeginAddSnapshot(importID)
+function Methods:BeginAddSnapshot(importID)
     local panel = self
     local record = ImportManager:GetImport(importID)
     if not record then return end
@@ -252,7 +252,7 @@ end
 
 -- Builds the per-row context menu for a container: rename, add another
 -- snapshot, or delete the whole container. Anchored to the clicked row.
-function Verbs:OpenRowMenu(importID, anchor)
+function Methods:OpenRowMenu(importID, anchor)
     local panel = self
     local record = ImportManager:GetImport(importID)
     if not record then return end

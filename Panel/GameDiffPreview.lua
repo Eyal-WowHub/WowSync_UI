@@ -78,7 +78,7 @@ local SECTIONS = {
     { key = "removed", color = REMOVED_COLOR, label = L["Removed (X)"] },
 }
 
-local Verbs = {}
+local Methods = {}
 
 -- The label, optional icon, and optional description of a diff entry, which may
 -- be a bare string or a { label, icon, description } table.
@@ -277,7 +277,7 @@ local function Rebuild(panel)
     panel._scrollBox:SetDataProvider(dataProvider)
 end
 
-function Verbs:Constructor(config)
+function Methods:Constructor(config)
     -- Hidden font string used to measure wrapped description heights up front,
     -- so the virtualised list can size each entry row before it is shown.
     local measureText = self:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
@@ -308,7 +308,7 @@ function Verbs:Constructor(config)
     })
 end
 
-function Verbs:Open(opts)
+function Methods:Open(opts)
     self._currentPreview = opts.preview
     self._currentMode = opts.mode or "exact"
     self._moduleFilter = opts.moduleFilter
@@ -327,7 +327,7 @@ local function BuildWidget()
             width = UI.Preview.Width,
             height = UI.Preview.Height,
         }),
-        verbs = Verbs,
+        methods = Methods,
     })
 end
 

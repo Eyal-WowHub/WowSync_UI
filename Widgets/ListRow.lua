@@ -1,19 +1,19 @@
 local _, addon = ...
 
 --[[
-    ListRow verbs (reusable grouped-list row).
+    ListRow methods (reusable grouped-list row).
 
     The shared frame skeleton for a selectable, class-grouped list row plus the
-    common hover/selection behaviour, mixed into a row widget's verbs. A row
+    common hover/selection behaviour, mixed into a row widget's methods. A row
     renders in one of two modes: a group header (a label spanning the row) or an
     item (class icon, class-colored title, and an info line). The row reaches the
     list selection through self._ctx and carries its identifier on self.id so the
     shared handlers and the list agree on what is selected.
 
-    These verbs build on SelectableRow's, mixed in here so a consumer only needs
-    to mix ListRow.Verbs:
+    These methods build on SelectableRow's, mixed in here so a consumer only needs
+    to mix ListRow.Methods:
 
-    local Verbs = Mixin({}, addon:GetObject("ListRow").Verbs)
+    local Methods = Mixin({}, addon:GetObject("ListRow").Methods)
         self:BuildSkeleton()            -- one-time child regions
         self:WireSelection([onActivate])-- selection + optional double-click
         self:RenderHeader(text)         -- per-update: group header
@@ -31,13 +31,13 @@ local ITEM_INSET = 16
 -- Two clicks closer than this on the same row count as a double-click.
 local DOUBLE_CLICK_WINDOW = 0.4
 
--- ListRow verbs build on the shared selectable-row behaviour, mixed in so a row
--- frame carries the background/hover/paint as its own verbs.
-local Verbs = Mixin({}, SelectableRow.Verbs)
+-- ListRow methods build on the shared selectable-row behaviour, mixed in so a row
+-- frame carries the background/hover/paint as its own methods.
+local Methods = Mixin({}, SelectableRow.Methods)
 
 -- Build the shared child regions once. The list reuses pooled row frames, so a
 -- row is built a single time and only re-rendered afterwards.
-function Verbs:BuildSkeleton()
+function Methods:BuildSkeleton()
     self:Background()
 
     -- Group header, shown in place of the item widgets. Bottom-anchored so the
@@ -78,7 +78,7 @@ end
 -- same row invokes onActivate(row) (used for inline rename). A right-click
 -- selects the row and, when the row context provides OpenMenu, opens the
 -- per-row context menu anchored to the row.
-function Verbs:WireSelection(onActivate)
+function Methods:WireSelection(onActivate)
     self:WireHover("id")
     self:SetScript("OnMouseDown", function(row, button)
         if not row.id then return end
@@ -103,7 +103,7 @@ function Verbs:WireSelection(onActivate)
 end
 
 -- Render the row as a group header: a label spanning the row, no selection.
-function Verbs:RenderHeader(text)
+function Methods:RenderHeader(text)
     self.id = nil
     self.classIcon:Hide()
     self.nameText:Hide()
@@ -116,7 +116,7 @@ end
 
 -- Render the row as a selectable item: class icon, class-colored title, and an
 -- info line, carrying the current selection highlight.
-function Verbs:RenderItem(data)
+function Methods:RenderItem(data)
     self.header:Hide()
     self.headerLine:Hide()
     self.classIcon:Show()
@@ -149,7 +149,7 @@ function Verbs:RenderItem(data)
 end
 
 -- Class-colored class name for a header, or "" when the class is unknown.
-function Verbs:ClassHeaderText(classID)
+function Methods:ClassHeaderText(classID)
     local classInfo = classID and C_CreatureInfo.GetClassInfo(classID)
     if not classInfo then return "" end
     local className = classInfo.className or ""
@@ -157,4 +157,4 @@ function Verbs:ClassHeaderText(classID)
     return classColor and classColor:WrapTextInColorCode(className) or className
 end
 
-ListRow.Verbs = Verbs
+ListRow.Methods = Methods

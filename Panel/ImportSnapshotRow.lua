@@ -65,7 +65,7 @@ local NODE_PINNED = CreateColor(0.95, 0.6, 0.2, 1)
 local floor = math.floor
 local abs = math.abs
 
-local Verbs = Mixin({}, SelectableRow.Verbs)
+local Methods = Mixin({}, SelectableRow.Methods)
 
 -- Standard HSV->RGB (h in degrees, s/v in [0,1]); components come back in [0,1].
 local function HSVToRGB(h, s, v)
@@ -170,7 +170,7 @@ local function ChangeLines(detail)
     return table.concat(lines, "\n")
 end
 
-function Verbs:Constructor(config)
+function Methods:Constructor(config)
     self._ctx = config.ctx
 
     self:Background()
@@ -281,7 +281,7 @@ function ImportSnapshotRow:BuildLines(snapshot, expanded, detail, original, orig
     return lines
 end
 
-function Verbs:Render(snapshot)
+function Methods:Render(snapshot)
     self.snapshot = snapshot
 
     local expanded = self._ctx.IsExpanded(snapshot)
@@ -315,6 +315,6 @@ function ImportSnapshotRow:Build(row, ctx)
 
     return addon:NewWidget({ ctx = ctx }, {
         frame = row,
-        verbs = Verbs,
+        methods = Methods,
     })
 end

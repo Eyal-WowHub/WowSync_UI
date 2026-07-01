@@ -33,9 +33,9 @@ local SCRIM_ALPHA = 0.72
 -- Frame-level bump that lifts the overlay above every panel beneath it.
 local OVERLAY_LEVEL_BUMP = 100
 
-local Verbs = {}
+local Methods = {}
 
-function Verbs:Constructor(config)
+function Methods:Constructor(config)
     self:SetFrameLevel(self:GetParent():GetFrameLevel() + OVERLAY_LEVEL_BUMP)
     self:EnableMouse(true)
 
@@ -99,6 +99,6 @@ function CombatOverlay:Build(parent, opts)
         end,
     }, {
         frameType = "Frame",
-        verbs = Verbs,
+        methods = Methods,
     })
 end

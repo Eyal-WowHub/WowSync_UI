@@ -34,7 +34,7 @@ local L = addon.L
 
 local SnapshotView = WowSync:GetSnapshotView()
 
-local Verbs = Mixin({}, SelectableRow.Verbs)
+local Methods = Mixin({}, SelectableRow.Methods)
 
 -- The shared subject format, mirroring the backend's Time:ToShortDisplay.
 local function FormatSubject(timestamp)
@@ -100,7 +100,7 @@ function SnapshotRow:ExpandMarker(expanded)
     return expanded and MARKER_EXPANDED or MARKER_COLLAPSED
 end
 
-function Verbs:Constructor(config)
+function Methods:Constructor(config)
     self._ctx = config.ctx
 
     self:Background()
@@ -207,7 +207,7 @@ function SnapshotRow:BuildLines(snapshot, isHead, expanded, detail)
     return lines
 end
 
-function Verbs:Render(elementData)
+function Methods:Render(elementData)
     local snapshot = elementData.snapshot
     self.snapshot = snapshot
 
@@ -237,6 +237,6 @@ function SnapshotRow:Build(row, ctx)
 
     return addon:NewWidget({ ctx = ctx }, {
         frame = row,
-        verbs = Verbs,
+        methods = Methods,
     })
 end

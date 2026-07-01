@@ -38,10 +38,10 @@ local NODE_RAIL_NUDGE = 1
 -- The rail's neutral colour; the node's colour is supplied per render by the row.
 local RAIL_COLOR = CreateColor(0.35, 0.35, 0.35, 0.8)
 
-local Verbs = {}
+local Methods = {}
 
 -- Build the rail and node once; the row recolours the node on each render.
-function Verbs:Constructor()
+function Methods:Constructor()
     self.rail = self:CreateTexture(nil, "ARTWORK")
     self.rail:SetColorTexture(RAIL_COLOR:GetRGBA())
     self.rail:SetWidth(RAIL_THICKNESS)
@@ -55,7 +55,7 @@ function Verbs:Constructor()
 end
 
 -- Recolour the node dot (latest, pinned, or ordinary) for the current row.
-function Verbs:SetNodeColor(color)
+function Methods:SetNodeColor(color)
     self.node:SetVertexColor(color:GetRGB())
 end
 
@@ -66,6 +66,6 @@ function TimelineSpan:Build(config)
 
     return addon:NewWidget(config, {
         frameType = "Frame",
-        verbs = Verbs,
+        methods = Methods,
     })
 end

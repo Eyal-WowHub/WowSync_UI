@@ -23,10 +23,10 @@ local L = addon.L
 local DIALOG_WIDTH = 760
 local DIALOG_HEIGHT = 560
 
-local Verbs = {}
+local Methods = {}
 
 -- One-time build of the dialog body onto the adopted Dialog shell.
-function Verbs:Constructor(config)
+function Methods:Constructor(config)
     -- Which profile and snapshot this string came from, so the user knows what
     -- they're handing out.
     local subjectLabel = self:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -62,7 +62,7 @@ function Verbs:Constructor(config)
 end
 
 -- Fill the dialog with a share string, show it, and pre-select it for copying.
-function Verbs:Open(opts)
+function Methods:Open(opts)
     self._shareText = opts.text
     self._subjectLabel:SetText(opts.subject or "")
     self._copyBox:SetText(opts.text)
@@ -81,7 +81,7 @@ local function BuildWidget()
             width = DIALOG_WIDTH,
             height = DIALOG_HEIGHT,
         }),
-        verbs = Verbs,
+        methods = Methods,
     })
 end
 

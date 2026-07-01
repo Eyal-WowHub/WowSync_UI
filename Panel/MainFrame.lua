@@ -70,9 +70,9 @@ local function ClampLeftWidth(leftWidth, viewWidth)
     return Clamp(leftWidth, MIN_LEFT_PANEL_WIDTH, maxLeft)
 end
 
-local Verbs = {}
+local Methods = {}
 
-function Verbs:Constructor(config)
+function Methods:Constructor(config)
     local panel = self
 
     -- Layout state shared across the panes: the same left/right split ratio and
@@ -346,7 +346,7 @@ end
 
 -- Switch the active view and reflect it in the tab visuals. Both views share
 -- the same split ratio (every pane is re-laid out together).
-function Verbs:ShowView(viewKey)
+function Methods:ShowView(viewKey)
     if viewKey ~= "imports" then
         viewKey = "profiles"
     end
@@ -363,7 +363,7 @@ function Verbs:ShowView(viewKey)
 end
 
 -- Flip the window's visibility, landing on the Profiles view when opening.
-function Verbs:Toggle()
+function Methods:Toggle()
     if self:IsShown() then
         self:Hide()
     else
@@ -374,7 +374,7 @@ end
 
 -- Open the window for a share action: "import" lands on the Imports tab and
 -- opens the import dialog; any other action opens the profile share flow.
-function Verbs:OpenShare(action)
+function Methods:OpenShare(action)
     if action == "import" then
         self:ShowView("imports")
     else
@@ -400,7 +400,7 @@ local function Build()
         frameType = "Frame",
         name = "WowSyncUIFrame",
         template = "BackdropTemplate",
-        verbs = Verbs,
+        methods = Methods,
     })
 end
 

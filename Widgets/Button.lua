@@ -5,7 +5,7 @@ local _, addon = ...
 
     A UIPanelButtonTemplate button that follows the widget model: build it
     through addon:GetObject("Button"):Build(config) and drive it through its
-    verbs. Beyond the label/enabled/click basics it owns the "busy" spinner and
+    methods. Beyond the label/enabled/click basics it owns the "busy" spinner and
     the one-shot confirmation flash that action buttons reuse.
 
     local button = addon:GetObject("Button"):Build({
@@ -29,16 +29,16 @@ local C = LibStub("Contracts-1.0")
 -- How long the confirmation flash rises and fades.
 local FLASH_SECONDS = 0.9
 
-local Verbs = {}
+local Methods = {}
 
-function Verbs:SetLabel(text)
+function Methods:SetLabel(text)
     self:SetText(text or "")
 end
 
 -- Enter/leave the busy state: a centered spinner replaces the label and the
 -- button locks. Leaving restores the label but not the enabled state -- "not
 -- busy" does not imply "enabled", so the caller restores that.
-function Verbs:SetBusy(isBusy)
+function Methods:SetBusy(isBusy)
     if isBusy then
         if not self._spinner then
             local spinner = CreateFrame("Frame", nil, self, "SpinnerTemplate")
@@ -59,7 +59,7 @@ function Verbs:SetBusy(isBusy)
 end
 
 -- Play a one-shot confirmation that rises and fades over the button.
-function Verbs:Flash(text)
+function Methods:Flash(text)
     if not self._flash then
         local label = self:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         label:SetPoint("CENTER")
@@ -86,7 +86,7 @@ function Verbs:Flash(text)
     self._flash:Restart()
 end
 
-function Verbs:Constructor(config)
+function Methods:Constructor(config)
     if config.text then self:SetLabel(config.text) end
     if config.enabled ~= nil then self:SetEnabled(config.enabled) end
     if config.onClick then
@@ -103,6 +103,6 @@ function Button:Build(config)
     return addon:NewWidget(config, {
         frameType = "Button",
         template = "UIPanelButtonTemplate",
-        verbs = Verbs,
+        methods = Methods,
     })
 end

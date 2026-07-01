@@ -33,7 +33,7 @@ local UI = addon.UI
 
 local ModuleRegistry = WowSync:GetModuleRegistry()
 
-local Verbs = {}
+local Methods = {}
 
 local function IsActive(panel, moduleName)
     for _, activeName in ipairs(panel._activeNames) do
@@ -127,7 +127,7 @@ local function LayoutActiveRows(panel)
 end
 
 -- Build the dialog body and its module checkbox region onto the adopted shell.
-function Verbs:Constructor(config)
+function Methods:Constructor(config)
     local panel = self
 
     panel._checkboxes = {}    -- moduleName -> checkbox (one per registered module, created once)
@@ -222,7 +222,7 @@ end
 
 -- Offer a module set, apply the caller's labels and note, lay out the rows, and
 -- show the dialog.
-function Verbs:Open(opts)
+function Methods:Open(opts)
     self._onConfirm = opts.onConfirm
 
     -- Decide which modules to offer: a given subset, or every registered module.
@@ -270,7 +270,7 @@ local function BuildWidget()
             width = UI.Preview.Width,
             height = UI.Preview.Height,
         }),
-        verbs = Verbs,
+        methods = Methods,
     })
 end
 

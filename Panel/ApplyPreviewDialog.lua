@@ -37,7 +37,7 @@ local UI = addon.UI
 
 local SnapshotView = WowSync:GetSnapshotView()
 
-local Verbs = {}
+local Methods = {}
 
 -- Keep the select-all toggle's label in sync with the current checkbox state.
 local function RefreshToggle(panel)
@@ -45,7 +45,7 @@ local function RefreshToggle(panel)
     panel._toggleButton:SetText(panel._moduleList:AreAllSelectableChecked() and L["Deselect All"] or L["Select All"])
 end
 
-function Verbs:Constructor(config)
+function Methods:Constructor(config)
     local panel = self
 
     local subjectLabel = self:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
@@ -120,7 +120,7 @@ function Verbs:Constructor(config)
     })
 end
 
-function Verbs:Open(opts)
+function Methods:Open(opts)
     self._onConfirm = opts.onConfirm
     self._currentMode = opts.mode or "exact"
     self._currentSubject = opts.subject
@@ -149,7 +149,7 @@ local function BuildWidget()
             width = UI.Preview.Width,
             height = UI.Preview.Height,
         }),
-        verbs = Verbs,
+        methods = Methods,
     })
 end
 

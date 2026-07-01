@@ -31,7 +31,7 @@ local MODE_BUTTON_HEIGHT = 18
 local LINK_COLOR = { 1, 1, 1 }
 local LINK_HOVER_COLOR = { 0.4, 0.7, 1 }
 
-local Verbs = {}
+local Methods = {}
 
 -- Title/body text for the mode toggle tooltip, per mode.
 local function ModeTooltip(mode)
@@ -56,7 +56,7 @@ local function ShowModeTooltip(button)
     GameTooltip:Show()
 end
 
-function Verbs:Constructor(config)
+function Methods:Constructor(config)
     self:SetSize(24, 24)
 
     self.label = self:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
@@ -105,13 +105,13 @@ function ModuleRow:Build(parent)
     return addon:NewWidget({ parent = parent }, {
         frameType = "CheckButton",
         template = "UICheckButtonTemplate",
-        verbs = Verbs,
+        methods = Methods,
     })
 end
 
 -- Turn the module name into a clickable link with the given click handler, or
 -- restore it to plain text when no handler is given.
-function Verbs:SetNameLink(onClick)
+function Methods:SetNameLink(onClick)
     self.label:SetTextColor(unpack(LINK_COLOR))
     if onClick then
         self.nameLink:SetScript("OnClick", onClick)
@@ -122,7 +122,7 @@ function Verbs:SetNameLink(onClick)
     end
 end
 
-function Verbs:Update(moduleName, canApply, reason, counts, modeInfo)
+function Methods:Update(moduleName, canApply, reason, counts, modeInfo)
     C:IsString(moduleName, 2)
 
     self:SetChecked(canApply)
@@ -144,7 +144,7 @@ end
 
 -- Render the per-module change figure after the module name; hidden when the
 -- module has no pending change.
-function Verbs:RenderCounts(counts)
+function Methods:RenderCounts(counts)
     local added = counts and counts.added or 0
     local changed = counts and counts.changed or 0
     local removed = counts and counts.removed or 0
@@ -163,7 +163,7 @@ end
 
 -- Render the Merge/Exact toggle for an apply row; disabled (but shown) for
 -- modules that support a single mode, and hidden when no toggle is offered.
-function Verbs:RenderMode(modeInfo)
+function Methods:RenderMode(modeInfo)
     if not (modeInfo and modeInfo.visible) then
         self.modeButton._tooltip = nil
         self.modeButton:Hide()

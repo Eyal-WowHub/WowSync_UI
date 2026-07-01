@@ -39,14 +39,14 @@ local HEADER_BOTTOM = { 0.09, 0.09, 0.11, 0.95 }
 local HEADER_HIGHLIGHT = { 0.35, 0.40, 0.50, 0.45 }
 local DIVIDER_HIGHLIGHT = { 0.6, 0.6, 0.65, 0.15 }
 
-local Verbs = {}
+local Methods = {}
 
-function Verbs:SetTitle(text)
+function Methods:SetTitle(text)
     self._title:SetText(text)
 end
 
 -- Reflect the locked state in the composed lock toggle.
-function Verbs:SetLocked(locked)
+function Methods:SetLocked(locked)
     if self._lockButton then
         self._lockButton:SetLocked(locked)
     end
@@ -54,7 +54,7 @@ end
 
 -- Build the banner art, centred title, close button, and composed lock toggle.
 -- The bar IS this frame; SetTitle/SetLocked drive it afterwards.
-function Verbs:Constructor(config)
+function Methods:Constructor(config)
     -- Header strip behind the title, giving the bar a distinct banner like the
     -- Blizzard Options window. A faint vertical gradient (lighter at the top)
     -- catches the light instead of reading as one flat block of colour.
@@ -125,6 +125,6 @@ function TitleBar:Build(region, opts)
         locked = opts.locked,
     }, {
         frameType = "Frame",
-        verbs = Verbs,
+        methods = Methods,
     })
 end

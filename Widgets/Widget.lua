@@ -3,11 +3,11 @@ local _, addon = ...
 --[[
     Widget core (the single widget model).
 
-    Every widget IS a frame. A widget defines its class as a `verbs` table and
+    Every widget IS a frame. A widget defines its class as a `methods` table and
     an optional Constructor(config) method; addon:NewWidget creates or adopts a
-    frame, mixes the shared base verbs and the widget's verbs onto it, applies the
+    frame, mixes the shared base methods and the widget's methods onto it, applies the
     common layout, then runs Constructor. Frames cannot inherit through a metatable (theirs is
-    reserved for the C widget dispatch), so verbs are copied on with Mixin -- once,
+    reserved for the C widget dispatch), so methods are copied on with Mixin -- once,
     here, never at the call sites.
 
     local frame = addon:NewWidget(config, {
@@ -15,7 +15,7 @@ local _, addon = ...
         template  = "UIPanelButtonTemplate",  -- optional
         name      = "GlobalFrameName",        -- optional: global name (ESC, _G lookup)
         frame     = existingFrame,            -- optional: adopt instead of create
-        verbs     = ButtonVerbs,              -- optional: the widget's class
+        methods   = ButtonMethods,            -- optional: the widget's class
     })
 
     config carries the common layout keys ApplyLayout consumes -- parent, anchor,
@@ -43,12 +43,12 @@ function Widget:ApplyLayout(config)
 end
 
 -- The single entry point every widget's Build funnels through. Creates the frame
--- (or adopts def.frame), mixes the base + the widget's verbs onto it, lays it out,
+-- (or adopts def.frame), mixes the base + the widget's methods onto it, lays it out,
 -- and runs the optional Constructor hook.
 function addon:NewWidget(config, def)
     local frame = def.frame or CreateFrame(def.frameType or "Frame", def.name, config.parent, def.template)
 
-    Mixin(frame, Widget, def.verbs or {})
+    Mixin(frame, Widget, def.methods or {})
     frame:ApplyLayout(config)
 
     if frame.Constructor then

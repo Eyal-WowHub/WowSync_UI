@@ -34,7 +34,7 @@ local SnapshotView = WowSync:GetSnapshotView()
 local MODE_BUTTON_INSET = 2
 local MODE_BUTTON_VOFFSET = 3
 
-local Verbs = {}
+local Methods = {}
 
 local function Acquire(panel)
     for _, checkbox in ipairs(panel._pool) do
@@ -109,7 +109,7 @@ local function ToggleRowMode(panel, checkbox)
     if panel._onChanged then panel._onChanged() end
 end
 
-function Verbs:Constructor(config)
+function Methods:Constructor(config)
     self._checkboxes = {}   -- moduleName -> active checkbox
     self._pool = {}
     self._contentHeight = 0
@@ -134,11 +134,11 @@ function ModuleList:Build(region, opts)
         onPreviewModule = opts.onPreviewModule,
     }, {
         frameType = "Frame",
-        verbs = Verbs,
+        methods = Methods,
     })
 end
 
-function Verbs:SetSnapshot(snapshot, preview, mode)
+function Methods:SetSnapshot(snapshot, preview, mode)
     local panel = self
 
     ReleaseAll(panel)
@@ -206,11 +206,11 @@ end
 
 -- The total stacked height of the rows from the last SetSnapshot, so an owner
 -- can size itself to seat every module row.
-function Verbs:GetContentHeight()
+function Methods:GetContentHeight()
     return self._contentHeight or 0
 end
 
-function Verbs:GetSelected()
+function Methods:GetSelected()
     local selected = {}
     for name, checkbox in pairs(self._checkboxes) do
         if checkbox:GetChecked() then
@@ -222,7 +222,7 @@ end
 
 -- The chosen modules and their per-module apply mode, ready for use as
 -- strategy.overrides. Only checked rows are included.
-function Verbs:GetStrategy()
+function Methods:GetStrategy()
     local moduleSet, overrides = {}, {}
     for name, checkbox in pairs(self._checkboxes) do
         if checkbox:GetChecked() then
@@ -236,7 +236,7 @@ function Verbs:GetStrategy()
     return moduleSet, overrides
 end
 
-function Verbs:SetAllChecked(checked)
+function Methods:SetAllChecked(checked)
     for _, checkbox in pairs(self._checkboxes) do
         if checkbox:IsEnabled() then
             checkbox:SetChecked(checked)
@@ -246,7 +246,7 @@ end
 
 -- True only when there is at least one selectable row and every selectable
 -- row is currently checked.
-function Verbs:AreAllSelectableChecked()
+function Methods:AreAllSelectableChecked()
     local hasSelectable = false
     for _, checkbox in pairs(self._checkboxes) do
         if checkbox:IsEnabled() then

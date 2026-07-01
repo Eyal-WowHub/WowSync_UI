@@ -31,7 +31,7 @@ local SnapshotManager = WowSync:GetSnapshotManager()
 local UNDO_ROW_HEIGHT = 34
 local UNDO_ROW_PADDING = 2
 
-local Verbs = {}
+local Methods = {}
 
 local function UpdateRow(row, elementData)
     row.index = elementData.index
@@ -41,7 +41,7 @@ local function UpdateRow(row, elementData)
     row.modulesText:SetText(table.concat(elementData.undoPoint.ModuleNames or {}, ", "))
 end
 
-function Verbs:Constructor(config)
+function Methods:Constructor(config)
     local onActivate = config.onActivate
 
     local function buildRow(row)
@@ -94,7 +94,7 @@ end
 
 -- Repopulate from the live undo points (newest first) and show the list only
 -- when there is something to undo. Returns whether any entries exist.
-function Verbs:Refresh()
+function Methods:Refresh()
     local undoPoints = SnapshotManager:GetUndoPoints()
 
     local dataProvider = CreateDataProvider()
@@ -123,6 +123,6 @@ function UndoList:Build(region, opts)
         onActivate = opts.onActivate,
     }, {
         frameType = "Frame",
-        verbs = Verbs,
+        methods = Methods,
     })
 end

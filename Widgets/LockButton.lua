@@ -19,11 +19,11 @@ local LockButton = addon:NewObject("LockButton")
 local C = LibStub("Contracts-1.0")
 local L = addon.L
 
-local Verbs = {}
+local Methods = {}
 
 -- Repaint the padlock for the current locked/hover state: a bright, fully
 -- coloured lock when locked; a dim, desaturated one when unlocked.
-function Verbs:UpdateAppearance()
+function Methods:UpdateAppearance()
     self.icon:SetDesaturated(not self._isLocked)
     if self._isLocked then
         self.icon:SetVertexColor(1, 1, 1)
@@ -35,12 +35,12 @@ function Verbs:UpdateAppearance()
 end
 
 -- Reflect the locked state in the icon.
-function Verbs:SetLocked(locked)
+function Methods:SetLocked(locked)
     self._isLocked = locked and true or false
     self:UpdateAppearance()
 end
 
-function Verbs:Constructor(config)
+function Methods:Constructor(config)
     self._isLocked = false
     self._isHovered = false
 
@@ -91,6 +91,6 @@ function LockButton:Build(parent, anchorTo, opts)
         locked = opts.locked,
     }, {
         frameType = "Button",
-        verbs = Verbs,
+        methods = Methods,
     })
 end

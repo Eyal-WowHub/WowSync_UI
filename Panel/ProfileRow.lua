@@ -4,7 +4,7 @@ local _, addon = ...
     ProfileRow widget (row renderer).
 
     Row sub-contract for the pooled scroll-list elements in ProfileList. Maps a
-    character (or realm header) onto the shared ListRow verbs, which own the
+    character (or realm header) onto the shared ListRow methods, which own the
     frame skeleton and the selection behaviour. The list selection is reached
     through the context the row stores on self._ctx.
 
@@ -23,20 +23,20 @@ local ListRow = addon:GetObject("ListRow")
 local C = LibStub("Contracts-1.0")
 local L = addon.L
 
-local Verbs = Mixin({}, ListRow.Verbs)
+local Methods = Mixin({}, ListRow.Methods)
 
 local function FormatDate(timestamp)
     if not timestamp then return "" end
     return date("%b %d, %Y", timestamp)
 end
 
-function Verbs:Constructor(config)
+function Methods:Constructor(config)
     self._ctx = config.ctx
     self:BuildSkeleton()
     self:WireSelection()
 end
 
-function Verbs:Render(elementData)
+function Methods:Render(elementData)
     -- Realm header: just the realm name, with no selection behaviour.
     if elementData.kind == "realm" then
         self:RenderHeader(elementData.realm or "")
@@ -62,6 +62,6 @@ function ProfileRow:Build(row, ctx)
 
     return addon:NewWidget({ ctx = ctx }, {
         frame = row,
-        verbs = Verbs,
+        methods = Methods,
     })
 end

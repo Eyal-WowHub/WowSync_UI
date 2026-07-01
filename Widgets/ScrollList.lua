@@ -25,12 +25,12 @@ local ScrollList = addon:NewObject("ScrollList")
 
 local C = LibStub("Contracts-1.0")
 
-local Verbs = {}
+local Methods = {}
 
 -- Wire the scrollbar and the linear view onto the scroll box, with a
 -- build-once/update element initializer. The scroll box is already anchored by
 -- the shared layout, so only the scrollbar and view plumbing remain here.
-function Verbs:Constructor(config)
+function Methods:Constructor(config)
     local scrollBar = CreateFrame("EventFrame", nil, config.parent, "MinimalScrollBar")
     scrollBar:SetPoint("TOPLEFT", self, "TOPRIGHT", 4, -2)
     scrollBar:SetPoint("BOTTOMLEFT", self, "BOTTOMRIGHT", 4, 2)
@@ -69,6 +69,6 @@ function ScrollList:Build(config)
     return addon:NewWidget(config, {
         frameType = "Frame",
         template = "WowScrollBoxList",
-        verbs = Verbs,
+        methods = Methods,
     })
 end

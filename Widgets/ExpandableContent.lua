@@ -39,7 +39,7 @@ local C = LibStub("Contracts-1.0")
 -- shares its line, so their texts never touch.
 local COLUMN_GAP = 6
 
-local Verbs = {}
+local Methods = {}
 
 -- Apply a named style (font object + colour) to a font string. SetFontObject
 -- resets the colour to the font's default, so the colour is set after.
@@ -51,13 +51,13 @@ end
 
 -- Start with an empty cell pool; SetLines grows it on demand and the scroll box
 -- reuses the frame (and its pool) across renders.
-function Verbs:Constructor()
+function Methods:Constructor()
     self._cells = {}
 end
 
 -- Create (or fetch) the pooled cell at index i: a left text and a right label,
 -- both top-aligned.
-function Verbs:CellAt(i)
+function Methods:CellAt(i)
     local cell = self._cells[i]
     if cell then return cell end
 
@@ -80,7 +80,7 @@ end
 -- A right label leans on its left cell's edge; a labelled left cell is short and
 -- never wraps. leftColor/rightColor override the style's colour for this render
 -- (e.g. a head row's accent), leaving the shared style otherwise intact.
-function Verbs:SetLines(lines)
+function Methods:SetLines(lines)
     local previousLeft
 
     for i, line in ipairs(lines) do
@@ -177,6 +177,6 @@ function ExpandableContent:Build(config)
 
     return addon:NewWidget(config, {
         frameType = "Frame",
-        verbs = Verbs,
+        methods = Methods,
     })
 end

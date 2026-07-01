@@ -50,7 +50,7 @@ local RIGHT_MARGIN = 8
 local SnapshotView = WowSync:GetSnapshotView()
 local SnapshotHandleCache = WowSync:GetSnapshotHandleCache()
 
-local Verbs = {}
+local Methods = {}
 
 -- Diff the chosen snapshot against the live setup and distil it into a small,
 -- render-ready table (note + changed-module counts).
@@ -91,7 +91,7 @@ local function BuildDetail(snapshot)
     return detail
 end
 
-function Verbs:Constructor(config)
+function Methods:Constructor(config)
     local panel = self
 
     panel._entries = {}            -- ordered display rows { snapshot = <handle>, isHead = bool }
@@ -165,7 +165,7 @@ function SnapshotList:Build(region, opts)
         onContext = opts.onContext,
     }, {
         frameType = "Frame",
-        verbs = Verbs,
+        methods = Methods,
     })
 end
 
@@ -197,7 +197,7 @@ end
 -- a live view of the character's present setup (live for the logged-in
 -- character, last-captured for an alt), followed by the saved history (newest
 -- first). Selects the head, or the latest saved snapshot when there is none.
-function Verbs:SetProfile(profileName)
+function Methods:SetProfile(profileName)
     self._currentProfile = profileName
     LoadEntries(self)
 
@@ -214,7 +214,7 @@ end
 
 -- Select a row and toggle its inline detail panel. Re-clicking the open row
 -- collapses it but keeps it selected.
-function Verbs:Select(snapshot)
+function Methods:Select(snapshot)
     self._selected = snapshot
 
     if self._expanded == snapshot then
@@ -235,7 +235,7 @@ end
 -- Re-render the visible rows in place after a snapshot was mutated (pinned or
 -- had its note edited) without disturbing the current selection or expansion.
 -- A pin/unpin changes the row's group, so the order is re-derived too.
-function Verbs:Refresh()
+function Methods:Refresh()
     LoadEntries(self)
     if self._expanded then
         self._expandedDetail = BuildDetail(self._expanded)
@@ -243,11 +243,11 @@ function Verbs:Refresh()
     Rebuild(self)
 end
 
-function Verbs:GetSelected()
+function Methods:GetSelected()
     return self._selected
 end
 
-function Verbs:Clear()
+function Methods:Clear()
     wipe(self._entries)
     self._currentProfile = nil
     self._selected = nil

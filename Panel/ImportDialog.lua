@@ -27,7 +27,7 @@ local UI = addon.UI
 
 local ImportManager = WowSync:GetImportManager()
 
-local Verbs = {}
+local Methods = {}
 
 -- Longest a container name may be; the core trims it and enforces uniqueness.
 local MAX_NAME_LETTERS = 64
@@ -89,7 +89,7 @@ local function AttemptImport(panel)
     end
 end
 
-function Verbs:Constructor(config)
+function Methods:Constructor(config)
     local panel = self
 
     -- Name for the new container (read-only when adding to an existing one).
@@ -167,7 +167,7 @@ function Verbs:Constructor(config)
     nameBox:SetScript("OnEnterPressed", function() pasteBox:SetFocus() end)
 end
 
-function Verbs:Open(opts)
+function Methods:Open(opts)
     self._onImported = opts.onImported
     self._targetID = opts.targetID
 
@@ -201,7 +201,7 @@ local function BuildWidget()
             width = UI.Preview.Width,
             height = DIALOG_HEIGHT,
         }),
-        verbs = Verbs,
+        methods = Methods,
     })
 end
 

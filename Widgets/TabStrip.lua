@@ -81,10 +81,10 @@ local function CreateTab(parent, label, height, onClick)
     return tab
 end
 
-local Verbs = {}
+local Methods = {}
 
 -- Reflect the active tab in the visuals without firing onSelect.
-function Verbs:Select(key)
+function Methods:Select(key)
     for tabKey, tab in pairs(self._tabs) do
         tab:SetActive(tabKey == key)
     end
@@ -92,7 +92,7 @@ end
 
 -- Build the row of tabs, anchored left to right, and seed them inactive. The
 -- strip IS this frame; the owner calls Select to mark the active tab.
-function Verbs:Constructor(config)
+function Methods:Constructor(config)
     local height = config.height
     self:SetHeight(height)
 
@@ -138,6 +138,6 @@ function TabStrip:Build(parent, opts)
         onSelect = opts.onSelect,
     }, {
         frameType = "Frame",
-        verbs = Verbs,
+        methods = Methods,
     })
 end
