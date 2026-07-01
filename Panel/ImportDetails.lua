@@ -109,6 +109,20 @@ local function OpenSnapshotMenu(panel, snapshot, anchor)
 
         rootDescription:CreateDivider()
 
+        if snapshot.Pinned then
+            rootDescription:CreateButton(L["Unpin"], function()
+                ImportManager:UnpinSnapshot(panel._currentImportID, SelectorFor(snapshot))
+                panel._timeline:Refresh()
+            end)
+        else
+            rootDescription:CreateButton(L["Pin"], function()
+                ImportManager:PinSnapshot(panel._currentImportID, SelectorFor(snapshot))
+                panel._timeline:Refresh()
+            end)
+        end
+
+        rootDescription:CreateDivider()
+
         rootDescription:CreateButton(L["Delete snapshot"], function()
             local dependents = ImportManager:CountDependentDuplicates(panel._currentImportID, SelectorFor(snapshot))
             PopupDialogs:ConfirmDeleteSnapshot(subject, function()

@@ -33,8 +33,9 @@ local SelectableRow = addon:GetObject("SelectableRow")
 local C = LibStub("Contracts-1.0")
 local L = addon.L
 
--- Left inset of a snapshot row's content.
-local ROW_INSET = 10
+-- Left inset of a snapshot row's content, clearing the timeline gutter the
+-- TimelineSpan draws its rail and node in (matching the profile rows).
+local ROW_INSET = 30
 
 -- Exposed so ImportSnapshotList can derive the content wrap width from the same
 -- inset the row anchors its content at, keeping measured height and layout in
@@ -53,6 +54,13 @@ local HASH_MIN_LUMINANCE = 0.5
 -- not so neon they clash with the rest of the row text.
 local HASH_SATURATION = 0.55
 local HASH_VALUE = 1.0
+
+-- Fallback timeline node colour for the rare snapshot with no hash to hue from.
+local NODE_NEUTRAL = CreateColor(0.85, 0.85, 0.85, 1)
+
+-- Warm accent for a pinned snapshot's node and its "(pinned)" subject tag,
+-- matching the profile timeline so a pin reads the same in both views.
+local NODE_PINNED = CreateColor(0.95, 0.6, 0.2, 1)
 
 local floor = math.floor
 local abs = math.abs
@@ -79,11 +87,11 @@ local function Luminance(r, g, b)
     return 0.299 * r + 0.587 * g + 0.114 * b
 end
 
--- A stable, high-contrast color escape for a content hash, so an imported
--- snapshot and every duplicate of it share one hue (they share the hash, so the
--- derivation matches). The hue is folded from the hash bytes; any hue too dark
--- for the background is blended toward white until it clears the floor.
-local function ColorForHash(hash)
+-- A stable, high-contrast colour for a content hash: an imported snapshot and
+-- every duplicate of it share one hue (same hash -> same derivation). The hue is
+-- folded from the hash bytes; any hue too dark for the background is blended
+-- toward white until it clears the contrast floor. Returned as RGB in [0,1].
+local function RGBForHash(hash)
     local seed = 0
     for i = 1, #hash do
         seed = (seed * 31 + hash:byte(i)) % 360
@@ -96,6 +104,12 @@ local function ColorForHash(hash)
         g = g + (1 - g) * t
         b = b + (1 - b) * t
     end
+    return r, g, b
+end
+
+-- The same colour as an escape code, for tinting the hash prefix in the selector.
+local function ColorForHash(hash)
+    local r, g, b = RGBForHash(hash)
     return ("|cff%02x%02x%02x"):format(
         floor(r * 255 + 0.5), floor(g * 255 + 0.5), floor(b * 255 + 0.5))
 end
@@ -162,8 +176,19 @@ function Verbs:Constructor(config)
     self:Background()
     self:DecorateSelection()
 
-    -- The stacked text content fills the row to the right of the inset. The
-    -- import row carries no timeline chrome, so the content starts at the inset.
+    -- The timeline chrome (rail + node) fills the row's left gutter; it takes no
+    -- mouse, so clicks and hover fall through to the row. The node's colour is
+    -- set per render from the snapshot's hash.
+    self.timeline = addon:GetObject("TimelineSpan"):Build({
+        parent = self,
+        anchor = function(span)
+            span:SetPoint("TOPLEFT", self, "TOPLEFT", 0, 0)
+            span:SetPoint("BOTTOMRIGHT", self, "BOTTOMRIGHT", 0, 0)
+        end,
+    })
+
+    -- The stacked text content fills the row to the right of the inset, past the
+    -- timeline gutter the rail and node sit in.
     self.content = addon:GetObject("ExpandableContent"):Build({
         parent = self,
         anchor = function(content)
@@ -205,11 +230,18 @@ function ImportSnapshotRow:BuildLines(snapshot, expanded, detail, original, orig
         selector = selector .. "  " .. L["(duplicate of X)"]:format(DuplicateRef(original))
     end
 
+    -- The subject carries the disclosure marker and capture date, plus a warm
+    -- "(pinned)" tag when pinned so it reads the same as the profile timeline.
+    local subject = SnapshotRow:ExpandMarker(expanded) .. SnapshotRow:FormatSubject(snapshot.Timestamp)
+    if snapshot.Pinned then
+        subject = subject .. "  " .. NODE_PINNED:WrapTextInColorCode(L["(pinned)"])
+    end
+
     local lines = {
         -- Subject + selector on the top line. A leading disclosure marker shows
         -- whether the row is collapsed or expanded -- the only cue to its state.
         {
-            left = SnapshotRow:ExpandMarker(expanded) .. SnapshotRow:FormatSubject(snapshot.Timestamp),
+            left = subject,
             right = selector,
             leftStyle = "Subject",
             rightStyle = "Label",
@@ -257,6 +289,19 @@ function Verbs:Render(snapshot)
     local original = self._ctx.DuplicateOf and self._ctx.DuplicateOf(snapshot)
     local originName = self._ctx.OriginContainer and self._ctx.OriginContainer(snapshot)
     self.content:SetLines(ImportSnapshotRow:BuildLines(snapshot, expanded, detail, original, originName))
+
+    -- The node carries the snapshot's hash hue, so duplicates read as one
+    -- coloured group down the timeline just as their selectors do. A pinned
+    -- snapshot takes the warm accent instead, matching the profile timeline.
+    local nodeColor
+    if snapshot.Pinned then
+        nodeColor = NODE_PINNED
+    elseif snapshot.Hash then
+        nodeColor = CreateColor(RGBForHash(snapshot.Hash))
+    else
+        nodeColor = NODE_NEUTRAL
+    end
+    self.timeline:SetNodeColor(nodeColor)
 
     self:Paint(snapshot == self._ctx.GetSelected())
 end

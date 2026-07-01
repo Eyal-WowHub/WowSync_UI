@@ -171,8 +171,8 @@ function ImportSnapshotList:Build(region, opts)
     })
 end
 
--- Rebuild the data provider from the current container, newest-first
--- (GetImportSnapshots is oldest-first). Re-setting the provider reruns the
+-- Rebuild the data provider from the current container, newest capture first
+-- (GetImportSnapshots is import-ordered). Re-setting the provider reruns the
 -- extent calculator, so it is also how an expand/collapse relayout is triggered.
 local function Rebuild(panel)
     local dataProvider = CreateDataProvider()
@@ -202,8 +202,27 @@ local function Rebuild(panel)
                 end
             end
         end
-        for index = #snapshots, 1, -1 do
-            dataProvider:Insert(snapshots[index])
+        -- Pinned snapshots float to the top; the rest show newest capture first
+        -- so the timeline reads top-to-bottom like the profile history. Same-hash
+        -- copies share a timestamp, so ties fall back to import order (later
+        -- import first). This ordering is display only -- ownership/duplicate
+        -- flags above are derived from import order.
+        local ordered = {}
+        for index = 1, #snapshots do
+            ordered[index] = snapshots[index]
+        end
+        table.sort(ordered, function(a, b)
+            local ap, bp = a.Pinned == true, b.Pinned == true
+            if ap ~= bp then
+                return ap
+            end
+            if (a.Timestamp or 0) ~= (b.Timestamp or 0) then
+                return (a.Timestamp or 0) > (b.Timestamp or 0)
+            end
+            return (a.Index or 0) > (b.Index or 0)
+        end)
+        for index = 1, #ordered do
+            dataProvider:Insert(ordered[index])
         end
     end
     panel._duplicates = duplicates
@@ -211,7 +230,7 @@ local function Rebuild(panel)
     panel._scrollBox:SetDataProvider(dataProvider, ScrollBoxConstants.RetainScrollPosition)
 end
 
--- Render the container's snapshots, newest-first.
+-- Render the container's snapshots, newest capture first.
 function Verbs:SetImport(importID)
     self._currentImportID = importID
     self._selectedSnapshot = nil
