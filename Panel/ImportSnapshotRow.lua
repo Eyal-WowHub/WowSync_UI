@@ -15,6 +15,8 @@ local _, addon = ...
     ctx = {
         GetSelected() -> snapshot or nil,
         IsExpanded(snapshot) -> bool,
+        DuplicateOf(snapshot) -> older snapshot or nil,   -- the original this repeats
+        OriginContainer(snapshot) -> name or nil,   -- container that imported this hash first
         GetDetail() -> detail or nil,   -- valid only for the expanded row
         Select(snapshot),
         OpenMenu(snapshot, anchor),     -- right-click actions for the row
@@ -42,11 +44,74 @@ ImportSnapshotRow.ContentInset = ROW_INSET
 -- Characters of the content hash shown in the selector label.
 local HASH_PREFIX = 7
 
+-- Rows sit on a dark, near-transparent background (and a translucent blue when
+-- selected), so a per-hash hue must clear this perceived-luminance floor to stay
+-- readable; darker hues are lifted toward white until they do.
+local HASH_MIN_LUMINANCE = 0.5
+
+-- Saturation/value for the generated hues: vivid enough to tell groups apart,
+-- not so neon they clash with the rest of the row text.
+local HASH_SATURATION = 0.55
+local HASH_VALUE = 1.0
+
+local floor = math.floor
+local abs = math.abs
+
 local Verbs = Mixin({}, SelectableRow.Verbs)
 
--- The user-facing selector for an imported snapshot: a short hash and index.
+-- Standard HSV->RGB (h in degrees, s/v in [0,1]); components come back in [0,1].
+local function HSVToRGB(h, s, v)
+    local c = v * s
+    local x = c * (1 - abs((h / 60) % 2 - 1))
+    local m = v - c
+    local r, g, b
+    if h < 60 then r, g, b = c, x, 0
+    elseif h < 120 then r, g, b = x, c, 0
+    elseif h < 180 then r, g, b = 0, c, x
+    elseif h < 240 then r, g, b = 0, x, c
+    elseif h < 300 then r, g, b = x, 0, c
+    else r, g, b = c, 0, x end
+    return r + m, g + m, b + m
+end
+
+-- Rec. 601 perceived luminance, the yardstick for the contrast floor.
+local function Luminance(r, g, b)
+    return 0.299 * r + 0.587 * g + 0.114 * b
+end
+
+-- A stable, high-contrast color escape for a content hash, so an imported
+-- snapshot and every duplicate of it share one hue (they share the hash, so the
+-- derivation matches). The hue is folded from the hash bytes; any hue too dark
+-- for the background is blended toward white until it clears the floor.
+local function ColorForHash(hash)
+    local seed = 0
+    for i = 1, #hash do
+        seed = (seed * 31 + hash:byte(i)) % 360
+    end
+    local r, g, b = HSVToRGB(seed, HASH_SATURATION, HASH_VALUE)
+    local lum = Luminance(r, g, b)
+    if lum < HASH_MIN_LUMINANCE then
+        local t = (HASH_MIN_LUMINANCE - lum) / (1 - lum)
+        r = r + (1 - r) * t
+        g = g + (1 - g) * t
+        b = b + (1 - b) * t
+    end
+    return ("|cff%02x%02x%02x"):format(
+        floor(r * 255 + 0.5), floor(g * 255 + 0.5), floor(b * 255 + 0.5))
+end
+
+-- The user-facing selector for an imported snapshot: a short hash and index. The
+-- hash prefix is tinted with a stable per-hash color, so every snapshot carries
+-- its hash's hue and any duplicates (same hash) read as one colored group.
 local function SelectorText(snapshot)
-    return ("%s#%d"):format(snapshot.Hash:sub(1, HASH_PREFIX), snapshot.Index or 0)
+    local hash = ColorForHash(snapshot.Hash) .. snapshot.Hash:sub(1, HASH_PREFIX) .. "|r"
+    return ("%s#%d"):format(hash, snapshot.Index or 0)
+end
+
+-- A compact back-reference to the snapshot a duplicate repeats: its index, which
+-- the original's selector shows (the hash prefix is identical for both).
+local function DuplicateRef(original)
+    return ("#%d"):format(original.Index or 0)
 end
 
 -- Gap from the subject down to the note (or the section header when there is
@@ -124,15 +189,28 @@ end
 -- Build the ordered content lines for an imported snapshot, shared by Render (to
 -- draw them) and ImportSnapshotList (to reserve the row height from the same
 -- description). detail supplies the expanded change summary; nil while collapsed.
-function ImportSnapshotRow:BuildLines(snapshot, expanded, detail)
+-- original is the older in-container snapshot this one repeats, or nil.
+-- originName is the container that first imported this hash, or nil; when set it
+-- means this container is not the owner, so the copy points at that container.
+function ImportSnapshotRow:BuildLines(snapshot, expanded, detail, original, originName)
     local note = snapshot.Notes
     local hasNote = note ~= nil and note ~= ""
+
+    -- The selector doubles as a soft duplicate flag. A cross-container copy points
+    -- at the container that imported it first; otherwise an in-container repeat
+    -- points at the earlier "#N" copy. Either way the original stays unflagged.
+    local selector = SelectorText(snapshot)
+    if originName then
+        selector = selector .. "  " .. L["(duplicate of X)"]:format(originName)
+    elseif original then
+        selector = selector .. "  " .. L["(duplicate of X)"]:format(DuplicateRef(original))
+    end
 
     local lines = {
         -- Subject + selector on the top line.
         {
             left = SnapshotRow:FormatSubject(snapshot.Timestamp),
-            right = SelectorText(snapshot),
+            right = selector,
             leftStyle = "Subject",
             rightStyle = "Label",
         },
@@ -176,7 +254,9 @@ function Verbs:Render(snapshot)
 
     local expanded = self._ctx.IsExpanded(snapshot)
     local detail = expanded and self._ctx.GetDetail() or nil
-    self.content:SetLines(ImportSnapshotRow:BuildLines(snapshot, expanded, detail))
+    local original = self._ctx.DuplicateOf and self._ctx.DuplicateOf(snapshot)
+    local originName = self._ctx.OriginContainer and self._ctx.OriginContainer(snapshot)
+    self.content:SetLines(ImportSnapshotRow:BuildLines(snapshot, expanded, detail, original, originName))
 
     self:Paint(snapshot == self._ctx.GetSelected())
 end

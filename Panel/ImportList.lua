@@ -14,8 +14,12 @@ local _, addon = ...
             GetSelected() -> importID or nil,
             Select(importID),
             ClearSelection(),
-            BeginImport(),          -- opens the import dialog
+            BeginImport(),          -- opens the import dialog for a new container
+            BeginAddSnapshot(id),   -- opens the import dialog to append to a container
         }
+
+    Right-clicking a container row opens a context menu with Rename, Add
+    snapshot and Delete.
 ]]
 
 local ImportList = addon:NewObject("ImportList")
@@ -66,6 +70,9 @@ function Verbs:Constructor(config)
                 panel:Refresh()
                 panel:Select(importID)
                 return true
+            end,
+            OpenMenu = function(importID, anchor)
+                panel:OpenRowMenu(importID, anchor)
             end,
         },
     })
@@ -196,4 +203,57 @@ function Verbs:BeginImport()
             end
         end,
     })
+end
+
+-- Opens the import dialog scoped to an existing container so a further snapshot
+-- (of the same class) can be appended; on success refreshes and reselects it so
+-- the details pane shows the new snapshot.
+function Verbs:BeginAddSnapshot(importID)
+    local panel = self
+    local record = ImportManager:GetImport(importID)
+    if not record then return end
+
+    ImportDialog:Show({
+        targetID = importID,
+        targetName = record.Name,
+        onImported = function()
+            panel:Refresh()
+            panel:Select(importID)
+            panel:ScrollToImport(importID)
+        end,
+    })
+end
+
+-- Builds the per-row context menu for a container: rename, add another
+-- snapshot, or delete the whole container. Anchored to the clicked row.
+function Verbs:OpenRowMenu(importID, anchor)
+    local panel = self
+    local record = ImportManager:GetImport(importID)
+    if not record then return end
+
+    MenuUtil.CreateContextMenu(anchor or self, function(_, rootDescription)
+        rootDescription:CreateTitle(record.Name)
+
+        rootDescription:CreateButton(L["Rename"], function()
+            PopupDialogs:PromptRename(record.Name, function(name)
+                if ImportManager:RenameImport(importID, name) then
+                    panel:Refresh()
+                    panel:Select(importID)
+                end
+            end)
+        end)
+
+        rootDescription:CreateButton(L["Add snapshot"], function()
+            panel:BeginAddSnapshot(importID)
+        end)
+
+        rootDescription:CreateDivider()
+
+        rootDescription:CreateButton(L["Delete"], function()
+            PopupDialogs:ConfirmDeleteImport(record.Name, function()
+                ImportManager:DeleteImport(importID)
+                panel:Refresh()
+            end)
+        end)
+    end)
 end

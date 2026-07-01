@@ -10,7 +10,7 @@ local _, addon = ...
     addon:GetObject("PopupDialogs"):ConfirmUndo(subject, onConfirm, onPreview)
     addon:GetObject("PopupDialogs"):ConfirmUndoSteps(count, subject, onConfirm)
     addon:GetObject("PopupDialogs"):ConfirmDelete(profileName, onConfirm)
-    addon:GetObject("PopupDialogs"):ConfirmDeleteSnapshot(subject, onConfirm)
+    addon:GetObject("PopupDialogs"):ConfirmDeleteSnapshot(subject, onConfirm, dependentCount)
     addon:GetObject("PopupDialogs"):PromptEditNote(currentText, onAccept)  -- onAccept(trimmedText)
     addon:GetObject("PopupDialogs"):ConfirmApply(mode, onConfirm)  -- mode = "merge"|"exact"
     addon:GetObject("PopupDialogs"):ConfirmSaveAtLimit(limit, oldestSubject, onConfirm)
@@ -106,6 +106,21 @@ StaticPopupDialogs["WOWSYNC_DELETE_SNAPSHOT"] = {
     preferredIndex = 3,
 }
 
+StaticPopupDialogs["WOWSYNC_DELETE_SNAPSHOT_CASCADE"] = {
+    text = L["Delete this snapshot (X)? Its Y duplicate(s) will be removed too."],
+    button1 = YES,
+    button2 = NO,
+    OnAccept = function(self, popupData)
+        if popupData and popupData.onConfirm then
+            popupData.onConfirm()
+        end
+    end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,
+}
+
 StaticPopupDialogs["WOWSYNC_APPLY_MERGE"] = {
     text = L["Apply the selected modules from this snapshot?\n\nNew and changed entries will be added or updated. Nothing will be removed."],
     button1 = ACCEPT,
@@ -164,8 +179,12 @@ function PopupDialogs:ConfirmDelete(profileName, onConfirm)
     StaticPopup_Show("WOWSYNC_DELETE_PROFILE", profileName, nil, { onConfirm = onConfirm })
 end
 
-function PopupDialogs:ConfirmDeleteSnapshot(subject, onConfirm)
-    StaticPopup_Show("WOWSYNC_DELETE_SNAPSHOT", subject, nil, { onConfirm = onConfirm })
+function PopupDialogs:ConfirmDeleteSnapshot(subject, onConfirm, dependentCount)
+    if dependentCount and dependentCount > 0 then
+        StaticPopup_Show("WOWSYNC_DELETE_SNAPSHOT_CASCADE", subject, dependentCount, { onConfirm = onConfirm })
+    else
+        StaticPopup_Show("WOWSYNC_DELETE_SNAPSHOT", subject, nil, { onConfirm = onConfirm })
+    end
 end
 
 -- Lazily builds the multi-line note editor and returns it. The owning callback

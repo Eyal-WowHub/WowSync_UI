@@ -75,12 +75,21 @@ end
 
 -- Wire the shared hover and selection behaviour. A header row clears self.id so
 -- the handlers no-op over it. When onActivate is given, a double-click on the
--- same row invokes onActivate(row) (used for inline rename).
+-- same row invokes onActivate(row) (used for inline rename). A right-click
+-- selects the row and, when the row context provides OpenMenu, opens the
+-- per-row context menu anchored to the row.
 function Verbs:WireSelection(onActivate)
     self:WireHover("id")
-    self:SetScript("OnMouseDown", function(row)
+    self:SetScript("OnMouseDown", function(row, button)
         if not row.id then return end
         row._ctx.Select(row.id)
+
+        if button == "RightButton" then
+            if row._ctx.OpenMenu then
+                row._ctx.OpenMenu(row.id, row)
+            end
+            return
+        end
 
         if not onActivate then return end
         local now = GetTime()

@@ -99,6 +99,8 @@ function Verbs:Constructor(config)
     panel._selectedSnapshot = nil
     panel._expanded = nil          -- the one open row (accordion), independent of selection
     panel._expandedDetail = nil    -- cached diff/note for the expanded row
+    panel._duplicates = {}         -- snapshot -> the older original it repeats, for repeat hashes
+    panel._origin = {}             -- snapshot -> name of the container that imported its hash first
     panel._onSelect = config.onSelect
 
     local rowContext = {
@@ -107,6 +109,12 @@ function Verbs:Constructor(config)
         end,
         IsExpanded = function(snapshot)
             return snapshot == panel._expanded
+        end,
+        DuplicateOf = function(snapshot)
+            return panel._duplicates[snapshot]
+        end,
+        OriginContainer = function(snapshot)
+            return panel._origin[snapshot]
         end,
         GetDetail = function()
             return panel._expandedDetail
@@ -129,8 +137,10 @@ function Verbs:Constructor(config)
         extent = function(_, snapshot)
             local expanded = snapshot == panel._expanded
             local detail = expanded and panel._expandedDetail or nil
+            local original = panel._duplicates[snapshot]
+            local originName = panel._origin[snapshot]
             local width = panel._scrollBox:GetWidth() - ImportSnapshotRow.ContentInset - RIGHT_MARGIN
-            local lines = ImportSnapshotRow:BuildLines(snapshot, expanded, detail)
+            local lines = ImportSnapshotRow:BuildLines(snapshot, expanded, detail, original, originName)
             return CONTENT_TOP_PAD + ExpandableContent:Measure(lines, width) + CONTENT_BOTTOM_PAD
         end,
         padding = ROW_PADDING,
@@ -166,12 +176,38 @@ end
 -- extent calculator, so it is also how an expand/collapse relayout is triggered.
 local function Rebuild(panel)
     local dataProvider = CreateDataProvider()
+    local duplicates = {}
+    local origin = {}
     if panel._currentImportID then
         local snapshots = ImportManager:GetImportSnapshots(panel._currentImportID)
+        -- A hash's "owner" is the container that imported it first. When this
+        -- container is not the owner, every copy here points at that owner by
+        -- name. Only when this container owns the hash do repeats fall back to
+        -- the in-container "#N" flag against the earlier copy; the first stays
+        -- unflagged either way. Owners are resolved in one pass up front so the
+        -- per-row work below is a plain lookup.
+        local owners = ImportManager:GetHashOwners()
+        local seen = {}
+        for index = 1, #snapshots do
+            local snapshot = snapshots[index]
+            local hash = snapshot.Hash
+            local owner = hash and owners[hash]
+            if owner and owner.ID ~= panel._currentImportID then
+                origin[snapshot] = owner.Name
+            elseif hash then
+                if seen[hash] then
+                    duplicates[snapshot] = seen[hash]
+                else
+                    seen[hash] = snapshot
+                end
+            end
+        end
         for index = #snapshots, 1, -1 do
             dataProvider:Insert(snapshots[index])
         end
     end
+    panel._duplicates = duplicates
+    panel._origin = origin
     panel._scrollBox:SetDataProvider(dataProvider, ScrollBoxConstants.RetainScrollPosition)
 end
 
@@ -218,6 +254,8 @@ function Verbs:Clear()
     self._selectedSnapshot = nil
     self._expanded = nil
     self._expandedDetail = nil
+    self._duplicates = {}
+    self._origin = {}
     if self._scrollBox then
         self._scrollBox:SetDataProvider(CreateDataProvider())
     end

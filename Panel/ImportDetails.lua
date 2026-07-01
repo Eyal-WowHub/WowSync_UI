@@ -110,11 +110,12 @@ local function OpenSnapshotMenu(panel, snapshot, anchor)
         rootDescription:CreateDivider()
 
         rootDescription:CreateButton(L["Delete snapshot"], function()
+            local dependents = ImportManager:CountDependentDuplicates(panel._currentImportID, SelectorFor(snapshot))
             PopupDialogs:ConfirmDeleteSnapshot(subject, function()
                 ImportManager:DeleteSnapshot(panel._currentImportID, SelectorFor(snapshot))
                 panel:SetImport(panel._currentImportID)
                 if panel._onRefresh then panel._onRefresh() end
-            end)
+            end, dependents)
         end)
     end)
 end
