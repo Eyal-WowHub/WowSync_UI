@@ -37,8 +37,11 @@ local function SnapshotCountText(count)
     return L["X snapshots"]:format(count or 0)
 end
 
--- Open the inline rename box over the name, seeded with the current name.
+-- Open the inline rename box over the name, seeded with the current name. The
+-- label is hidden while editing so it does not show through the (transparent)
+-- edit box behind the typed text.
 local function BeginRename(row)
+    row.nameText:Hide()
     row.renameBox:SetText(row.name or "")
     row.renameBox:Show()
     row.renameBox:SetFocus()
@@ -56,6 +59,9 @@ function Verbs:Constructor(config)
     self.renameBox:SetPoint("TOPLEFT", self.nameText, "TOPLEFT", 0, 4)
     self.renameBox:SetPoint("BOTTOMRIGHT", self.nameText, "BOTTOMRIGHT", 0, -4)
     self.renameBox:Hide()
+    -- Restore the label whenever the box closes (escape, focus loss, commit, or
+    -- the row being recycled) so it is never left hidden.
+    self.renameBox:SetScript("OnHide", function() self.nameText:Show() end)
     self.renameBox:SetScript("OnEscapePressed", function(box) box:Hide() end)
     self.renameBox:SetScript("OnEditFocusLost", function(box) box:Hide() end)
     self.renameBox:SetScript("OnEnterPressed", function(box)
