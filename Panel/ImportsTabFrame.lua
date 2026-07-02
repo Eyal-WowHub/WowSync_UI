@@ -1,21 +1,21 @@
 local _, addon = ...
 
 --[[
-    ImportDetails object (right panel, Imports tab).
+    ImportsTabFrame object (right panel, Imports tab).
 
     Shows the selected imported container: an empty-state prompt until one is
     picked, then the container's name, a rename bar and its snapshot
     timeline. A snapshot can be applied to the logged-in character (through the
     shared apply-preview dialog), have its note edited, or be deleted.
 
-    addon:GetObject("ImportDetails"):Build(region)
+    addon:GetObject("ImportsTabFrame"):Build(region)
         -> import-details frame {
             SetImport(importID or nil),
             OnRefresh(callback),   -- fired after a rename
         }
 ]]
 
-local ImportDetails = addon:NewObject("ImportDetails")
+local ImportsTabFrame = addon:NewObject("ImportsTabFrame")
 local ImportSnapshotList = addon:GetObject("ImportSnapshotList")
 local ApplyPreviewDialog = addon:GetObject("ApplyPreviewDialog")
 local GameDiffPreview = addon:GetObject("GameDiffPreview")
@@ -223,7 +223,7 @@ function Methods:Constructor(config)
     })
 end
 
-function ImportDetails:Build(region)
+function ImportsTabFrame:Build(region)
     C:IsTable(region, 2)
     return addon:NewWidget({
         parent = region,

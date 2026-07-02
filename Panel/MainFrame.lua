@@ -17,9 +17,9 @@ local MainFrame = addon:NewObject("MainFrame")
 local TitleBar = addon:GetObject("TitleBar")
 local TabStrip = addon:GetObject("TabStrip")
 local ProfileList = addon:GetObject("ProfileList")
-local ProfileDetails = addon:GetObject("ProfileDetails")
+local ProfilesTabFrame = addon:GetObject("ProfilesTabFrame")
 local ImportList = addon:GetObject("ImportList")
-local ImportDetails = addon:GetObject("ImportDetails")
+local ImportsTabFrame = addon:GetObject("ImportsTabFrame")
 local Splitter = addon:GetObject("Splitter")
 local CombatOverlay = addon:GetObject("CombatOverlay")
 local Panel = addon:GetObject("Panel")
@@ -216,7 +216,7 @@ function Methods:Constructor(config)
     rightSlot:SetPoint("BOTTOMRIGHT", 0, 0)
 
     panel._profileList = ProfileList:Build(leftSlot)
-    panel._profileDetails = ProfileDetails:Build(rightSlot)
+    panel._profileDetails = ProfilesTabFrame:Build(rightSlot)
 
     AddPane(profilesView, leftSlot)
 
@@ -249,7 +249,7 @@ function Methods:Constructor(config)
     importRightSlot:SetPoint("BOTTOMRIGHT", 0, 0)
 
     panel._importList = ImportList:Build(importLeftSlot)
-    panel._importDetails = ImportDetails:Build(importRightSlot)
+    panel._importDetails = ImportsTabFrame:Build(importRightSlot)
 
     AddPane(importsView, importLeftSlot)
 

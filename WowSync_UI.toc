@@ -58,11 +58,11 @@ Panel\ModuleSelectionDialog.lua
 Panel\ShareDialog.lua
 Panel\ImportDialog.lua
 Panel\ProfileList.lua
-Panel\ProfileDetails.lua
+Panel\ProfilesTabFrame.lua
 Panel\ImportRow.lua
 Panel\ImportList.lua
 Panel\ImportSnapshotRow.lua
 Panel\ImportSnapshotList.lua
-Panel\ImportDetails.lua
+Panel\ImportsTabFrame.lua
 Panel\CombatOverlay.lua
 Panel\MainFrame.lua

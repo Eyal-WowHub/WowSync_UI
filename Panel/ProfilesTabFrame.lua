@@ -1,7 +1,7 @@
 local _, addon = ...
 
 --[[
-    ProfileDetails object (right panel).
+    ProfilesTabFrame object (right panel).
 
     Orchestrates the detail view for a selected character. Composes ProfileHeader,
     SnapshotList, ActionBar and UndoList, and drives the WowSync actions
@@ -12,7 +12,7 @@ local _, addon = ...
     history. Apply targets the selected entry (the head by default); Save freezes
     the head into a new snapshot.
 
-    addon:GetObject("ProfileDetails"):Build(region)
+    addon:GetObject("ProfilesTabFrame"):Build(region)
         -> profile-details frame {
             SetProfile(charKey or nil),
             RequestSave(),                -- saves the logged-in character only
@@ -20,7 +20,7 @@ local _, addon = ...
         }
 ]]
 
-local ProfileDetails = addon:NewObject("ProfileDetails")
+local ProfilesTabFrame = addon:NewObject("ProfilesTabFrame")
 local PopupDialogs = addon:GetObject("PopupDialogs")
 local ProfileHeader = addon:GetObject("ProfileHeader")
 local SnapshotList = addon:GetObject("SnapshotList")
@@ -624,7 +624,7 @@ function Methods:Constructor(config)
     ApplyUndoState(self)
 end
 
-function ProfileDetails:Build(region)
+function ProfilesTabFrame:Build(region)
     C:IsTable(region, 2)
     return addon:NewWidget({
         parent = region,
