@@ -73,8 +73,7 @@ local function ChangeLines(detail)
     local lines = {}
     if detail and #detail.modules > 0 then
         for _, change in ipairs(detail.modules) do
-            tinsert(lines, L["X: +A ~C -R"]:format(
-                change.name, change.added, change.changed, change.removed))
+            tinsert(lines, WowSync:FormatDiffString(change, change.name))
         end
     else
         tinsert(lines, L["Matches your current setup"])

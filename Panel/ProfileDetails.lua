@@ -101,7 +101,7 @@ local function RefreshSyncStatus(panel)
         CollectModuleChanges(panel, preview)
         if panel._syncHover then panel._syncHover:Show() end
         panel._syncLabel:SetText(L["Unsaved changes"] .. "  "
-            .. L["+A ~C -R"]:format(totals.added, totals.changed, totals.removed))
+            .. WowSync:FormatDiffString(totals))
         panel._syncLabel:SetTextColor(unpack(WARNING_TEXT_COLOR))
     end
     panel._syncLabel:Show()
@@ -560,8 +560,7 @@ function Methods:Constructor(config)
         GameTooltip:SetOwner(frame, "ANCHOR_BOTTOMLEFT")
         GameTooltip:AddLine(L["Unsaved changes"])
         for _, change in ipairs(panel._syncDetail) do
-            GameTooltip:AddLine(L["X: +A ~C -R"]:format(
-                change.name, change.added, change.changed, change.removed))
+            GameTooltip:AddLine(WowSync:FormatDiffString(change, change.name))
         end
         GameTooltip:Show()
     end)

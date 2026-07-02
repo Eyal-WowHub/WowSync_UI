@@ -21,6 +21,7 @@ local _, addon = ...
 local ModuleRow = addon:NewObject("ModuleRow")
 local Button = addon:GetObject("Button")
 local Checkbox = addon:GetObject("Checkbox")
+local ChangesBadge = addon:GetObject("ChangesBadge")
 
 local C = LibStub("Contracts-1.0")
 local L = addon.L
@@ -28,20 +29,6 @@ local L = addon.L
 -- Size of the per-row Merge/Exact toggle shown on apply rows.
 local MODE_BUTTON_WIDTH = 58
 local MODE_BUTTON_HEIGHT = 18
-
--- Change-badge colours: the resting white and the blue-ish hover that signals
--- the badge opens that module's filtered change preview.
-local BADGE_COLOR = { 1, 1, 1 }
-local BADGE_HOVER_COLOR = { 0.4, 0.7, 1 }
-
--- Strip WoW colour escapes (|cAARRGGBB … |r) from a string. The badge's resting
--- text colours each figure green/amber/red inline, which would override a plain
--- SetTextColor, so the hover tint swaps to the stripped text first.
-local function StripColorCodes(text)
-    text = text:gsub("|c%x%x%x%x%x%x%x%x", "")
-    text = text:gsub("|r", "")
-    return text
-end
 
 local Methods = {}
 
@@ -74,33 +61,17 @@ function Methods:Constructor(config)
     self.warning = self:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     self.warning:SetPoint("LEFT", self.label, "RIGHT", 6, 0)
 
-    -- Per-module change counts, shown after the name for applicable rows.
-    -- Anchored to the label (not the list) so it tracks the row vertically;
-    -- mutually exclusive with the warning, so they share the same slot.
-    self.counts = self:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    self.counts:SetPoint("LEFT", self.label, "RIGHT", 8, 0)
-    self.counts:SetTextColor(unpack(BADGE_COLOR))
-
-    -- An invisible button over the change counts that turns the badge into a
-    -- link: hovering tints it blue and shows a hint, clicking opens the module's
-    -- filtered diff. The list owner wires the click through SetPreview; rows
-    -- without a preview keep the badge as plain text.
-    self.countsButton = CreateFrame("Button", nil, self)
-    self.countsButton:SetAllPoints(self.counts)
-    self.countsButton:SetScript("OnEnter", function()
-        self.counts:SetText(StripColorCodes(self._countsColored or ""))
-        self.counts:SetTextColor(unpack(BADGE_HOVER_COLOR))
-        GameTooltip:SetOwner(self.countsButton, "ANCHOR_RIGHT")
-        GameTooltip:SetText(L["Click here to see the changes"], 1, 1, 1, 1, true)
-        GameTooltip:Show()
-    end)
-    self.countsButton:SetScript("OnLeave", function()
-        self.counts:SetTextColor(unpack(BADGE_COLOR))
-        self.counts:SetText(self._countsColored or "")
-        GameTooltip:Hide()
-    end)
-    self.countsButton:Hide()
-    self:AddHoverRegion(self.countsButton)
+    -- Per-module change badge, shown after the name for applicable rows. Anchored
+    -- to the label (not the list) so it tracks the row vertically; mutually
+    -- exclusive with the warning, so they share the same slot. The list owner
+    -- wires its click through SetPreview to open the module's filtered diff.
+    self.badge = ChangesBadge:Build({
+        parent = self,
+        anchor = function(badge)
+            badge:SetPoint("LEFT", self.label, "RIGHT", 8, 0)
+        end,
+    })
+    self:AddHoverRegion(self.badge)
 
     -- Optional per-row Merge/Exact toggle, used by the apply preview. The list
     -- owner positions it at the row's right edge; rows without a choice to make
@@ -130,9 +101,7 @@ end
 -- Wire the change badge to open this module's filtered diff, or clear it. When
 -- set, the badge shows as a blue-on-hover link wherever the counts are shown.
 function Methods:SetPreview(onClick)
-    self._onPreview = onClick
-    self.countsButton:SetScript("OnClick", onClick or nil)
-    self.countsButton:SetShown(onClick ~= nil and self.counts:IsShown())
+    self.badge:SetPreview(onClick)
 end
 
 function Methods:Update(moduleName, canApply, reason, counts, modeInfo)
@@ -145,8 +114,7 @@ function Methods:Update(moduleName, canApply, reason, counts, modeInfo)
     if not canApply then
         self.warning:SetText("(" .. (reason or L["cannot apply"]) .. ")")
         self.warning:Show()
-        self.counts:Hide()
-        self.countsButton:Hide()
+        self.badge:SetCounts(nil)
         self.modeButton:Hide()
         return
     end
@@ -159,23 +127,7 @@ end
 -- Render the per-module change figure after the module name; hidden when the
 -- module has no pending change.
 function Methods:RenderCounts(counts)
-    local added = counts and counts.added or 0
-    local changed = counts and counts.changed or 0
-    local removed = counts and counts.removed or 0
-
-    if added > 0 or changed > 0 or removed > 0 then
-        if removed > 0 then
-            self._countsColored = L["+A ~C -R"]:format(added, changed, removed)
-        else
-            self._countsColored = L["+A ~C"]:format(added, changed)
-        end
-        self.counts:SetText(self._countsColored)
-        self.counts:Show()
-        self.countsButton:SetShown(self._onPreview ~= nil)
-    else
-        self.counts:Hide()
-        self.countsButton:Hide()
-    end
+    self.badge:SetCounts(counts)
 end
 
 -- Render the Merge/Exact toggle for an apply row; disabled (but shown) for
