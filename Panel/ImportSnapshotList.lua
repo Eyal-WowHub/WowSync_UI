@@ -30,9 +30,9 @@ local ScrollList = addon:GetObject("ScrollList")
 local ExpandableContent = addon:GetObject("ExpandableContent")
 
 local C = LibStub("Contracts-1.0")
+local SnapshotDetailBuilder = addon.SnapshotDetailBuilder
 
 local ImportManager = WowSync:GetImportManager()
-local SnapshotManager = WowSync:GetSnapshotManager()
 local ImportedHashDictionary = WowSync:GetImportedHashDictionary()
 
 local Methods = {}
@@ -55,52 +55,17 @@ local function SelectorFor(snapshot)
     return ("%s#%d"):format(snapshot.Hash, snapshot.Index or 0)
 end
 
--- Whether a module deletes entries on apply (Exact-capable). Merge-only modules
--- never remove, so their removals are not counted in the change summary -- this
--- keeps the summary in step with the diff preview, which hides them too.
-local function ModuleSupportsExact(name)
-    local applyModes = WowSync.Models and WowSync.Models.SnapshotApplyMode
-    local modes = SnapshotManager:GetModuleApplyMode(name)
-    return applyModes and applyModes.CanExact(modes) or false
-end
-
 -- Diff the imported snapshot against the live setup and distil it into a small,
 -- render-ready table (export note + changed-module counts).
 local function BuildDetail(importID, snapshot)
-    local detail = { hasNote = false, note = nil, modules = {} }
-    if not snapshot then return detail end
-
-    local note = snapshot.Notes
-    if note and note ~= "" then
-        detail.hasNote = true
-        detail.note = note
+    if not snapshot then
+        return SnapshotDetailBuilder.Build(nil, nil)
     end
 
-    local preview = ImportManager:PreviewApplySnapshot(importID, SelectorFor(snapshot))
-    if preview and preview.perModule then
-        local moduleNames = {}
-        for name in pairs(preview.perModule) do
-            tinsert(moduleNames, name)
-        end
-        table.sort(moduleNames)
-
-        for _, name in ipairs(moduleNames) do
-            local moduleDiff = preview.perModule[name]
-            local added = #(moduleDiff.added or {})
-            local changed = #(moduleDiff.changed or {})
-            local removed = ModuleSupportsExact(name) and #(moduleDiff.removed or {}) or 0
-            if added + changed + removed > 0 then
-                tinsert(detail.modules, {
-                    name = name,
-                    added = added,
-                    changed = changed,
-                    removed = removed,
-                })
-            end
-        end
-    end
-
-    return detail
+    return SnapshotDetailBuilder.Build(
+        snapshot.Notes,
+        ImportManager:PreviewApplySnapshot(importID, SelectorFor(snapshot))
+    )
 end
 
 function Methods:Constructor(config)

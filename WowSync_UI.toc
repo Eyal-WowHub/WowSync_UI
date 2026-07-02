@@ -18,6 +18,7 @@ Locales\enUS.lua
 
 Core\Constants.lua
 Core\Settings.lua
+Core\SnapshotDetailBuilder.lua
 
 Main.lua
 
