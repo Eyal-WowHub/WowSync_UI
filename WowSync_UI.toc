@@ -22,6 +22,7 @@ Locales\enUS.lua
 Main.lua
 
 Widgets\Widget.lua
+Widgets\SectionHeader.lua
 Widgets\LockButton.lua
 Widgets\TitleBar.lua
 Widgets\Panel.lua

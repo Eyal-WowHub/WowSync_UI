@@ -20,6 +20,7 @@ local _, addon = ...
 
 local UndoList = addon:NewObject("UndoList")
 local ScrollList = addon:GetObject("ScrollList")
+local SectionHeader = addon:GetObject("SectionHeader")
 
 local L = addon.L
 local UI = addon.UI
@@ -68,9 +69,8 @@ function Methods:Constructor(config)
         end)
     end
 
-    local title = self:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    local title = SectionHeader:Create(self, L["Recent changes"])
     title:SetPoint("TOPLEFT", 12, -10)
-    title:SetText(L["Recent changes"])
 
     local hint = self:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     hint:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -2)

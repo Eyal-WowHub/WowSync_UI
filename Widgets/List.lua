@@ -31,6 +31,7 @@ local _, addon = ...
 
 local List = addon:NewObject("List")
 local ScrollList = addon:GetObject("ScrollList")
+local SectionHeader = addon:GetObject("SectionHeader")
 
 local C = LibStub("Contracts-1.0")
 local UI = addon.UI
@@ -78,9 +79,8 @@ function Methods:Constructor(config)
     self.selectedID = nil
     self.onSelectionChanged = nil
 
-    local title = self:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    local title = SectionHeader:Create(self, config.title or "")
     title:SetPoint("TOPLEFT", 10, -8)
-    title:SetText(config.title or "")
     self.title = title
 
     local bottomInset = config.bottomInset or DEFAULT_BOTTOM_INSET
