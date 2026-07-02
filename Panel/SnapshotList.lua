@@ -48,9 +48,19 @@ local CONTENT_BOTTOM_PAD = 8
 local RIGHT_MARGIN = 8
 
 local SnapshotView = WowSync:GetSnapshotView()
+local SnapshotManager = WowSync:GetSnapshotManager()
 local SnapshotHandleCache = WowSync:GetSnapshotHandleCache()
 
 local Methods = {}
+
+-- Whether a module deletes entries on apply (Exact-capable). Merge-only modules
+-- never remove, so their removals are not counted in the change summary -- this
+-- keeps the summary in step with the diff preview, which hides them too.
+local function ModuleSupportsExact(name)
+    local applyModes = WowSync.Models and WowSync.Models.SnapshotApplyMode
+    local modes = SnapshotManager:GetModuleApplyMode(name)
+    return applyModes and applyModes.CanExact(modes) or false
+end
 
 -- Diff the chosen snapshot against the live setup and distil it into a small,
 -- render-ready table (note + changed-module counts).
@@ -76,7 +86,7 @@ local function BuildDetail(snapshot)
             local moduleDiff = preview.perModule[name]
             local added = #(moduleDiff.added or {})
             local changed = #(moduleDiff.changed or {})
-            local removed = #(moduleDiff.removed or {})
+            local removed = ModuleSupportsExact(name) and #(moduleDiff.removed or {}) or 0
             if added + changed + removed > 0 then
                 tinsert(detail.modules, {
                     name = name,

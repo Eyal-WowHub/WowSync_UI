@@ -32,6 +32,7 @@ local ExpandableContent = addon:GetObject("ExpandableContent")
 local C = LibStub("Contracts-1.0")
 
 local ImportManager = WowSync:GetImportManager()
+local SnapshotManager = WowSync:GetSnapshotManager()
 local ImportedHashDictionary = WowSync:GetImportedHashDictionary()
 
 local Methods = {}
@@ -52,6 +53,15 @@ local RIGHT_MARGIN = 8
 -- snapshots are addressed by their full hash and index.
 local function SelectorFor(snapshot)
     return ("%s#%d"):format(snapshot.Hash, snapshot.Index or 0)
+end
+
+-- Whether a module deletes entries on apply (Exact-capable). Merge-only modules
+-- never remove, so their removals are not counted in the change summary -- this
+-- keeps the summary in step with the diff preview, which hides them too.
+local function ModuleSupportsExact(name)
+    local applyModes = WowSync.Models and WowSync.Models.SnapshotApplyMode
+    local modes = SnapshotManager:GetModuleApplyMode(name)
+    return applyModes and applyModes.CanExact(modes) or false
 end
 
 -- Diff the imported snapshot against the live setup and distil it into a small,
@@ -78,7 +88,7 @@ local function BuildDetail(importID, snapshot)
             local moduleDiff = preview.perModule[name]
             local added = #(moduleDiff.added or {})
             local changed = #(moduleDiff.changed or {})
-            local removed = #(moduleDiff.removed or {})
+            local removed = ModuleSupportsExact(name) and #(moduleDiff.removed or {}) or 0
             if added + changed + removed > 0 then
                 tinsert(detail.modules, {
                     name = name,
