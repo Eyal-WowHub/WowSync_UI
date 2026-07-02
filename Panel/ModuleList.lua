@@ -36,32 +36,6 @@ local MODE_BUTTON_VOFFSET = 3
 
 local Methods = {}
 
-local function Acquire(panel)
-    for _, checkbox in ipairs(panel._pool) do
-        if not checkbox.inUse then
-            checkbox.inUse = true
-            return checkbox
-        end
-    end
-
-    local checkbox = ModuleRow:Build(panel)
-    checkbox:HookScript("OnClick", function()
-        if panel._onChanged then panel._onChanged() end
-    end)
-    checkbox.inUse = true
-    tinsert(panel._pool, checkbox)
-    return checkbox
-end
-
-local function ReleaseAll(panel)
-    for _, checkbox in pairs(panel._checkboxes) do
-        checkbox:Hide()
-        checkbox.modeButton:Hide()
-        checkbox.inUse = false
-    end
-    wipe(panel._checkboxes)
-end
-
 -- The Merge/Exact support a module declares, as two booleans.
 local function SupportedModes(name)
     local applyModes = WowSync.Models and WowSync.Models.SnapshotApplyMode
@@ -107,6 +81,49 @@ local function ToggleRowMode(panel, checkbox)
         visible = true,
     })
     if panel._onChanged then panel._onChanged() end
+end
+
+-- A pooled checkbox for a module row. A freshly built one has its action
+-- closures wired once here -- the change hook, the Merge/Exact toggle, and the
+-- optional name link -- each reading the row's live state (panel, the module on
+-- checkbox._mode) at click time, so one binding serves every module the row is
+-- later reused for.
+local function Acquire(panel)
+    for _, checkbox in ipairs(panel._pool) do
+        if not checkbox.inUse then
+            checkbox.inUse = true
+            return checkbox
+        end
+    end
+
+    local checkbox = ModuleRow:Build(panel)
+    checkbox:HookScript("OnClick", function()
+        if panel._onChanged then panel._onChanged() end
+    end)
+    checkbox.modeButton:SetScript("OnClick", function()
+        ToggleRowMode(panel, checkbox)
+    end)
+    if panel._onPreviewModule then
+        checkbox:SetNameLink(function()
+            if checkbox._mode then
+                panel._onPreviewModule(checkbox._mode.name, checkbox._mode.mode)
+            end
+        end)
+    else
+        checkbox:SetNameLink(nil)
+    end
+    checkbox.inUse = true
+    tinsert(panel._pool, checkbox)
+    return checkbox
+end
+
+local function ReleaseAll(panel)
+    for _, checkbox in pairs(panel._checkboxes) do
+        checkbox:Hide()
+        checkbox.modeButton:Hide()
+        checkbox.inUse = false
+    end
+    wipe(panel._checkboxes)
 end
 
 function Methods:Constructor(config)
@@ -182,17 +199,6 @@ function Methods:SetSnapshot(snapshot, preview, mode)
             checkbox.modeButton:ClearAllPoints()
             checkbox.modeButton:SetPoint("TOPRIGHT", panel, "TOPRIGHT",
                 -MODE_BUTTON_INSET, -yOffset - MODE_BUTTON_VOFFSET)
-            checkbox.modeButton:SetScript("OnClick", function()
-                ToggleRowMode(panel, checkbox)
-            end)
-
-            if panel._onPreviewModule then
-                checkbox:SetNameLink(function()
-                    panel._onPreviewModule(name, checkbox._mode and checkbox._mode.mode or rowMode)
-                end)
-            else
-                checkbox:SetNameLink(nil)
-            end
 
             checkbox:Show()
 
