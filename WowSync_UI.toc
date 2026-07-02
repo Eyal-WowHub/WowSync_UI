@@ -22,9 +22,10 @@ Locales\enUS.lua
 Main.lua
 
 Widgets\Widget.lua
-Widgets\Dialog.lua
 Widgets\LockButton.lua
 Widgets\TitleBar.lua
+Widgets\Panel.lua
+Widgets\Dialog.lua
 Widgets\TabStrip.lua
 Widgets\ScrollList.lua
 Widgets\SelectableRow.lua

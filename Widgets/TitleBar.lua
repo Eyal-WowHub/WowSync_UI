@@ -3,41 +3,30 @@ local _, addon = ...
 --[[
     TitleBar object.
 
-    Fills an injected region with a centred title over a header banner, a lock
-    toggle, and a close button. A divider separates the header from the content
-    beneath it. The lock toggle (a composed LockButton) sits immediately left of
-    the close button; clicking it reports the new state through onToggleLock(locked)
-    so the owner can enable or disable window moving, resizing, and the splitter.
+    Fills an injected region with a title, a close button, and an optional lock
+    toggle. The window's nine-slice chrome draws the header itself, so the bar
+    only carries the title text and the controls. The lock toggle (a composed
+    LockButton) is hidden by default and revealed with ShowLock(); it sits
+    immediately left of the close button and reports each change through
+    onToggleLock(locked) so the owner can enable or disable window moving,
+    resizing, and the splitter.
 
     addon:GetObject("TitleBar"):Build(region, {
         title = string,
         onClose = function,
         onToggleLock = function(locked),
         locked = boolean,
-    }) -> self { SetTitle(text), SetLocked(locked) }
+    }) -> self { SetTitle(text), SetLocked(locked), ShowLock() }
 ]]
 
 local TitleBar = addon:NewObject("TitleBar")
 local LockButton = addon:GetObject("LockButton")
 
 local C = LibStub("Contracts-1.0")
-local UI = addon.UI
 
--- Inset that tucks the header art just inside the window's 1px border so the
--- banner meets the frame edge cleanly, with no gap or overlap at the corners.
-local BORDER_INSET = 1
-
--- Header banner gradient: faintly lighter at the top, darker at the base, so the
--- bar catches the light like a Blizzard banner instead of reading as a flat block
--- of colour.
-local HEADER_TOP = { 0.18, 0.19, 0.22, 0.95 }
-local HEADER_BOTTOM = { 0.09, 0.09, 0.11, 0.95 }
-
--- A cool 1px highlight skimming the top edge of the banner (the lit side of the
--- bevel), and a soft highlight beneath the divider (the lit side of the groove).
--- Together they give the banner and its lower edge a recessed, bevelled feel.
-local HEADER_HIGHLIGHT = { 0.35, 0.40, 0.50, 0.45 }
-local DIVIDER_HIGHLIGHT = { 0.6, 0.6, 0.65, 0.15 }
+-- The title bar's natural height; owners size the slot they build it into to
+-- this so the title and controls sit the same in the window and in dialogs.
+TitleBar.HEIGHT = 24
 
 local Methods = {}
 
@@ -52,48 +41,23 @@ function Methods:SetLocked(locked)
     end
 end
 
--- Build the banner art, centred title, close button, and composed lock toggle.
--- The bar IS this frame; SetTitle/SetLocked drive it afterwards.
+-- Reveal the lock toggle, which is hidden by default (dialogs have no lock).
+function Methods:ShowLock()
+    self._lockButton:Show()
+end
+
+-- Build the title, close button, and the composed lock toggle (hidden until
+-- ShowLock). The bar IS this frame; SetTitle/SetLocked drive it afterwards.
 function Methods:Constructor(config)
-    -- Header strip behind the title, giving the bar a distinct banner like the
-    -- Blizzard Options window. A faint vertical gradient (lighter at the top)
-    -- catches the light instead of reading as one flat block of colour.
-    local header = self:CreateTexture(nil, "BACKGROUND")
-    header:SetPoint("TOPLEFT", BORDER_INSET, -BORDER_INSET)
-    header:SetPoint("BOTTOMRIGHT", -BORDER_INSET, 0)
-    header:SetColorTexture(1, 1, 1, 1)
-    header:SetGradient("VERTICAL", CreateColor(unpack(HEADER_BOTTOM)), CreateColor(unpack(HEADER_TOP)))
-
-    -- A 1px highlight along the very top edge reads as light hitting the bevel,
-    -- lifting the banner off the metal border above it.
-    local topHighlight = self:CreateTexture(nil, "ARTWORK")
-    topHighlight:SetPoint("TOPLEFT", BORDER_INSET, -BORDER_INSET)
-    topHighlight:SetPoint("TOPRIGHT", -BORDER_INSET, -BORDER_INSET)
-    topHighlight:SetHeight(1)
-    topHighlight:SetColorTexture(unpack(HEADER_HIGHLIGHT))
-
-    -- Divider separating the header from the content beneath it. A darker rule
-    -- over a faint highlight gives it a recessed, bevelled edge rather than a
-    -- single flat line.
-    local divider = self:CreateTexture(nil, "ARTWORK")
-    divider:SetPoint("BOTTOMLEFT", BORDER_INSET, 1)
-    divider:SetPoint("BOTTOMRIGHT", -BORDER_INSET, 1)
-    divider:SetHeight(1)
-    divider:SetColorTexture(unpack(UI.Backdrop.Separator))
-
-    local dividerHighlight = self:CreateTexture(nil, "ARTWORK")
-    dividerHighlight:SetPoint("BOTTOMLEFT", BORDER_INSET, 0)
-    dividerHighlight:SetPoint("BOTTOMRIGHT", -BORDER_INSET, 0)
-    dividerHighlight:SetHeight(1)
-    dividerHighlight:SetColorTexture(unpack(DIVIDER_HIGHLIGHT))
-
+    -- Vertically centred, matching the lock and close buttons (which anchor to the
+    -- bar's vertical centre) so the three sit on one line.
     self._title = self:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    self._title:SetPoint("CENTER", 0, 0)
+    self._title:SetPoint("CENTER", 10, 0)
     self._title:SetText(config.title or "")
 
     local closeButton = CreateFrame("Button", nil, self, "UIPanelCloseButton")
-    closeButton:SetSize(24, 24)
-    closeButton:SetPoint("RIGHT", -3, -1)
+    closeButton:SetSize(20, 20)
+    closeButton:SetPoint("RIGHT", -1, 0)
     closeButton:SetScript("OnClick", function()
         if config.onClose then
             config.onClose()
@@ -104,6 +68,7 @@ function Methods:Constructor(config)
         onToggle = config.onToggleLock,
         locked = config.locked,
     })
+    self._lockButton:Hide()
 end
 
 function TitleBar:Build(region, opts)

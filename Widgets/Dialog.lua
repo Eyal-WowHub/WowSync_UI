@@ -23,6 +23,7 @@ local _, addon = ...
 ]]
 
 local Dialog = addon:NewObject("Dialog")
+local Panel = addon:GetObject("Panel")
 
 local C = LibStub("Contracts-1.0")
 local UI = addon.UI
@@ -129,40 +130,17 @@ end)
 -- out.
 local Methods = {}
 
-function Methods:SetTitle(text)
-    self._title:SetText(text or "")
-end
-
 function Methods:Constructor(config)
     self:SetPoint("CENTER")
     self:SetFrameStrata("FULLSCREEN_DIALOG")
-    self:SetBackdrop({
-        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        tile = true, tileSize = 16, edgeSize = 16,
-        insets = { left = 4, right = 4, top = 4, bottom = 4 },
-    })
-    self:SetBackdropColor(unpack(UI.Backdrop.Main))
-    self:SetBackdropBorderColor(unpack(UI.Backdrop.MainBorder))
-    self:EnableMouse(true)
     self:SetClampedToScreen(true)
 
-    -- Drag the whole body to move the window; content widgets capture their own
-    -- clicks, so only empty areas start a drag.
-    self:SetMovable(true)
-    self:RegisterForDrag("LeftButton")
-    self:SetScript("OnDragStart", self.StartMoving)
-    self:SetScript("OnDragStop", self.StopMovingOrSizing)
-
-    local titleLabel = self:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    titleLabel:SetPoint("TOPLEFT", 14, -12)
-    titleLabel:SetText(config.title or "")
-    self._title = titleLabel
-
-    local close = CreateFrame("Button", nil, self, "UIPanelCloseButton")
-    close:SetSize(24, 24)
-    close:SetPoint("TOPRIGHT", -3, -3)
-    close:SetScript("OnClick", function() self:Hide() end)
+    -- Chrome and title bar (title + close) are already in place; a dialog is
+    -- movable and Esc-closable, with no lock or resize. Close and drag come from
+    -- Panel, so nothing is wired by hand here.
+    self:EnableTitleBar({ title = config.title })
+    self:EnableMoving()
+    self:EnableCloseOnEscape()
 
     -- Position and track the dialog as it opens, and release it as it closes, so
     -- dialogs stack instead of overlapping and clear out of the open set.
@@ -180,9 +158,6 @@ function Methods:Constructor(config)
         end
     end)
 
-    -- Registering with UISpecialFrames makes ESC close the dialog.
-    tinsert(UISpecialFrames, self:GetName())
-
     self:Hide()
 end
 
@@ -191,16 +166,12 @@ function Dialog:Build(opts)
     C:Ensures(type(opts.name) == "string", "Build: 'opts.name' must be a string")
     C:Ensures(opts.onHide == nil or type(opts.onHide) == "function", "Build: 'opts.onHide' must be a function")
 
-    return addon:NewWidget({
-        parent = UIParent,
+    return Panel:Build({
+        name = opts.name,
         width = opts.width or UI.Preview.Width,
         height = opts.height or UI.Preview.Height,
         title = opts.title,
         onHide = opts.onHide,
-    }, {
-        frameType = "Frame",
-        template = "BackdropTemplate",
-        name = opts.name,
         methods = Methods,
     })
 end

@@ -21,8 +21,8 @@ local ProfileDetails = addon:GetObject("ProfileDetails")
 local ImportList = addon:GetObject("ImportList")
 local ImportDetails = addon:GetObject("ImportDetails")
 local Splitter = addon:GetObject("Splitter")
-local ResizeGrip = addon:GetObject("ResizeGrip")
 local CombatOverlay = addon:GetObject("CombatOverlay")
+local Panel = addon:GetObject("Panel")
 
 local L = addon.L
 local UI = addon.UI
@@ -51,7 +51,7 @@ local MIN_RIGHT_PANEL_WIDTH = 600
 local MIN_SPLIT_TRAVEL = 120
 
 -- Heights of the title bar and the tab strip beneath it.
-local TITLE_BAR_HEIGHT = 28
+local TITLE_BAR_HEIGHT = TitleBar.HEIGHT
 local TAB_STRIP_HEIGHT = 24
 
 -- Inset between the frame edge and its content on every side.
@@ -75,10 +75,9 @@ local Methods = {}
 function Methods:Constructor(config)
     local panel = self
 
-    -- Layout state shared across the panes: the same left/right split ratio and
-    -- the same lock state.
+    -- The panes share one left/right split ratio; the lock state lives on the
+    -- Panel.
     panel._panes = {}
-    panel._locked = false
 
     -- Resolve a guaranteed-valid set of frame bounds from the constants. The
     -- panel minimums are the only hard constraint; FrameWidth/FrameHeight and the
@@ -98,8 +97,6 @@ function Methods:Constructor(config)
 
     local defaultContentWidth = defaultFrameWidth - contentInset
     panel._splitRatio = Settings:GetSplitRatio() or (LEFT_PANEL_WIDTH / defaultContentWidth)
-    local resizeGrip
-    local setLocked
 
     -- Apply the current split ratio to every view. Re-run whenever the window or
     -- the ratio changes.
@@ -139,24 +136,20 @@ function Methods:Constructor(config)
         tinsert(panel._panes, pane)
     end
 
-    -- A crisp 1px edge (rather than the soft, beige tooltip border) matches the
-    -- flat banner and bevelled divider in the title bar. It also removes the 16px
-    -- corner art that used to peek over the banner where the two met.
-    panel:SetBackdrop({
-        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-        edgeFile = "Interface\\Buttons\\WHITE8X8",
-        tile = true, tileSize = 16, edgeSize = 1,
-        insets = { left = 1, right = 1, top = 1, bottom = 1 },
-    })
-    panel:SetBackdropColor(unpack(UI.Backdrop.Main))
-    panel:SetBackdropBorderColor(unpack(UI.Backdrop.MainBorder))
-    panel:SetMovable(true)
-    panel:SetResizable(true)
-    panel:SetResizeBounds(minFrameWidth, minFrameHeight, maxFrameWidth, maxFrameHeight)
-    panel:EnableMouse(true)
     panel:SetClampedToScreen(true)
     panel:SetFrameStrata("DIALOG")
-    panel:RegisterForDrag("LeftButton")
+
+    -- The chrome is already in place (Panel applied it before this Constructor).
+    -- Turn on the window's features; each reports back through Panel events, wired
+    -- below. The lock toggle blocks moving, resizing, and the splitters.
+    panel:EnableTitleBar({ title = "|c" .. ACCENT_HEX .. "WowSync|r" })
+    panel:EnableLockButton({ locked = Settings:IsLocked() })
+    panel:EnableMoving()
+    panel:EnableResizing({
+        minWidth = minFrameWidth, minHeight = minFrameHeight,
+        maxWidth = maxFrameWidth, maxHeight = maxFrameHeight,
+    })
+    panel:EnableCloseOnEscape()
 
     -- Restore the persisted size and position; the first time the window opens
     -- it falls back to the default size, centred on screen. Clamp to the resolved
@@ -176,18 +169,6 @@ function Methods:Constructor(config)
         panel:SetPoint("CENTER")
     end
 
-    panel:SetScript("OnDragStart", function()
-        if not panel._locked then
-            panel:StartMoving()
-        end
-    end)
-
-    panel:SetScript("OnDragStop", function()
-        panel:StopMovingOrSizing()
-        local anchorPoint, _, anchorRelative, anchorX, anchorY = panel:GetPoint()
-        Settings:SetWindowAnchor(anchorPoint, anchorRelative, anchorX, anchorY)
-    end)
-
     -- While the window is open, ask the core to keep the live setup mirrored;
     -- release it on close so on-demand tracking can idle.
     panel:SetScript("OnShow", function()
@@ -204,20 +185,6 @@ function Methods:Constructor(config)
         -- Close any open dialogs with the window so they don't linger over the world.
         addon:Broadcast("WOWSYNC_UI_CLOSED")
     end)
-
-    -- Registering with UISpecialFrames makes ESC close the window.
-    tinsert(UISpecialFrames, "WowSyncUIFrame")
-
-    -- Title bar region
-    local titleSlot = CreateFrame("Frame", nil, panel)
-    titleSlot:SetPoint("TOPLEFT", 0, 0)
-    titleSlot:SetPoint("TOPRIGHT", 0, 0)
-    titleSlot:SetHeight(TITLE_BAR_HEIGHT)
-    local titleBar = TitleBar:Build(titleSlot, {
-        title = "|c" .. ACCENT_HEX .. "WowSync|r",
-        onClose = function() panel:Hide() end,
-        onToggleLock = function(value) setLocked(value) end,
-    })
 
     -- Tab strip (Profiles, Imports)
     local tabStrip = TabStrip:Build(panel, {
@@ -297,41 +264,52 @@ function Methods:Constructor(config)
     importsView:Hide()
     panel._importsView = importsView
 
-    -- Resize grip in the bottom-right corner; hidden while the window is locked.
-    resizeGrip = ResizeGrip:Build(panel, {
-        onResizeStop = function(width, height)
-            Settings:SetWindowSize(width, height)
-            -- Sizing re-anchors the frame to its top-left corner; persist that so
-            -- the window reopens where it was left rather than snapping back.
-            local anchorPoint, _, anchorRelative, anchorX, anchorY = panel:GetPoint()
-            Settings:SetWindowAnchor(anchorPoint, anchorRelative, anchorX, anchorY)
-            Reflow()
-        end,
-        -- Double-click restores the default size and re-centres the window.
-        onReset = function()
-            panel:SetSize(defaultFrameWidth, defaultFrameHeight)
-            panel:ClearAllPoints()
-            panel:SetPoint("CENTER")
-            Settings:SetWindowSize(defaultFrameWidth, defaultFrameHeight)
-            local anchorPoint, _, anchorRelative, anchorX, anchorY = panel:GetPoint()
-            Settings:SetWindowAnchor(anchorPoint, anchorRelative, anchorX, anchorY)
-            Reflow()
-        end,
-    })
-
-    -- Lock toggle: blocks moving, resizing, and splitter dragging, and hides the
-    -- resize grip. Persisted so the choice survives reloads.
-    setLocked = function(value)
-        panel._locked = value and true or false
-        Settings:SetLocked(panel._locked)
-        resizeGrip:SetLocked(panel._locked)
+    -- React to the panel's own chrome events. Only our window fires lock/resize
+    -- (dialogs share the Panel object but never enable those), so filter to it and
+    -- persist + re-lay-out here; the Panel already applied the lock to its own
+    -- moving and resizing, so we only add the splitters.
+    local function LockSplitters(locked)
         for _, pane in ipairs(panel._panes) do
-            pane.splitter:SetLocked(panel._locked)
+            pane.splitter:SetLocked(locked)
         end
-        titleBar:SetLocked(panel._locked)
     end
 
-    setLocked(Settings:IsLocked())
+    Panel:RegisterEvent("WOWSYNC_UI_PANEL_LOCK_CHANGED", function(_, _, firing, locked)
+        if firing ~= panel then return end
+        Settings:SetLocked(locked)
+        LockSplitters(locked)
+    end)
+
+    Panel:RegisterEvent("WOWSYNC_UI_PANEL_MOVED", function(_, _, firing)
+        if firing ~= panel then return end
+        local anchorPoint, _, anchorRelative, anchorX, anchorY = panel:GetPoint()
+        Settings:SetWindowAnchor(anchorPoint, anchorRelative, anchorX, anchorY)
+    end)
+
+    Panel:RegisterEvent("WOWSYNC_UI_PANEL_RESIZED", function(_, _, firing, width, height)
+        if firing ~= panel then return end
+        Settings:SetWindowSize(width, height)
+        -- Sizing re-anchors the frame to its top-left corner; persist that so the
+        -- window reopens where it was left rather than snapping back.
+        local anchorPoint, _, anchorRelative, anchorX, anchorY = panel:GetPoint()
+        Settings:SetWindowAnchor(anchorPoint, anchorRelative, anchorX, anchorY)
+        Reflow()
+    end)
+
+    Panel:RegisterEvent("WOWSYNC_UI_PANEL_RESIZE_RESET", function(_, _, firing)
+        if firing ~= panel then return end
+        panel:SetSize(defaultFrameWidth, defaultFrameHeight)
+        panel:ClearAllPoints()
+        panel:SetPoint("CENTER")
+        Settings:SetWindowSize(defaultFrameWidth, defaultFrameHeight)
+        local anchorPoint, _, anchorRelative, anchorX, anchorY = panel:GetPoint()
+        Settings:SetWindowAnchor(anchorPoint, anchorRelative, anchorX, anchorY)
+        Reflow()
+    end)
+
+    -- Apply the persisted lock to the splitters (the Panel handled its own move
+    -- and resize when the lock button was enabled).
+    LockSplitters(Settings:IsLocked())
     Reflow()
 
     -- Modal scrim that blocks the window's contents while in combat, since
@@ -396,10 +374,8 @@ end
 local function Build()
     if instance then return end
 
-    instance = addon:NewWidget({ parent = UIParent }, {
-        frameType = "Frame",
+    instance = Panel:Build({
         name = "WowSyncUIFrame",
-        template = "BackdropTemplate",
         methods = Methods,
     })
 end

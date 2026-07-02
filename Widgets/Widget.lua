@@ -16,6 +16,7 @@ local _, addon = ...
         name      = "GlobalFrameName",        -- optional: global name (ESC, _G lookup)
         frame     = existingFrame,            -- optional: adopt instead of create
         methods   = ButtonMethods,            -- optional: the widget's class
+        onReady   = function(frame) end,      -- optional: runs after layout, before Constructor
     })
 
     config carries the common layout keys ApplyLayout consumes -- parent, anchor,
@@ -50,6 +51,13 @@ function addon:NewWidget(config, def)
 
     Mixin(frame, Widget, def.methods or {})
     frame:ApplyLayout(config)
+
+    -- A hook to finish the frame after mixin and layout but before its Constructor,
+    -- so a builder (e.g. Panel) can lay chrome behind the content the Constructor
+    -- then adds.
+    if def.onReady then
+        def.onReady(frame, config)
+    end
 
     if frame.Constructor then
         frame:Constructor(config)
