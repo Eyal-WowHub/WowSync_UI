@@ -61,6 +61,12 @@ local TIMELINE_NODE_PINNED_COLOR = CreateColor(0.95, 0.6, 0.2, 1)
 -- The head row's collapsed hint, in a calm green so it reads as guidance.
 local HEAD_HINT_COLOR = CreateColor(0.4, 0.85, 0.4, 1)
 
+-- A snapshot that differs from the live setup reads red; an in-sync one reads
+-- white. Both override the Subject style's gold default so only the live head
+-- keeps an accent.
+local CHANGES_TEXT_COLOR = CreateColor(0.85, 0.42, 0.42, 1)
+local IN_SYNC_TEXT_COLOR = CreateColor(1, 1, 1, 1)
+
 -- Vertical gaps between the stacked content lines, mirroring the reserved
 -- height SnapshotList computes for a row (and the import rows' spacing).
 local NOTE_GAP = 2     -- subject -> note
@@ -99,6 +105,13 @@ function SnapshotRow:ExpandMarker(expanded)
     return expanded and MARKER_EXPANDED or MARKER_COLLAPSED
 end
 
+-- The subject colour for a saved row: red when it differs from the live setup,
+-- white when it matches -- both overriding the Subject style's gold. Exposed so
+-- the import rows colour the same way.
+function SnapshotRow:ChangesColor(hasChanges)
+    return hasChanges and CHANGES_TEXT_COLOR or IN_SYNC_TEXT_COLOR
+end
+
 function Methods:Constructor(config)
     self._ctx = config.ctx
 
@@ -135,8 +148,9 @@ end
 
 -- Build the ordered content lines for a snapshot, shared by Render (to draw
 -- them) and SnapshotList (to reserve the row height from the same description).
--- detail supplies the expanded change summary; nil while collapsed.
-function SnapshotRow:BuildLines(snapshot, isHead, expanded, detail)
+-- detail supplies the expanded change summary; nil while collapsed. hasChanges
+-- tags a collapsed saved row that differs from the live setup.
+function SnapshotRow:BuildLines(snapshot, isHead, expanded, detail, hasChanges)
     -- Subject: the head reads "Current" in the brand accent; a saved snapshot
     -- shows its capture date, with an inline pinned marker in the warm accent.
     local subject
@@ -153,11 +167,13 @@ function SnapshotRow:BuildLines(snapshot, isHead, expanded, detail)
     -- expanded -- the only cue to its state.
     subject = SnapshotRow:ExpandMarker(expanded) .. subject
 
+    -- The subject reads blue for the live head, red when the snapshot differs
+    -- from the live setup, and the default white when it is in sync.
     local lines = {
         {
             left = subject,
             leftStyle = "Subject",
-            leftColor = isHead and TIMELINE_NODE_LATEST_COLOR or nil,
+            leftColor = isHead and TIMELINE_NODE_LATEST_COLOR or SnapshotRow:ChangesColor(hasChanges),
         },
     }
 
@@ -211,8 +227,9 @@ function Methods:Render(elementData)
 
     local isHead = elementData.isHead
     local expanded = self._ctx.IsExpanded(snapshot)
+    local hasChanges = (not isHead) and self._ctx.HasChanges(snapshot) or false
     self.content:SetLines(
-        SnapshotRow:BuildLines(snapshot, isHead, expanded, expanded and self._ctx.GetDetail() or nil))
+        SnapshotRow:BuildLines(snapshot, isHead, expanded, expanded and self._ctx.GetDetail() or nil, hasChanges))
 
     -- The head node carries the brand accent; pinned nodes take the warm
     -- accent; the rest stay neutral.

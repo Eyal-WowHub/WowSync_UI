@@ -23,6 +23,27 @@ local function ModuleSupportsExact(name)
     return applyModes and applyModes.CanExact(modes) or false
 end
 
+-- True as soon as one module shows a counted change (added, changed, or an
+-- exact-capable removal). Stops at the first change instead of folding the whole
+-- summary, so a collapsed row can flag "has changes" the same way the expanded
+-- summary counts them.
+function SnapshotDetailBuilder.HasChanges(preview)
+    if not (preview and preview.perModule) then
+        return false
+    end
+
+    for name, moduleDiff in pairs(preview.perModule) do
+        local added = #(moduleDiff.added or {})
+        local changed = #(moduleDiff.changed or {})
+        local removed = ModuleSupportsExact(name) and #(moduleDiff.removed or {}) or 0
+        if added + changed + removed > 0 then
+            return true
+        end
+    end
+
+    return false
+end
+
 -- Build the render-ready detail payload from a note and per-module preview.
 function SnapshotDetailBuilder.Build(note, preview)
     local detail = { hasNote = false, note = nil, modules = {} }

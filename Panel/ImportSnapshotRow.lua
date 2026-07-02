@@ -62,6 +62,10 @@ local NODE_NEUTRAL = CreateColor(0.85, 0.85, 0.85, 1)
 -- matching the profile timeline so a pin reads the same in both views.
 local NODE_PINNED = CreateColor(0.95, 0.6, 0.2, 1)
 
+-- Imported snapshots always read white; unlike the profile timeline they carry
+-- no "differs from the live setup" colouring.
+local SUBJECT_COLOR = CreateColor(1, 1, 1, 1)
+
 local floor = math.floor
 local abs = math.abs
 
@@ -243,6 +247,7 @@ function ImportSnapshotRow:BuildLines(snapshot, expanded, detail, original, orig
             right = selector,
             leftStyle = "Subject",
             rightStyle = "Label",
+            leftColor = SUBJECT_COLOR,
         },
     }
 

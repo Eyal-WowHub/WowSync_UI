@@ -74,6 +74,7 @@ function Methods:Constructor(config)
     panel._selected = nil          -- the selected snapshot handle (identity, not its hash)
     panel._expanded = nil          -- the one open row (accordion), independent of selection
     panel._expandedDetail = nil    -- cached diff/note for the expanded row
+    panel._changeFlags = {}        -- snapshot -> has-changes-vs-live flag (memoised)
     panel._onSelectionChanged = config.onSelect
     panel._onContext = config.onContext   -- right-click handler (snapshot, subject, anchor)
 
@@ -86,6 +87,9 @@ function Methods:Constructor(config)
         end,
         GetDetail = function()
             return panel._expandedDetail
+        end,
+        HasChanges = function(snapshot)
+            return panel:HasChanges(snapshot)
         end,
         Select = function(snapshot)
             panel:Select(snapshot)
@@ -168,6 +172,24 @@ local function LoadEntries(panel)
     end
 end
 
+-- Whether a saved snapshot differs from the live setup, memoised per snapshot so
+-- the flag is computed once per data load rather than on every relayout. Diffs
+-- against the already-captured Current (no live re-scan), so it matches the
+-- expanded summary's verdict while staying cheap enough to switch profiles
+-- without a hitch. The head is the live setup itself, so it never tags.
+function Methods:HasChanges(snapshot)
+    if not snapshot or SnapshotView:IsHead(snapshot) then
+        return false
+    end
+
+    local cached = self._changeFlags[snapshot]
+    if cached == nil then
+        cached = SnapshotDetailBuilder.HasChanges(SnapshotView:Preview(snapshot, nil, true))
+        self._changeFlags[snapshot] = cached
+    end
+    return cached
+end
+
 -- Populate the timeline for a character: the current head always sits on top as
 -- a live view of the character's present setup (live for the logged-in
 -- character, last-captured for an alt), followed by the saved history (newest
@@ -175,6 +197,7 @@ end
 function Methods:SetProfile(profileName)
     self._currentProfile = profileName
     LoadEntries(self)
+    wipe(self._changeFlags)
 
     -- Default selection: the head when present, else the latest saved snapshot.
     self._selected = profileName and (SnapshotHandleCache:GetHead(profileName) or SnapshotHandleCache:GetLatestSaved(profileName))
@@ -212,6 +235,7 @@ end
 -- A pin/unpin changes the row's group, so the order is re-derived too.
 function Methods:Refresh()
     LoadEntries(self)
+    wipe(self._changeFlags)
     if self._expanded then
         self._expandedDetail = BuildDetail(self._expanded)
     end
@@ -224,6 +248,7 @@ end
 
 function Methods:Clear()
     wipe(self._entries)
+    wipe(self._changeFlags)
     self._currentProfile = nil
     self._selected = nil
     self._expanded = nil

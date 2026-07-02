@@ -83,7 +83,10 @@ local function RefreshSyncStatus(panel)
         return
     end
 
-    local preview = SnapshotManager:PreviewApplySnapshot(panel._currentProfileName)
+    -- Diff against the already-captured Current (kept fresh by the watcher while
+    -- the window is open) rather than re-scanning the live setup, so selecting a
+    -- profile stays responsive.
+    local preview = SnapshotManager:PreviewApplySnapshot(panel._currentProfileName, nil, nil, true)
     if not preview then
         wipe(panel._syncDetail)
         if panel._syncHover then panel._syncHover:Hide() end
@@ -115,6 +118,10 @@ local function ScheduleSyncRefresh(panel)
     C_Timer.After(0.1, function()
         if token == panel._syncRefreshToken then
             RefreshSyncStatus(panel)
+            -- Keep the per-snapshot change tags in step with the live badge.
+            if panel._snapshotList and panel._content:IsVisible() then
+                panel._snapshotList:Refresh()
+            end
         end
     end)
 end
