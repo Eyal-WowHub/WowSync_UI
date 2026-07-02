@@ -34,6 +34,7 @@ Widgets\SelectableRow.lua
 Widgets\ExpandableContent.lua
 Widgets\TimelineSpan.lua
 Widgets\Button.lua
+Widgets\PopupDialog.lua
 Widgets\Checkbox.lua
 Widgets\ChangesBadge.lua
 Widgets\List.lua
