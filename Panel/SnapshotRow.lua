@@ -104,7 +104,6 @@ function Methods:Constructor(config)
     self._ctx = config.ctx
 
     self:Background()
-    self:DecorateSelection()
 
     -- The timeline chrome (rail + node) fills the row's left gutter; the text
     -- content sits to its right. Both are siblings of the row -- import rows

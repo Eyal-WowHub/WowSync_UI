@@ -41,34 +41,23 @@ addon.UI = {
         Height = 360,
     },
 
-    -- Frame backdrop fills, borders, and divider lines { r, g, b, a }.
+    -- Frame backdrop fills, borders, and divider lines { r, g, b, a }. Tuned to
+    -- WoW's flat Settings panel so inner panels sit under the NineSlice chrome
+    -- without a colour seam.
     Backdrop = {
-        Main = { 0.08, 0.08, 0.08, 0.92 },
+        Main = { 0.05, 0.05, 0.06, 0.92 },
         MainBorder = { 0.22, 0.22, 0.24, 1 },
-        Panel = { 0.05, 0.05, 0.05, 0.8 },
+        Panel = { 0.05, 0.05, 0.06, 0.8 },
         PanelBorder = { 0.4, 0.4, 0.4, 0.8 },
         Separator = { 0.4, 0.4, 0.4, 0.6 },
     },
 
-    -- Background states shared by every selectable list/tab row.
+    -- Flat selection states shared by every selectable list/tab row, matching
+    -- WoW's Settings list: a white a=0.1 hover and a subtle blue selection fill.
     Row = {
-        Selected = CreateColor(0.2, 0.4, 0.6, 0.6),
-        Hover = CreateColor(0.3, 0.3, 0.3, 0.4),
+        Selected = CreateColor(0.20, 0.40, 0.62, 0.5),
+        Hover = CreateColor(1, 1, 1, 0.1),
         Normal = CreateColor(0, 0, 0, 0),
-
-        -- Decorated selection, opted into by the snapshot rows: a bright left
-        -- accent bar, a gentle left-to-right gradient fill, and thin edge lines
-        -- so a selected row reads as a panel opening rather than a flat block.
-        Accent = CreateColor(0.30, 0.62, 0.95, 1),
-        AccentWidth = 3,
-        SelectedGradientLeft = CreateColor(0.30, 0.54, 0.80, 0.82),
-        SelectedGradientRight = CreateColor(0.30, 0.54, 0.80, 0.32),
-        SelectedEdge = CreateColor(0.35, 0.62, 0.95, 0.55),
-
-        -- Hover echoes the selected gradient in the same hue but dimmer,
-        -- so pointing at an unselected row previews the selection look.
-        HoverGradientLeft = CreateColor(0.30, 0.54, 0.80, 0.55),
-        HoverGradientRight = CreateColor(0.30, 0.54, 0.80, 0.18),
     },
 
     -- Snapshot annotation colours, shared by the profile and import rows so a

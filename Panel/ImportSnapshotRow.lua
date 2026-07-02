@@ -174,7 +174,6 @@ function Methods:Constructor(config)
     self._ctx = config.ctx
 
     self:Background()
-    self:DecorateSelection()
 
     -- The timeline chrome (rail + node) fills the row's left gutter; it takes no
     -- mouse, so clicks and hover fall through to the row. The node's colour is
