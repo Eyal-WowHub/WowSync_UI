@@ -9,7 +9,7 @@ local _, addon = ...
 
     addon:GetObject("ModuleList"):Build(region, {
         onChanged = fn,                 -- called when a row's check/mode changes
-        onPreviewModule = fn(name, mode),  -- clicking a name opens its preview
+        onPreviewModule = fn(name, mode),  -- clicking a change badge opens its preview
     })
         -> module-list frame {
             SetSnapshot(snapshot, preview, mode),   -- (re)build rows; preview adds counts
@@ -104,13 +104,13 @@ local function Acquire(panel)
         ToggleRowMode(panel, checkbox)
     end)
     if panel._onPreviewModule then
-        checkbox:SetNameLink(function()
+        checkbox:SetPreview(function()
             if checkbox._mode then
                 panel._onPreviewModule(checkbox._mode.name, checkbox._mode.mode)
             end
         end)
     else
-        checkbox:SetNameLink(nil)
+        checkbox:SetPreview(nil)
     end
     checkbox.inUse = true
     tinsert(panel._pool, checkbox)

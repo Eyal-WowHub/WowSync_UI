@@ -56,6 +56,7 @@ L["Shared modules:"] = "Shared modules:"
 L["Cancel"] = "Cancel"
 L["+A ~C -R"] = "|cff5fcf5f+%d|r |cffd9c84a~%d|r |cffd96b6b-%d|r"
 L["+A ~C"] = "|cff5fcf5f+%d|r |cffd9c84a~%d|r"
+L["Click here to see the changes"] = "Click here to see the changes"
 
 -- Game diff preview window
 L["Preview changes"] = "Preview changes"

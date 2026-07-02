@@ -79,8 +79,8 @@ function Methods:Constructor(config)
     self._listSlot = listSlot
     self._moduleList = ModuleList:Build(listSlot, {
         onChanged = function() RefreshToggle(panel) end,
-        -- Clicking a module name opens the read-only diff browser filtered to
-        -- that module, in the row's current mode.
+        -- Clicking a module's change badge opens the read-only diff browser
+        -- filtered to that module, in the row's current mode.
         onPreviewModule = function(name, mode)
             GameDiffPreview:Show({
                 title = panel._currentSubject,

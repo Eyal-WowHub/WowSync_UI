@@ -33,6 +33,7 @@ Widgets\SelectableRow.lua
 Widgets\ExpandableContent.lua
 Widgets\TimelineSpan.lua
 Widgets\Button.lua
+Widgets\Checkbox.lua
 Widgets\List.lua
 Widgets\ListRow.lua
 Widgets\DragTracker.lua

@@ -3,13 +3,15 @@ local _, addon = ...
 --[[
     ModuleRow widget (checkbox row).
 
-    A module checkbox row for ModuleList: a checkbox with a label, an optional
-    warning, a per-module change count, and an optional Merge/Exact toggle. The
-    row IS the CheckButton; ModuleList pools and positions it.
+    A module checkbox row for ModuleList, built on the Checkbox widget: the box
+    and its label come from Checkbox (clicking either toggles the module, and the
+    row lights a Settings-style hover). ModuleRow adds the module's warning, a
+    per-module change badge that opens the module's filtered diff, and an optional
+    Merge/Exact toggle. The row IS the CheckButton; ModuleList pools and positions it.
 
     addon:GetObject("ModuleRow"):Build(parent)   -- creates the checkbox widget
         -> checkbox frame {
-            SetNameLink(onClick),
+            SetPreview(onClick),
             Update(name, canApply, reason, counts, modeInfo),
             RenderCounts(counts),
             RenderMode(modeInfo),
@@ -18,6 +20,7 @@ local _, addon = ...
 
 local ModuleRow = addon:NewObject("ModuleRow")
 local Button = addon:GetObject("Button")
+local Checkbox = addon:GetObject("Checkbox")
 
 local C = LibStub("Contracts-1.0")
 local L = addon.L
@@ -26,10 +29,19 @@ local L = addon.L
 local MODE_BUTTON_WIDTH = 58
 local MODE_BUTTON_HEIGHT = 18
 
--- Module-name link colours: the resting white and the blue-ish hover that
--- signals the name opens that module's filtered change preview.
-local LINK_COLOR = { 1, 1, 1 }
-local LINK_HOVER_COLOR = { 0.4, 0.7, 1 }
+-- Change-badge colours: the resting white and the blue-ish hover that signals
+-- the badge opens that module's filtered change preview.
+local BADGE_COLOR = { 1, 1, 1 }
+local BADGE_HOVER_COLOR = { 0.4, 0.7, 1 }
+
+-- Strip WoW colour escapes (|cAARRGGBB … |r) from a string. The badge's resting
+-- text colours each figure green/amber/red inline, which would override a plain
+-- SetTextColor, so the hover tint swaps to the stripped text first.
+local function StripColorCodes(text)
+    text = text:gsub("|c%x%x%x%x%x%x%x%x", "")
+    text = text:gsub("|r", "")
+    return text
+end
 
 local Methods = {}
 
@@ -59,22 +71,6 @@ end
 function Methods:Constructor(config)
     self:SetSize(24, 24)
 
-    self.label = self:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    self.label:SetPoint("LEFT", self, "RIGHT", 2, 0)
-
-    -- An invisible button matching the name's bounds that turns it into a link:
-    -- hovering tints the name blue. The list owner opts a row in (and wires the
-    -- click) through SetNameLink; rows left out stay plain text.
-    self.nameLink = CreateFrame("Button", nil, self)
-    self.nameLink:SetAllPoints(self.label)
-    self.nameLink:SetScript("OnEnter", function()
-        self.label:SetTextColor(unpack(LINK_HOVER_COLOR))
-    end)
-    self.nameLink:SetScript("OnLeave", function()
-        self.label:SetTextColor(unpack(LINK_COLOR))
-    end)
-    self.nameLink:Hide()
-
     self.warning = self:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     self.warning:SetPoint("LEFT", self.label, "RIGHT", 6, 0)
 
@@ -83,6 +79,28 @@ function Methods:Constructor(config)
     -- mutually exclusive with the warning, so they share the same slot.
     self.counts = self:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     self.counts:SetPoint("LEFT", self.label, "RIGHT", 8, 0)
+    self.counts:SetTextColor(unpack(BADGE_COLOR))
+
+    -- An invisible button over the change counts that turns the badge into a
+    -- link: hovering tints it blue and shows a hint, clicking opens the module's
+    -- filtered diff. The list owner wires the click through SetPreview; rows
+    -- without a preview keep the badge as plain text.
+    self.countsButton = CreateFrame("Button", nil, self)
+    self.countsButton:SetAllPoints(self.counts)
+    self.countsButton:SetScript("OnEnter", function()
+        self.counts:SetText(StripColorCodes(self._countsColored or ""))
+        self.counts:SetTextColor(unpack(BADGE_HOVER_COLOR))
+        GameTooltip:SetOwner(self.countsButton, "ANCHOR_RIGHT")
+        GameTooltip:SetText(L["Click here to see the changes"], 1, 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    self.countsButton:SetScript("OnLeave", function()
+        self.counts:SetTextColor(unpack(BADGE_COLOR))
+        self.counts:SetText(self._countsColored or "")
+        GameTooltip:Hide()
+    end)
+    self.countsButton:Hide()
+    self:AddHoverRegion(self.countsButton)
 
     -- Optional per-row Merge/Exact toggle, used by the apply preview. The list
     -- owner positions it at the row's right edge; rows without a choice to make
@@ -97,29 +115,24 @@ function Methods:Constructor(config)
         GameTooltip:Hide()
     end)
     self.modeButton:Hide()
+    self:AddHoverRegion(self.modeButton)
 end
 
 function ModuleRow:Build(parent)
     C:IsTable(parent, 2)
 
-    return addon:NewWidget({ parent = parent }, {
-        frameType = "CheckButton",
-        template = "UICheckButtonTemplate",
+    return Checkbox:Build({
+        parent = parent,
         methods = Methods,
     })
 end
 
--- Turn the module name into a clickable link with the given click handler, or
--- restore it to plain text when no handler is given.
-function Methods:SetNameLink(onClick)
-    self.label:SetTextColor(unpack(LINK_COLOR))
-    if onClick then
-        self.nameLink:SetScript("OnClick", onClick)
-        self.nameLink:Show()
-    else
-        self.nameLink:SetScript("OnClick", nil)
-        self.nameLink:Hide()
-    end
+-- Wire the change badge to open this module's filtered diff, or clear it. When
+-- set, the badge shows as a blue-on-hover link wherever the counts are shown.
+function Methods:SetPreview(onClick)
+    self._onPreview = onClick
+    self.countsButton:SetScript("OnClick", onClick or nil)
+    self.countsButton:SetShown(onClick ~= nil and self.counts:IsShown())
 end
 
 function Methods:Update(moduleName, canApply, reason, counts, modeInfo)
@@ -133,6 +146,7 @@ function Methods:Update(moduleName, canApply, reason, counts, modeInfo)
         self.warning:SetText("(" .. (reason or L["cannot apply"]) .. ")")
         self.warning:Show()
         self.counts:Hide()
+        self.countsButton:Hide()
         self.modeButton:Hide()
         return
     end
@@ -151,13 +165,16 @@ function Methods:RenderCounts(counts)
 
     if added > 0 or changed > 0 or removed > 0 then
         if removed > 0 then
-            self.counts:SetText(L["+A ~C -R"]:format(added, changed, removed))
+            self._countsColored = L["+A ~C -R"]:format(added, changed, removed)
         else
-            self.counts:SetText(L["+A ~C"]:format(added, changed))
+            self._countsColored = L["+A ~C"]:format(added, changed)
         end
+        self.counts:SetText(self._countsColored)
         self.counts:Show()
+        self.countsButton:SetShown(self._onPreview ~= nil)
     else
         self.counts:Hide()
+        self.countsButton:Hide()
     end
 end
 
