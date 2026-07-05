@@ -35,7 +35,7 @@ local C = LibStub("Contracts-1.0")
 local L = addon.L
 local UI = addon.UI
 
-local SnapshotView = WowSync:GetSnapshotView()
+local SnapshotManager = WowSync:Import("SnapshotManager")
 
 local Methods = {}
 
@@ -124,11 +124,11 @@ function Methods:Open(opts)
     self._onConfirm = opts.onConfirm
     self._currentMode = opts.mode or "exact"
     self._currentSubject = opts.subject
-        or (SnapshotView:IsHead(opts.snapshot) and L["Current"] or SnapshotRow:FormatSubject(SnapshotView:GetTimestamp(opts.snapshot)))
+        or (opts.snapshot:IsHead() and L["Current"] or SnapshotRow:FormatSubject(opts.snapshot:GetTimestamp()))
     self:SetTitle(L["Apply snapshot"])
     self._subjectLabel:SetText(self._currentSubject)
 
-    self._currentPreview = opts.preview or SnapshotView:Preview(opts.snapshot)
+    self._currentPreview = opts.preview or SnapshotManager:Preview(opts.snapshot)
     self._moduleList:SetSnapshot(opts.snapshot, self._currentPreview, self._currentMode)
     RefreshToggle(self)
 

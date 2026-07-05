@@ -32,8 +32,8 @@ local ExpandableContent = addon:GetObject("ExpandableContent")
 local C = LibStub("Contracts-1.0")
 local SnapshotDetailBuilder = addon.SnapshotDetailBuilder
 
-local ImportManager = WowSync:GetImportManager()
-local ImportedHashDictionary = WowSync:GetImportedHashDictionary()
+local ImportManager = WowSync:Import("ImportManager")
+local ImportedHashDictionary = WowSync:Import("ImportedHashDictionary")
 
 local Methods = {}
 

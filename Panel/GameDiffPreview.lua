@@ -19,7 +19,7 @@ local _, addon = ...
 
     addon:GetObject("GameDiffPreview"):Show({
         title        = string,                 -- window title (optional)
-        preview      = { perModule = {...} },  -- from SnapshotView:Preview
+        preview      = { perModule = {...} },  -- from SnapshotManager:Preview
         mode         = "exact" | "merge",      -- gates the Removed section
         moduleFilter = name | nil,             -- nil shows every module
     })
@@ -33,7 +33,7 @@ local C = LibStub("Contracts-1.0")
 local L = addon.L
 local UI = addon.UI
 
-local SnapshotManager = WowSync:GetSnapshotManager()
+local SnapshotManager = WowSync:Import("SnapshotManager")
 
 -- Row heights per element kind; the list mixes module headers, section
 -- subheaders, and entry rows in one virtualised stream.

@@ -13,7 +13,7 @@ addon.SnapshotDetailBuilder = SnapshotDetailBuilder
             -> { hasNote, note, modules = { { name, added, changed, removed }, … } }
 ]]
 
-local SnapshotManager = WowSync:GetSnapshotManager()
+local SnapshotManager = WowSync:Import("SnapshotManager")
 
 -- Whether a module deletes entries on apply (Exact-capable). Merge-only modules
 -- never remove, so their removals are not counted in the change summary.

@@ -48,8 +48,8 @@ local CONTENT_BOTTOM_PAD = 8
 -- with the row's content inset to derive the wrap width for measuring.
 local RIGHT_MARGIN = 8
 
-local SnapshotView = WowSync:GetSnapshotView()
-local SnapshotHandleCache = WowSync:GetSnapshotHandleCache()
+local SnapshotManager = WowSync:Import("SnapshotManager")
+local ProfileManager = WowSync:Import("ProfileManager")
 
 local Methods = {}
 
@@ -61,8 +61,8 @@ local function BuildDetail(snapshot)
     end
 
     return SnapshotDetailBuilder.Build(
-        SnapshotView:GetNotes(snapshot),
-        SnapshotView:Preview(snapshot)
+        snapshot:GetNotes(),
+        SnapshotManager:Preview(snapshot)
     )
 end
 
@@ -96,7 +96,7 @@ function Methods:Constructor(config)
         end,
         OpenMenu = function(snapshot, anchor)
             if snapshot and panel._onContext then
-                panel._onContext(snapshot, SnapshotRow:FormatSubject(SnapshotView:GetTimestamp(snapshot)), anchor, SnapshotView:IsHead(snapshot))
+                panel._onContext(snapshot, SnapshotRow:FormatSubject(snapshot:GetTimestamp()), anchor, snapshot:IsHead())
             end
         end,
     }
@@ -164,10 +164,10 @@ end
 local function LoadEntries(panel)
     wipe(panel._entries)
     if not panel._currentProfile then return end
-    for _, handle in ipairs(SnapshotHandleCache:GetTimeline(panel._currentProfile)) do
+    for _, handle in ipairs(ProfileManager:GetTimeline(panel._currentProfile)) do
         tinsert(panel._entries, {
             snapshot = handle,
-            isHead = SnapshotView:IsHead(handle),
+            isHead = handle:IsHead(),
         })
     end
 end
@@ -178,13 +178,13 @@ end
 -- expanded summary's verdict while staying cheap enough to switch profiles
 -- without a hitch. The head is the live setup itself, so it never tags.
 function Methods:HasChanges(snapshot)
-    if not snapshot or SnapshotView:IsHead(snapshot) then
+    if not snapshot or snapshot:IsHead() then
         return false
     end
 
     local cached = self._changeFlags[snapshot]
     if cached == nil then
-        cached = SnapshotDetailBuilder.HasChanges(SnapshotView:Preview(snapshot, nil, true))
+        cached = SnapshotDetailBuilder.HasChanges(SnapshotManager:Preview(snapshot, nil, true))
         self._changeFlags[snapshot] = cached
     end
     return cached
@@ -200,7 +200,7 @@ function Methods:SetProfile(profileName)
     wipe(self._changeFlags)
 
     -- Default selection: the head when present, else the latest saved snapshot.
-    self._selected = profileName and (SnapshotHandleCache:GetHead(profileName) or SnapshotHandleCache:GetLatestSaved(profileName))
+    self._selected = profileName and (ProfileManager:GetHead(profileName) or ProfileManager:Latest(profileName))
     self._expanded = nil
     self._expandedDetail = nil
     Rebuild(self)

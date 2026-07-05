@@ -26,7 +26,7 @@ local Button = addon:GetObject("Button")
 local C = LibStub("Contracts-1.0")
 local L = addon.L
 
-local SnapshotManager = WowSync:GetSnapshotManager()
+local SnapshotManager = WowSync:Import("SnapshotManager")
 
 -- Keep the spinner up at least this long so a fast save is still perceptible.
 local SAVE_SPINNER_MIN_SECONDS = 0.5

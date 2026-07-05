@@ -33,6 +33,8 @@ local SelectableRow = addon:GetObject("SelectableRow")
 local C = LibStub("Contracts-1.0")
 local L = addon.L
 
+local ChangeBadge = WowSync:Import("ChangeBadge")
+
 -- Left inset of a snapshot row's content, clearing the timeline gutter the
 -- TimelineSpan draws its rail and node in (matching the profile rows).
 local ROW_INSET = 30
@@ -165,7 +167,7 @@ local function ChangeLines(detail)
     local lines = {}
     if detail and #detail.modules > 0 then
         for _, change in ipairs(detail.modules) do
-            tinsert(lines, WowSync:FormatDiffString(change, change.name))
+            tinsert(lines, ChangeBadge.FormatDiffString(change, change.name))
         end
     else
         tinsert(lines, L["Matches your current setup"])

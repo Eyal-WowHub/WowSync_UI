@@ -25,9 +25,8 @@ local ModuleRow = addon:GetObject("ModuleRow")
 local C = LibStub("Contracts-1.0")
 local UI = addon.UI
 
-local ModuleRegistry = WowSync:GetModuleRegistry()
-local SnapshotManager = WowSync:GetSnapshotManager()
-local SnapshotView = WowSync:GetSnapshotView()
+local ModuleRegistry = WowSync:Import("ModuleRegistry")
+local SnapshotManager = WowSync:Import("SnapshotManager")
 
 -- Placement of the per-row Merge/Exact toggle: inset from the list's right edge,
 -- and a vertical nudge to centre the button in the row.
@@ -160,13 +159,13 @@ function Methods:SetSnapshot(snapshot, preview, mode)
 
     ReleaseAll(panel)
 
-    local sourceMetadata = { ClassID = snapshot and SnapshotView:GetCharacterInfo(snapshot).ClassID }
+    local sourceMetadata = { ClassID = snapshot and snapshot:GetCharacterInfo().ClassID }
     local moduleDiffs = preview and preview.perModule
     local defaultMode = (mode == "exact") and "exact" or "merge"
 
     -- The snapshot's modules, in a stable order, intersected with what is
     -- currently registered (a snapshot may carry a module no longer installed).
-    local moduleNames = snapshot and SnapshotView:GetModuleNames(snapshot) or {}
+    local moduleNames = snapshot and snapshot:GetModuleNames() or {}
 
     local yOffset = 0
     for _, name in ipairs(moduleNames) do

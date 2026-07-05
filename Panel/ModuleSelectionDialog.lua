@@ -31,7 +31,7 @@ local C = LibStub("Contracts-1.0")
 local L = addon.L
 local UI = addon.UI
 
-local ModuleRegistry = WowSync:GetModuleRegistry()
+local ModuleRegistry = WowSync:Import("ModuleRegistry")
 
 local Methods = {}
 

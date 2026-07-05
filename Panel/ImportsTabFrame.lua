@@ -27,8 +27,9 @@ local C = LibStub("Contracts-1.0")
 local L = addon.L
 local UI = addon.UI
 
-local ImportManager = WowSync:GetImportManager()
-local SnapshotManager = WowSync:GetSnapshotManager()
+local ImportManager = WowSync:Import("ImportManager")
+local SnapshotManager = WowSync:Import("SnapshotManager")
+local Console = WowSync:Import("Console")
 
 local Methods = {}
 
@@ -37,21 +38,15 @@ local function SelectorFor(snapshot)
     return ("%s#%d"):format(snapshot.Hash, snapshot.Index or 0)
 end
 
--- A snapshot handle the apply dialog and ModuleList can read; never applied
--- through directly (apply routes through ImportManager).
-local function HandleFor(snapshot)
-    return { isHead = false, raw = snapshot }
-end
-
 -- Apply the chosen modules of an imported snapshot to the logged-in character,
 -- reporting per-module outcomes in chat.
 local function ApplySnapshot(panel, snapshot, moduleSet, mode, overrides)
     if SnapshotManager:IsCombatLocked() then
-        WowSync:Print(L["You can't do that while in combat."])
+        Console:Print(L["You can't do that while in combat."])
         return
     end
     if not next(moduleSet) then
-        WowSync:Print(L["No modules selected."])
+        Console:Print(L["No modules selected."])
         return
     end
 
@@ -59,13 +54,13 @@ local function ApplySnapshot(panel, snapshot, moduleSet, mode, overrides)
     local applyResult = ImportManager:ApplySnapshot(panel._currentImportID, SelectorFor(snapshot), strategy, moduleSet)
     if applyResult and applyResult:Any() then
         for _, name in ipairs(applyResult:Applied()) do
-            WowSync:Print(L["X: applied"]:format(name))
+            Console:Print(L["X: applied"]:format(name))
         end
         for _, name in ipairs(applyResult:Skipped()) do
-            WowSync:Print(L["X: skipped - Y"]:format(name, applyResult:Get(name).reason or L["unknown"]))
+            Console:Print(L["X: skipped - Y"]:format(name, applyResult:Get(name).reason or L["unknown"]))
         end
     else
-        WowSync:Print(L["Nothing to apply."])
+        Console:Print(L["Nothing to apply."])
     end
 end
 
@@ -75,7 +70,7 @@ local function RequestApply(panel, snapshot)
 
     local selector = SelectorFor(snapshot)
     ApplyPreviewDialog:Show({
-        snapshot = HandleFor(snapshot),
+        snapshot = ImportManager:GetSnapshot(panel._currentImportID, selector),
         preview = ImportManager:PreviewApplySnapshot(panel._currentImportID, selector),
         subject = SnapshotRow:FormatSubject(snapshot.Timestamp),
         mode = "exact",
@@ -101,7 +96,7 @@ local function OpenSnapshotMenu(panel, snapshot, anchor)
         rootDescription:CreateButton(L["Preview changes"], function()
             local preview = ImportManager:PreviewApplySnapshot(panel._currentImportID, SelectorFor(snapshot))
             if not preview then
-                WowSync:Print(L["Nothing saved yet to compare against."])
+                Console:Print(L["Nothing saved yet to compare against."])
                 return
             end
             GameDiffPreview:Show({ title = subject, preview = preview, mode = "exact" })

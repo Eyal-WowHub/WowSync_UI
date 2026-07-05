@@ -32,7 +32,7 @@ local SelectableRow = addon:GetObject("SelectableRow")
 local C = LibStub("Contracts-1.0")
 local L = addon.L
 
-local SnapshotView = WowSync:GetSnapshotView()
+local ChangeBadge = WowSync:Import("ChangeBadge")
 
 local Methods = Mixin({}, SelectableRow.Methods)
 
@@ -79,7 +79,7 @@ local function ChangeLines(detail)
     local lines = {}
     if detail and #detail.modules > 0 then
         for _, change in ipairs(detail.modules) do
-            tinsert(lines, WowSync:FormatDiffString(change, change.name))
+            tinsert(lines, ChangeBadge.FormatDiffString(change, change.name))
         end
     else
         tinsert(lines, L["Matches your current setup"])
@@ -157,8 +157,8 @@ function SnapshotRow:BuildLines(snapshot, isHead, expanded, detail, hasChanges)
     if isHead then
         subject = L["Current"]
     else
-        subject = FormatSubject(SnapshotView:GetTimestamp(snapshot))
-        if SnapshotView:IsPinned(snapshot) then
+        subject = FormatSubject(snapshot:GetTimestamp())
+        if snapshot:IsPinned() then
             subject = subject .. "  " .. TIMELINE_NODE_PINNED_COLOR:WrapTextInColorCode(L["(pinned)"])
         end
     end
@@ -208,7 +208,7 @@ function SnapshotRow:BuildLines(snapshot, isHead, expanded, detail, hasChanges)
             leftColor = HEAD_HINT_COLOR,
         }
     else
-        local note = SnapshotView:GetNotes(snapshot)
+        local note = snapshot:GetNotes()
         if note ~= "" then
             lines[#lines + 1] = {
                 left = note,
@@ -236,7 +236,7 @@ function Methods:Render(elementData)
     local nodeColor
     if isHead then
         nodeColor = TIMELINE_NODE_LATEST_COLOR
-    elseif SnapshotView:IsPinned(snapshot) then
+    elseif snapshot:IsPinned() then
         nodeColor = TIMELINE_NODE_PINNED_COLOR
     else
         nodeColor = TIMELINE_NODE_COLOR

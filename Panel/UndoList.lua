@@ -26,7 +26,7 @@ local L = addon.L
 local UI = addon.UI
 local C = LibStub("Contracts-1.0")
 
-local SnapshotManager = WowSync:GetSnapshotManager()
+local SnapshotManager = WowSync:Import("SnapshotManager")
 
 -- Height of an undo history row and the gap between rows.
 local UNDO_ROW_HEIGHT = 34

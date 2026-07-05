@@ -172,7 +172,7 @@ function Methods:Constructor(config)
     -- While the window is open, ask the core to keep the live setup mirrored;
     -- release it on close so on-demand tracking can idle.
     panel:SetScript("OnShow", function()
-        WowSync:Attach("WowSync_UI")
+        WowSync:Import("GameWatcher"):Attach("WowSync_UI")
         -- Attach captures the logged-in character's live setup; rebuild the list
         -- afterwards so a first open (empty store) still shows that character.
         panel._profileList:Refresh()
@@ -181,7 +181,7 @@ function Methods:Constructor(config)
     end)
 
     panel:SetScript("OnHide", function()
-        WowSync:Detach("WowSync_UI")
+        WowSync:Import("GameWatcher"):Detach("WowSync_UI")
         -- Close any open dialogs with the window so they don't linger over the world.
         addon:Broadcast("WOWSYNC_UI_CLOSED")
     end)

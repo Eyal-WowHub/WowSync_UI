@@ -36,11 +36,12 @@ local C = LibStub("Contracts-1.0")
 local L = addon.L
 local UI = addon.UI
 
-local SnapshotManager = WowSync:GetSnapshotManager()
-local SnapshotView = WowSync:GetSnapshotView()
-local ExportManager = WowSync:GetExportManager()
-local SnapshotHandleCache = WowSync:GetSnapshotHandleCache()
-local Debugger = WowSync:GetDebugger()
+local SnapshotManager = WowSync:Import("SnapshotManager")
+local ProfileManager = WowSync:Import("ProfileManager")
+local ExportManager = WowSync:Import("ExportManager")
+local Debugger = WowSync:Import("Debugger")
+local Console = WowSync:Import("Console")
+local ChangeBadge = WowSync:Import("ChangeBadge")
 
 -- Status text colours { r, g, b, a } for in-sync/saved and out-of-sync states.
 local SUCCESS_TEXT_COLOR = { 0.3, 0.85, 0.3, 1 }
@@ -86,7 +87,8 @@ local function RefreshSyncStatus(panel)
     -- Diff against the already-captured Current (kept fresh by the watcher while
     -- the window is open) rather than re-scanning the live setup, so selecting a
     -- profile stays responsive.
-    local preview = SnapshotManager:PreviewApplySnapshot(panel._currentProfileName, nil, nil, true)
+    local latest = ProfileManager:Latest(panel._currentProfileName)
+    local preview = latest and SnapshotManager:Preview(latest, nil, true)
     if not preview then
         wipe(panel._syncDetail)
         if panel._syncHover then panel._syncHover:Hide() end
@@ -104,7 +106,7 @@ local function RefreshSyncStatus(panel)
         CollectModuleChanges(panel, preview)
         if panel._syncHover then panel._syncHover:Show() end
         panel._syncLabel:SetText(L["Unsaved changes"] .. "  "
-            .. WowSync:FormatDiffString(totals))
+            .. ChangeBadge.FormatDiffString(totals))
         panel._syncLabel:SetTextColor(unpack(WARNING_TEXT_COLOR))
     end
     panel._syncLabel:Show()
@@ -169,7 +171,7 @@ end
 
 local function DoUndo(panel)
     if SnapshotManager:IsCombatLocked() then
-        WowSync:Print(L["You can't do that while in combat."])
+        Console:Print(L["You can't do that while in combat."])
         return
     end
 
@@ -179,9 +181,9 @@ local function DoUndo(panel)
     end
     local undoResult = SnapshotManager:UndoLastApply()
     if undoResult then
-        WowSync:Print(L["Undid the last apply (X)."]:format(undoPoint and undoPoint.Subject or L["Unknown"]))
+        Console:Print(L["Undid the last apply (X)."]:format(undoPoint and undoPoint.Subject or L["Unknown"]))
         for _, name in ipairs(undoResult:Applied()) do
-            WowSync:Print(L["  X: restored"]:format(name))
+            Console:Print(L["  X: restored"]:format(name))
         end
     end
     ApplyUndoState(panel)
@@ -191,23 +193,24 @@ local function ApplySnapshot(panel, snapshot, moduleSet, mode, overrides)
     if not panel._currentProfileName or not snapshot then return end
 
     if SnapshotManager:IsCombatLocked() then
-        WowSync:Print(L["You can't do that while in combat."])
+        Console:Print(L["You can't do that while in combat."])
         return
     end
 
     if not next(moduleSet) then
-        WowSync:Print(L["No modules selected."])
+        Console:Print(L["No modules selected."])
         return
     end
 
     -- Apply only the chosen modules of the snapshot, each in its own mode (the
-    -- preview's per-module overrides over the dialog's default). The current head
-    -- is not a stored snapshot, so it routes through ApplyHeadByCharKey.
+    -- preview's per-module overrides over the dialog's default). A head is just a
+    -- Snapshot, so an own-head, an alt's head, and a stored snapshot all flow
+    -- through the same Apply.
     local strategy = { default = mode or "exact", overrides = overrides }
     if Debugger:IsEnabled() then
         Debugger:RecordUI({ Action = "apply", Profile = panel._currentProfileName, Mode = strategy.default })
     end
-    local applyResult = SnapshotView:Apply(snapshot, strategy, moduleSet)
+    local applyResult = SnapshotManager:Apply(snapshot, strategy, moduleSet)
     if applyResult and applyResult:Any() then
         for _, name in ipairs(applyResult:Applied()) do
             local outcome = applyResult:Get(name)
@@ -215,15 +218,15 @@ local function ApplySnapshot(panel, snapshot, moduleSet, mode, overrides)
             if outcome.warning then
                 message = L["X (Y)"]:format(message, outcome.warning)
             end
-            WowSync:Print(message)
+            Console:Print(message)
         end
         for _, name in ipairs(applyResult:Skipped()) do
-            WowSync:Print(L["X: skipped - Y"]:format(name, applyResult:Get(name).reason or L["unknown"]))
+            Console:Print(L["X: skipped - Y"]:format(name, applyResult:Get(name).reason or L["unknown"]))
         end
         local applied, skipped = applyResult:Counts()
         SetApplyStatus(panel, applied, skipped)
     else
-        WowSync:Print(L["Nothing to apply."])
+        Console:Print(L["Nothing to apply."])
     end
 
     ApplyUndoState(panel)
@@ -237,7 +240,11 @@ local function CanApplySnapshot(snapshot)
     if not snapshot then
         return false
     end
-    return not SnapshotView:IsCurrent(snapshot)
+    -- Meaningful only when the snapshot differs from the logged-in character's
+    -- live setup; its own head (and its latest save when nothing changed) already
+    -- match. Nil head (nothing captured) never matches, so apply stays offered.
+    local head = ProfileManager:GetHead()
+    return not (head and snapshot:CompareTo(head))
 end
 
 -- Open the preview dialog for a snapshot (defaulting to the selected one) in the
@@ -250,7 +257,7 @@ local function RequestApply(panel, snapshot, mode)
     if not snapshot then return end
 
     if not CanApplySnapshot(snapshot) then
-        WowSync:Print(L["Already matches your current setup."])
+        Console:Print(L["Already matches your current setup."])
         return
     end
 
@@ -293,7 +300,7 @@ end
 -- Roll back the most recent `count` applies (a cascade from the undo list).
 local function DoUndoSteps(panel, count, undoPoint)
     if SnapshotManager:IsCombatLocked() then
-        WowSync:Print(L["You can't do that while in combat."])
+        Console:Print(L["You can't do that while in combat."])
         return
     end
 
@@ -303,12 +310,12 @@ local function DoUndoSteps(panel, count, undoPoint)
     local undoResult = SnapshotManager:UndoApplies(count)
     if undoResult then
         if count > 1 then
-            WowSync:Print(L["Undid X changes."]:format(count))
+            Console:Print(L["Undid X changes."]:format(count))
         else
-            WowSync:Print(L["Undid the last apply (X)."]:format(undoPoint and undoPoint.Subject or L["Unknown"]))
+            Console:Print(L["Undid the last apply (X)."]:format(undoPoint and undoPoint.Subject or L["Unknown"]))
         end
         for _, name in ipairs(undoResult:Applied()) do
-            WowSync:Print(L["  X: restored"]:format(name))
+            Console:Print(L["  X: restored"]:format(name))
         end
     end
     ApplyUndoState(panel)
@@ -335,21 +342,21 @@ end
 -- that subset to a share string, and opens the copy dialog. The note defaults to
 -- the snapshot's own note so a re-share keeps it unless the player edits it.
 local function ShareSnapshot(panel, snapshot)
-    local isHead = SnapshotView:IsHead(snapshot)
+    local isHead = snapshot:IsHead()
     local subject, charKey, selector
     if isHead then
         subject = panel._currentProfileName .. " — " .. L["Current"]
-        charKey = SnapshotView:GetCharacterInfo(snapshot).Key
+        charKey = snapshot:GetCharacterInfo().Key
     else
-        subject = panel._currentProfileName .. " — " .. SnapshotRow:FormatSubject(SnapshotView:GetTimestamp(snapshot))
-        selector = SnapshotView:GetSelector(snapshot)
+        subject = panel._currentProfileName .. " — " .. SnapshotRow:FormatSubject(snapshot:GetTimestamp())
+        selector = snapshot:GetSelector()
     end
 
     ModuleSelectionDialog:Show({
         title = L["Share snapshot"],
         confirmText = L["Share…"],
-        moduleNames = SnapshotView:GetModuleNames(snapshot),
-        note = SnapshotView:GetNotes(snapshot),
+        moduleNames = snapshot:GetModuleNames(),
+        note = snapshot:GetNotes(),
         onConfirm = function(moduleSet, note)
             -- The picker's note is authoritative for a share: pass an explicit
             -- empty string (not nil) so clearing the prefilled note actually
@@ -364,7 +371,7 @@ local function ShareSnapshot(panel, snapshot)
             if share then
                 ShareDialog:Show({ text = share, subject = subject })
             else
-                WowSync:Print(reason or L["Couldn't export that snapshot."])
+                Console:Print(reason or L["Couldn't export that snapshot."])
             end
         end,
     })
@@ -373,9 +380,9 @@ end
 -- Open the diff preview for a snapshot, or report when there is no baseline to
 -- compare against yet (own head before its first saved snapshot).
 local function OpenPreview(snapshot, title)
-    local preview = SnapshotView:Preview(snapshot)
+    local preview = SnapshotManager:Preview(snapshot)
     if not preview then
-        WowSync:Print(L["Nothing saved yet to compare against."])
+        Console:Print(L["Nothing saved yet to compare against."])
         return
     end
     GameDiffPreview:Show({ title = title, preview = preview, mode = "exact" })
@@ -431,21 +438,21 @@ local function OpenSnapshotMenu(panel, snapshot, subject, anchor, isHead)
 
         rootDescription:CreateDivider()
 
-        if SnapshotView:IsPinned(snapshot) then
+        if snapshot:IsPinned() then
             rootDescription:CreateButton(L["Unpin"], function()
-                SnapshotView:Unpin(snapshot)
+                ProfileManager:Unpin(snapshot)
                 panel._snapshotList:Refresh()
             end)
         else
             rootDescription:CreateButton(L["Pin"], function()
-                SnapshotView:Pin(snapshot)
+                ProfileManager:Pin(snapshot)
                 panel._snapshotList:Refresh()
             end)
         end
 
         rootDescription:CreateButton(L["Edit note…"], function()
-            PopupDialogs:PromptEditNote(SnapshotView:GetNotes(snapshot), function(text)
-                SnapshotView:SetNotes(snapshot, text)
+            PopupDialogs:PromptEditNote(snapshot:GetNotes(), function(text)
+                ProfileManager:SetNotes(snapshot, text)
                 panel._snapshotList:Refresh()
             end)
         end)
@@ -458,7 +465,7 @@ local function OpenSnapshotMenu(panel, snapshot, subject, anchor, isHead)
 
         rootDescription:CreateButton(L["Delete snapshot"], function()
             PopupDialogs:ConfirmDeleteSnapshot(subject, function()
-                SnapshotView:Delete(snapshot)
+                ProfileManager:Remove(snapshot)
                 -- Deleting the latest snapshot changes what the header shows, so
                 -- refresh the whole panel rather than just the list.
                 panel:SetProfile(panel._currentProfileName)
@@ -567,7 +574,7 @@ function Methods:Constructor(config)
         GameTooltip:SetOwner(frame, "ANCHOR_BOTTOMLEFT")
         GameTooltip:AddLine(L["Unsaved changes"])
         for _, change in ipairs(panel._syncDetail) do
-            GameTooltip:AddLine(WowSync:FormatDiffString(change, change.name))
+            GameTooltip:AddLine(ChangeBadge.FormatDiffString(change, change.name))
         end
         GameTooltip:Show()
     end)
@@ -648,8 +655,8 @@ function Methods:SetProfile(profileName)
         return
     end
 
-    local headHandle = SnapshotHandleCache:GetHead(profileName)
-    local latestHandle = SnapshotHandleCache:GetLatestSaved(profileName)
+    local headHandle = ProfileManager:GetHead(profileName)
+    local latestHandle = ProfileManager:Latest(profileName)
 
     -- A listed character always has a head and/or saved history; guard anyway.
     if not headHandle and not latestHandle then
@@ -680,9 +687,9 @@ end
 function Methods:RequestSave()
     local charKey = SnapshotManager:GetCurrentCharKey()
 
-    local headHandle = SnapshotHandleCache:GetHead(charKey)
+    local headHandle = ProfileManager:GetHead(charKey)
     if not headHandle then
-        WowSync:Print(L["That character has nothing captured yet."])
+        Console:Print(L["That character has nothing captured yet."])
         return
     end
 
@@ -690,28 +697,28 @@ function Methods:RequestSave()
         title = L["Save snapshot"],
         confirmText = L["Save"],
         onConfirm = function(moduleSet, note)
-            local evicted = SnapshotHandleCache:GetPendingEviction(charKey)
+            local evicted = ProfileManager:PendingEviction(charKey)
 
             local function commit()
                 local function OnSaveComplete(snapshot, reason)
                     if snapshot then
-                        WowSync:Print(L["Snapshot saved."])
+                        Console:Print(L["Snapshot saved."])
                         if evicted then
-                            WowSync:Print(L["Reached the snapshot limit — removed the oldest (X)."]:format(
-                                SnapshotRow:FormatSubject(SnapshotView:GetTimestamp(evicted))))
+                            Console:Print(L["Reached the snapshot limit — removed the oldest (X)."]:format(
+                                SnapshotRow:FormatSubject(evicted:GetTimestamp())))
                         end
                         self:SetProfile(charKey)
                         if self._onSaved then
                             self._onSaved(charKey)
                         end
                     elseif reason == "unknown-character" then
-                        WowSync:Print(L["Could not save from that character."])
+                        Console:Print(L["Could not save from that character."])
                     elseif reason == "busy" then
-                        WowSync:Print(L["A save is already in progress."])
+                        Console:Print(L["A save is already in progress."])
                     elseif reason == "combat" then
-                        WowSync:Print(L["You can't do that while in combat."])
+                        Console:Print(L["You can't do that while in combat."])
                     else
-                        WowSync:Print(L["Could not save. Try again."])
+                        Console:Print(L["Could not save. Try again."])
                     end
                 end
 
@@ -723,7 +730,7 @@ function Methods:RequestSave()
 
             if evicted then
                 PopupDialogs:ConfirmSaveAtLimit(SnapshotManager:GetSnapshotLimit(),
-                    SnapshotRow:FormatSubject(SnapshotView:GetTimestamp(evicted)), commit)
+                    SnapshotRow:FormatSubject(evicted:GetTimestamp()), commit)
             else
                 commit()
             end
@@ -735,7 +742,7 @@ end
 function Methods:ShareSelected()
     local snapshot = self._snapshotList:GetSelected()
     if not snapshot then
-        WowSync:Print(L["Select a snapshot to share first."])
+        Console:Print(L["Select a snapshot to share first."])
         return
     end
     ShareSnapshot(self, snapshot)

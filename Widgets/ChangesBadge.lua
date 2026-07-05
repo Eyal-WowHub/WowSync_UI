@@ -4,7 +4,7 @@ local _, addon = ...
     ChangesBadge widget (the interactive per-module change figure).
 
     A ChangesBadge IS a Button that renders a module's pending change figure
-    (formatted by WowSync:FormatDiffString) and doubles as a link: give it a preview
+    (formatted by the addon's diff formatter) and doubles as a link: give it a preview
     handler and hovering tints it blue and shows a hint while clicking opens that
     module's filtered diff. Without a handler it stays plain, non-interactive
     text, and it hides itself when there is no change.
@@ -21,6 +21,8 @@ local ChangesBadge = addon:NewObject("ChangesBadge")
 
 local C = LibStub("Contracts-1.0")
 local L = addon.L
+
+local ChangeBadge = WowSync:Import("ChangeBadge")
 
 -- The badge's resting white and the blue-ish hover that signals it opens the
 -- module's filtered change preview.
@@ -41,7 +43,7 @@ local Methods = {}
 -- Render the change figure, sizing the badge to fit its text; hides the badge
 -- when the module has no pending change.
 function Methods:SetCounts(counts)
-    local text = WowSync:FormatDiffString(counts)
+    local text = ChangeBadge.FormatDiffString(counts)
     if text == "" then
         self._colored = nil
         self:Hide()

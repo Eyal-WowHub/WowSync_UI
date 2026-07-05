@@ -16,8 +16,6 @@ local ProfileHeader = addon:NewObject("ProfileHeader")
 local C = LibStub("Contracts-1.0")
 local L = addon.L
 
-local SnapshotView = WowSync:GetSnapshotView()
-
 local Methods = {}
 
 function Methods:Constructor(config)
@@ -29,7 +27,7 @@ function Methods:Constructor(config)
 end
 
 function Methods:SetProfile(character, snapshot)
-    local characterInfo = snapshot and SnapshotView:GetCharacterInfo(snapshot)
+    local characterInfo = snapshot and snapshot:GetCharacterInfo()
     character = character or (characterInfo and characterInfo.Character) or L["Unknown"]
 
     local classInfo = characterInfo and characterInfo.ClassID and C_CreatureInfo.GetClassInfo(characterInfo.ClassID)
@@ -45,7 +43,7 @@ function Methods:SetProfile(character, snapshot)
 
     self._infoText:SetText(L["X • Y"]:format(
         className,
-        date("%b %d, %Y %H:%M", (snapshot and SnapshotView:GetTimestamp(snapshot)) or 0)
+        date("%b %d, %Y %H:%M", (snapshot and snapshot:GetTimestamp()) or 0)
     ))
 end
 

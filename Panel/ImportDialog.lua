@@ -25,7 +25,8 @@ local C = LibStub("Contracts-1.0")
 local L = addon.L
 local UI = addon.UI
 
-local ImportManager = WowSync:GetImportManager()
+local ImportManager = WowSync:Import("ImportManager")
+local Console = WowSync:Import("Console")
 
 local Methods = {}
 
@@ -79,10 +80,10 @@ local function AttemptImport(panel)
 
     panel:Hide()
     if targetID then
-        WowSync:Print(result.Duplicate and L["Snapshot added but already exists."]
+        Console:Print(result.Duplicate and L["Snapshot added but already exists."]
             or L["Snapshot added."])
     else
-        WowSync:Print(L["Imported 'X'."]:format(result.Name or name))
+        Console:Print(L["Imported 'X'."]:format(result.Name or name))
     end
     if callback then
         callback(result.ImportID, result)

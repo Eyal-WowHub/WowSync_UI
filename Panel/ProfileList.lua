@@ -27,10 +27,8 @@ local C = LibStub("Contracts-1.0")
 local L = addon.L
 local UI = addon.UI
 
-local CharacterManager = WowSync:GetCharacterManager()
-local ProfileManager = WowSync:GetProfileManager()
-local SnapshotHandleCache = WowSync:GetSnapshotHandleCache()
-local SnapshotView = WowSync:GetSnapshotView()
+local CharacterManager = WowSync:Import("CharacterManager")
+local ProfileManager = WowSync:Import("ProfileManager")
 
 local Methods = {}
 
@@ -49,8 +47,8 @@ local function SplitNameRealm(key)
 end
 
 local function GetDeleteLabel(profileName)
-    local latestSnapshot = profileName and SnapshotHandleCache:GetLatestSaved(profileName)
-    return (latestSnapshot and SnapshotView:GetCharacterInfo(latestSnapshot).Character) or profileName
+    local latestSnapshot = profileName and ProfileManager:Latest(profileName)
+    return (latestSnapshot and latestSnapshot:GetCharacterInfo().Character) or profileName
 end
 
 local function CanDeleteSelectedProfile(panel)
