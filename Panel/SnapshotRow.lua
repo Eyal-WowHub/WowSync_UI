@@ -27,10 +27,12 @@ local _, addon = ...
 ]]
 
 local SnapshotRow = addon:NewObject("SnapshotRow")
-local SelectableRow = addon:GetObject("SelectableRow")
 
 local C = LibStub("Contracts-1.0")
+
 local L = addon.L
+
+local SelectableRow = addon:GetObject("SelectableRow")
 
 local ChangeBadge = WowSync:Import("ChangeBadge")
 

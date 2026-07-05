@@ -13,10 +13,12 @@ local _, addon = ...
 ]]
 
 local ShareDialog = addon:NewObject("ShareDialog")
-local Dialog = addon:GetObject("Dialog")
 
 local C = LibStub("Contracts-1.0")
+
 local L = addon.L
+
+local Dialog = addon:GetObject("Dialog")
 
 -- Roomy enough to show a multi-line share string without the box scrolling on a
 -- typical export.

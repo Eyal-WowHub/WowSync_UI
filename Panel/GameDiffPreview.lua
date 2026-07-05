@@ -26,12 +26,14 @@ local _, addon = ...
 ]]
 
 local GameDiffPreview = addon:NewObject("GameDiffPreview")
-local Dialog = addon:GetObject("Dialog")
-local ScrollList = addon:GetObject("ScrollList")
 
 local C = LibStub("Contracts-1.0")
+
 local L = addon.L
 local UI = addon.UI
+
+local Dialog = addon:GetObject("Dialog")
+local ScrollList = addon:GetObject("ScrollList")
 
 local SnapshotManager = WowSync:Import("SnapshotManager")
 

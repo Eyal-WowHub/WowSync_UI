@@ -14,19 +14,20 @@ local _, addon = ...
 ]]
 
 local MainFrame = addon:NewObject("MainFrame")
-local TitleBar = addon:GetObject("TitleBar")
-local TabStrip = addon:GetObject("TabStrip")
-local ProfileList = addon:GetObject("ProfileList")
-local ProfilesTabFrame = addon:GetObject("ProfilesTabFrame")
-local ImportList = addon:GetObject("ImportList")
-local ImportsTabFrame = addon:GetObject("ImportsTabFrame")
-local Splitter = addon:GetObject("Splitter")
-local CombatOverlay = addon:GetObject("CombatOverlay")
-local Panel = addon:GetObject("Panel")
 
 local L = addon.L
-local UI = addon.UI
 local Settings = addon.Settings
+local UI = addon.UI
+
+local CombatOverlay = addon:GetObject("CombatOverlay")
+local ImportList = addon:GetObject("ImportList")
+local ImportsTabFrame = addon:GetObject("ImportsTabFrame")
+local Panel = addon:GetObject("Panel")
+local ProfileList = addon:GetObject("ProfileList")
+local ProfilesTabFrame = addon:GetObject("ProfilesTabFrame")
+local Splitter = addon:GetObject("Splitter")
+local TabStrip = addon:GetObject("TabStrip")
+local TitleBar = addon:GetObject("TitleBar")
 
 -- The single window instance, built lazily on the first Toggle/OpenShareDialog.
 local instance

@@ -42,9 +42,10 @@ local _, addon = ...
 ]]
 
 local Panel = addon:NewObject("Panel")
-local TitleBar = addon:GetObject("TitleBar")
 
 local C = LibStub("Contracts-1.0")
+
+local TitleBar = addon:GetObject("TitleBar")
 
 -- Insets that seat the flat fill inside the nine-slice border, matching WoW's
 -- Settings frame (built from the same layout): the top clears the header strip,

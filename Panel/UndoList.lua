@@ -19,12 +19,14 @@ local _, addon = ...
 ]]
 
 local UndoList = addon:NewObject("UndoList")
-local ScrollList = addon:GetObject("ScrollList")
-local SectionHeader = addon:GetObject("SectionHeader")
+
+local C = LibStub("Contracts-1.0")
 
 local L = addon.L
 local UI = addon.UI
-local C = LibStub("Contracts-1.0")
+
+local ScrollList = addon:GetObject("ScrollList")
+local SectionHeader = addon:GetObject("SectionHeader")
 
 local SnapshotManager = WowSync:Import("SnapshotManager")
 

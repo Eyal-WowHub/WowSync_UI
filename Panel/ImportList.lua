@@ -23,15 +23,17 @@ local _, addon = ...
 ]]
 
 local ImportList = addon:NewObject("ImportList")
-local ImportRow = addon:GetObject("ImportRow")
-local ImportDialog = addon:GetObject("ImportDialog")
-local PopupDialogs = addon:GetObject("PopupDialogs")
-local List = addon:GetObject("List")
-local Button = addon:GetObject("Button")
 
 local C = LibStub("Contracts-1.0")
+
 local L = addon.L
 local UI = addon.UI
+
+local Button = addon:GetObject("Button")
+local ImportDialog = addon:GetObject("ImportDialog")
+local ImportRow = addon:GetObject("ImportRow")
+local List = addon:GetObject("List")
+local PopupDialogs = addon:GetObject("PopupDialogs")
 
 local ImportManager = WowSync:Import("ImportManager")
 

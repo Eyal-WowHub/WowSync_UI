@@ -23,13 +23,15 @@ local _, addon = ...
 ]]
 
 local ModuleSelectionDialog = addon:NewObject("ModuleSelectionDialog")
-local Dialog = addon:GetObject("Dialog")
-local ModuleRow = addon:GetObject("ModuleRow")
-local Button = addon:GetObject("Button")
 
 local C = LibStub("Contracts-1.0")
+
 local L = addon.L
 local UI = addon.UI
+
+local Button = addon:GetObject("Button")
+local Dialog = addon:GetObject("Dialog")
+local ModuleRow = addon:GetObject("ModuleRow")
 
 local ModuleRegistry = WowSync:Import("ModuleRegistry")
 

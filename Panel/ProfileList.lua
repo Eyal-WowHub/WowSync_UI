@@ -18,14 +18,16 @@ local _, addon = ...
 ]]
 
 local ProfileList = addon:NewObject("ProfileList")
-local ProfileRow = addon:GetObject("ProfileRow")
-local PopupDialogs = addon:GetObject("PopupDialogs")
-local List = addon:GetObject("List")
-local Button = addon:GetObject("Button")
 
 local C = LibStub("Contracts-1.0")
+
 local L = addon.L
 local UI = addon.UI
+
+local Button = addon:GetObject("Button")
+local List = addon:GetObject("List")
+local PopupDialogs = addon:GetObject("PopupDialogs")
+local ProfileRow = addon:GetObject("ProfileRow")
 
 local CharacterManager = WowSync:Import("CharacterManager")
 local ProfileManager = WowSync:Import("ProfileManager")

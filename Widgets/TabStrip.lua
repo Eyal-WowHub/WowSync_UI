@@ -19,6 +19,7 @@ local _, addon = ...
 local TabStrip = addon:NewObject("TabStrip")
 
 local C = LibStub("Contracts-1.0")
+
 local UI = addon.UI
 
 -- Fallback strip height when the caller does not supply one.

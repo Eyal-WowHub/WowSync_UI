@@ -20,9 +20,10 @@ local _, addon = ...
 ]]
 
 local PopupDialogs = addon:NewObject("PopupDialogs")
-local PopupDialog = addon:GetObject("PopupDialog")
 
 local L = addon.L
+
+local PopupDialog = addon:GetObject("PopupDialog")
 
 -- Longest name a renamed import may carry.
 local MAX_RENAME_LETTERS = 64

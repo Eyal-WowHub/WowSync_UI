@@ -18,10 +18,12 @@ local _, addon = ...
 ]]
 
 local ProfileRow = addon:NewObject("ProfileRow")
-local ListRow = addon:GetObject("ListRow")
 
 local C = LibStub("Contracts-1.0")
+
 local L = addon.L
+
+local ListRow = addon:GetObject("ListRow")
 
 local Methods = Mixin({}, ListRow.Methods)
 

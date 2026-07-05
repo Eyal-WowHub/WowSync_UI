@@ -21,10 +21,12 @@ local _, addon = ...
 ]]
 
 local ImportRow = addon:NewObject("ImportRow")
-local ListRow = addon:GetObject("ListRow")
 
 local C = LibStub("Contracts-1.0")
+
 local L = addon.L
+
+local ListRow = addon:GetObject("ListRow")
 
 -- Cap on an inline-renamed container name, matching the rename dialog.
 local MAX_RENAME_LETTERS = 64

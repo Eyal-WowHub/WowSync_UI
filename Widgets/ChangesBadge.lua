@@ -20,6 +20,7 @@ local _, addon = ...
 local ChangesBadge = addon:NewObject("ChangesBadge")
 
 local C = LibStub("Contracts-1.0")
+
 local L = addon.L
 
 local ChangeBadge = WowSync:Import("ChangeBadge")

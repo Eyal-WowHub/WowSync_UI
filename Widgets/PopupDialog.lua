@@ -33,11 +33,13 @@ local _, addon = ...
 ]]
 
 local PopupDialog = addon:NewObject("PopupDialog")
-local Dialog = addon:GetObject("Dialog")
-local Button = addon:GetObject("Button")
 
 local C = LibStub("Contracts-1.0")
+
 local UI = addon.UI
+
+local Button = addon:GetObject("Button")
+local Dialog = addon:GetObject("Dialog")
 
 -- Inset from the popup edges to its content.
 local PADDING = 16

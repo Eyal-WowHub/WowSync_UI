@@ -25,15 +25,17 @@ local _, addon = ...
 ]]
 
 local ImportSnapshotList = addon:NewObject("ImportSnapshotList")
-local ImportSnapshotRow = addon:GetObject("ImportSnapshotRow")
-local ScrollList = addon:GetObject("ScrollList")
-local ExpandableContent = addon:GetObject("ExpandableContent")
 
 local C = LibStub("Contracts-1.0")
+
 local SnapshotDetailBuilder = addon.SnapshotDetailBuilder
 
-local ImportManager = WowSync:Import("ImportManager")
+local ExpandableContent = addon:GetObject("ExpandableContent")
+local ImportSnapshotRow = addon:GetObject("ImportSnapshotRow")
+local ScrollList = addon:GetObject("ScrollList")
+
 local ImportedHashDictionary = WowSync:Import("ImportedHashDictionary")
+local ImportManager = WowSync:Import("ImportManager")
 
 local Methods = {}
 

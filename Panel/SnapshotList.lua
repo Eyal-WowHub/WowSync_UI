@@ -26,12 +26,17 @@ local _, addon = ...
 ]]
 
 local SnapshotList = addon:NewObject("SnapshotList")
-local SnapshotRow = addon:GetObject("SnapshotRow")
-local ScrollList = addon:GetObject("ScrollList")
-local ExpandableContent = addon:GetObject("ExpandableContent")
 
 local C = LibStub("Contracts-1.0")
+
 local SnapshotDetailBuilder = addon.SnapshotDetailBuilder
+
+local ExpandableContent = addon:GetObject("ExpandableContent")
+local ScrollList = addon:GetObject("ScrollList")
+local SnapshotRow = addon:GetObject("SnapshotRow")
+
+local ProfileManager = WowSync:Import("ProfileManager")
+local SnapshotManager = WowSync:Import("SnapshotManager")
 
 -- Height of a collapsed snapshot row.
 local SNAPSHOT_ROW_HEIGHT = 40
@@ -47,9 +52,6 @@ local CONTENT_BOTTOM_PAD = 8
 -- Right margin of the row content, matching the row's content anchor; paired
 -- with the row's content inset to derive the wrap width for measuring.
 local RIGHT_MARGIN = 8
-
-local SnapshotManager = WowSync:Import("SnapshotManager")
-local ProfileManager = WowSync:Import("ProfileManager")
 
 local Methods = {}
 

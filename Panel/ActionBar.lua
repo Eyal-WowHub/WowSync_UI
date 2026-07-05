@@ -21,10 +21,12 @@ local _, addon = ...
 ]]
 
 local ActionBar = addon:NewObject("ActionBar")
-local Button = addon:GetObject("Button")
 
 local C = LibStub("Contracts-1.0")
+
 local L = addon.L
+
+local Button = addon:GetObject("Button")
 
 local SnapshotManager = WowSync:Import("SnapshotManager")
 

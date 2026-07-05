@@ -19,12 +19,14 @@ local _, addon = ...
 ]]
 
 local ModuleRow = addon:NewObject("ModuleRow")
-local Button = addon:GetObject("Button")
-local Checkbox = addon:GetObject("Checkbox")
-local ChangesBadge = addon:GetObject("ChangesBadge")
 
 local C = LibStub("Contracts-1.0")
+
 local L = addon.L
+
+local Button = addon:GetObject("Button")
+local ChangesBadge = addon:GetObject("ChangesBadge")
+local Checkbox = addon:GetObject("Checkbox")
 
 -- Size of the per-row Merge/Exact toggle shown on apply rows.
 local MODE_BUTTON_WIDTH = 58

@@ -20,9 +20,10 @@ local _, addon = ...
 ]]
 
 local TitleBar = addon:NewObject("TitleBar")
-local LockButton = addon:GetObject("LockButton")
 
 local C = LibStub("Contracts-1.0")
+
+local LockButton = addon:GetObject("LockButton")
 
 -- The title bar's natural height; owners size the slot they build it into to
 -- this so the title and controls sit the same in the window and in dialogs.

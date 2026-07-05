@@ -21,6 +21,7 @@ local _, addon = ...
 ]]
 
 local ListRow = addon:NewObject("ListRow")
+
 local SelectableRow = addon:GetObject("SelectableRow")
 
 -- Left inset of a group header and the deeper inset of the item rows grouped

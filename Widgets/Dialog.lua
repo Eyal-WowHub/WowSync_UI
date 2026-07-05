@@ -23,10 +23,12 @@ local _, addon = ...
 ]]
 
 local Dialog = addon:NewObject("Dialog")
-local Panel = addon:GetObject("Panel")
 
 local C = LibStub("Contracts-1.0")
+
 local UI = addon.UI
+
+local Panel = addon:GetObject("Panel")
 
 -- Horizontal gap between a dialog and the one it stacks beside.
 local DIALOG_GAP = 12

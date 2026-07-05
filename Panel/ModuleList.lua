@@ -20,10 +20,12 @@ local _, addon = ...
 ]]
 
 local ModuleList = addon:NewObject("ModuleList")
-local ModuleRow = addon:GetObject("ModuleRow")
 
 local C = LibStub("Contracts-1.0")
+
 local UI = addon.UI
+
+local ModuleRow = addon:GetObject("ModuleRow")
 
 local ModuleRegistry = WowSync:Import("ModuleRegistry")
 local SnapshotManager = WowSync:Import("SnapshotManager")

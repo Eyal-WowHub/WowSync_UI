@@ -21,27 +21,29 @@ local _, addon = ...
 ]]
 
 local ProfilesTabFrame = addon:NewObject("ProfilesTabFrame")
-local PopupDialogs = addon:GetObject("PopupDialogs")
-local ProfileHeader = addon:GetObject("ProfileHeader")
-local SnapshotList = addon:GetObject("SnapshotList")
-local SnapshotRow = addon:GetObject("SnapshotRow")
-local UndoList = addon:GetObject("UndoList")
+
+local C = LibStub("Contracts-1.0")
+
+local L = addon.L
+local UI = addon.UI
+
 local ActionBar = addon:GetObject("ActionBar")
 local ApplyPreviewDialog = addon:GetObject("ApplyPreviewDialog")
 local GameDiffPreview = addon:GetObject("GameDiffPreview")
 local ModuleSelectionDialog = addon:GetObject("ModuleSelectionDialog")
+local PopupDialogs = addon:GetObject("PopupDialogs")
+local ProfileHeader = addon:GetObject("ProfileHeader")
 local ShareDialog = addon:GetObject("ShareDialog")
+local SnapshotList = addon:GetObject("SnapshotList")
+local SnapshotRow = addon:GetObject("SnapshotRow")
+local UndoList = addon:GetObject("UndoList")
 
-local C = LibStub("Contracts-1.0")
-local L = addon.L
-local UI = addon.UI
-
-local SnapshotManager = WowSync:Import("SnapshotManager")
-local ProfileManager = WowSync:Import("ProfileManager")
-local ExportManager = WowSync:Import("ExportManager")
-local Debugger = WowSync:Import("Debugger")
-local Console = WowSync:Import("Console")
 local ChangeBadge = WowSync:Import("ChangeBadge")
+local Console = WowSync:Import("Console")
+local Debugger = WowSync:Import("Debugger")
+local ExportManager = WowSync:Import("ExportManager")
+local ProfileManager = WowSync:Import("ProfileManager")
+local SnapshotManager = WowSync:Import("SnapshotManager")
 
 -- Status text colours { r, g, b, a } for in-sync/saved and out-of-sync states.
 local SUCCESS_TEXT_COLOR = { 0.3, 0.85, 0.3, 1 }

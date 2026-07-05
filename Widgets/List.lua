@@ -30,11 +30,13 @@ local _, addon = ...
 ]]
 
 local List = addon:NewObject("List")
-local ScrollList = addon:GetObject("ScrollList")
-local SectionHeader = addon:GetObject("SectionHeader")
 
 local C = LibStub("Contracts-1.0")
+
 local UI = addon.UI
+
+local ScrollList = addon:GetObject("ScrollList")
+local SectionHeader = addon:GetObject("SectionHeader")
 
 -- Leaves room below the scroll area for the owner's bottom-left buttons.
 local DEFAULT_BOTTOM_INSET = 40

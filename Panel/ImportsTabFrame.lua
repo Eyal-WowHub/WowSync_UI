@@ -16,20 +16,22 @@ local _, addon = ...
 ]]
 
 local ImportsTabFrame = addon:NewObject("ImportsTabFrame")
-local ImportSnapshotList = addon:GetObject("ImportSnapshotList")
-local ApplyPreviewDialog = addon:GetObject("ApplyPreviewDialog")
-local GameDiffPreview = addon:GetObject("GameDiffPreview")
-local PopupDialogs = addon:GetObject("PopupDialogs")
-local SnapshotRow = addon:GetObject("SnapshotRow")
-local Button = addon:GetObject("Button")
 
 local C = LibStub("Contracts-1.0")
+
 local L = addon.L
 local UI = addon.UI
 
+local ApplyPreviewDialog = addon:GetObject("ApplyPreviewDialog")
+local Button = addon:GetObject("Button")
+local GameDiffPreview = addon:GetObject("GameDiffPreview")
+local ImportSnapshotList = addon:GetObject("ImportSnapshotList")
+local PopupDialogs = addon:GetObject("PopupDialogs")
+local SnapshotRow = addon:GetObject("SnapshotRow")
+
+local Console = WowSync:Import("Console")
 local ImportManager = WowSync:Import("ImportManager")
 local SnapshotManager = WowSync:Import("SnapshotManager")
-local Console = WowSync:Import("Console")
 
 local Methods = {}
 
