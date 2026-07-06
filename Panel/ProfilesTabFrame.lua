@@ -368,7 +368,7 @@ local function ShareSnapshot(panel, snapshot)
             if isHead then
                 share, reason = ExportManager:ExportLiveSnapshot(charKey, opts)
             else
-                share, reason = ExportManager:ExportSnapshot(panel._currentProfileName, selector, opts)
+                share, reason = ExportManager:ExportSavedSnapshot(panel._currentProfileName, selector, opts)
             end
             if share then
                 ShareDialog:Show({ text = share, subject = subject })
