@@ -621,10 +621,10 @@ function Methods:Constructor(config)
 
     -- Animate the Save button for the duration of any save (including the
     -- command line), then show a brief confirmation.
-    WowSync:RegisterEvent("WOWSYNC_SAVE_STARTED", function()
+    WowSync:RegisterEvent("WOWSYNC_SNAPSHOT_SAVE_STARTED", function()
         panel._actionBar:BeginSaving()
     end)
-    WowSync:RegisterEvent("WOWSYNC_SAVE_FINISHED", function(_, _, storedSnapshot)
+    WowSync:RegisterEvent("WOWSYNC_SNAPSHOT_SAVE_FINISHED", function(_, _, storedSnapshot)
         panel._actionBar:EndSaving(storedSnapshot)
     end)
 
