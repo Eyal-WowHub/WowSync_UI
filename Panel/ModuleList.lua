@@ -21,8 +21,7 @@ local _, addon = ...
 
 local ModuleList = addon:NewObject("ModuleList")
 
-local C = LibStub("Contracts-1.0")
-
+local C = addon.C
 local UI = addon.UI
 
 local ModuleRow = addon:GetObject("ModuleRow")

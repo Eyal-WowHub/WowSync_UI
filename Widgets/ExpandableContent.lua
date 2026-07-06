@@ -33,7 +33,7 @@ local _, addon = ...
 
 local ExpandableContent = addon:NewObject("ExpandableContent")
 
-local C = LibStub("Contracts-1.0")
+local C = addon.C
 
 -- Horizontal gap between a wrapping/own-line left cell and a right label that
 -- shares its line, so their texts never touch.

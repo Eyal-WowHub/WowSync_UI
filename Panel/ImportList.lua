@@ -24,8 +24,7 @@ local _, addon = ...
 
 local ImportList = addon:NewObject("ImportList")
 
-local C = LibStub("Contracts-1.0")
-
+local C = addon.C
 local L = addon.L
 local UI = addon.UI
 

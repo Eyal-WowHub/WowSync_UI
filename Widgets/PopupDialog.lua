@@ -34,8 +34,7 @@ local _, addon = ...
 
 local PopupDialog = addon:NewObject("PopupDialog")
 
-local C = LibStub("Contracts-1.0")
-
+local C = addon.C
 local UI = addon.UI
 
 local Button = addon:GetObject("Button")

@@ -28,8 +28,7 @@ local _, addon = ...
 
 local SnapshotRow = addon:NewObject("SnapshotRow")
 
-local C = LibStub("Contracts-1.0")
-
+local C = addon.C
 local L = addon.L
 
 local SelectableRow = addon:GetObject("SelectableRow")

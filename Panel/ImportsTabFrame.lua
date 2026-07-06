@@ -17,8 +17,7 @@ local _, addon = ...
 
 local ImportsTabFrame = addon:NewObject("ImportsTabFrame")
 
-local C = LibStub("Contracts-1.0")
-
+local C = addon.C
 local L = addon.L
 local UI = addon.UI
 

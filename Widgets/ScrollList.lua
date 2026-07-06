@@ -23,7 +23,7 @@ local _, addon = ...
 
 local ScrollList = addon:NewObject("ScrollList")
 
-local C = LibStub("Contracts-1.0")
+local C = addon.C
 
 local Methods = {}
 

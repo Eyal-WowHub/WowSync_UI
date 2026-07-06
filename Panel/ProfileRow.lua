@@ -19,8 +19,7 @@ local _, addon = ...
 
 local ProfileRow = addon:NewObject("ProfileRow")
 
-local C = LibStub("Contracts-1.0")
-
+local C = addon.C
 local L = addon.L
 
 local ListRow = addon:GetObject("ListRow")

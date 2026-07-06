@@ -17,7 +17,7 @@ local _, addon = ...
 
 local ResizeGrip = addon:NewObject("ResizeGrip")
 
-local C = LibStub("Contracts-1.0")
+local C = addon.C
 
 local DragTracker = addon:GetObject("DragTracker")
 

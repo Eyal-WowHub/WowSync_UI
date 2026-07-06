@@ -30,7 +30,7 @@ local _, addon = ...
 
 local Checkbox = addon:NewObject("Checkbox")
 
-local C = LibStub("Contracts-1.0")
+local C = addon.C
 
 -- WoW's flat Settings checkbox art: a thin square with a plain checkmark.
 local CHECK_ATLAS = "checkbox-minimal"

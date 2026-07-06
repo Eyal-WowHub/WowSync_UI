@@ -14,8 +14,7 @@ local _, addon = ...
 
 local ShareDialog = addon:NewObject("ShareDialog")
 
-local C = LibStub("Contracts-1.0")
-
+local C = addon.C
 local L = addon.L
 
 local Dialog = addon:GetObject("Dialog")

@@ -24,8 +24,7 @@ local _, addon = ...
 
 local Dialog = addon:NewObject("Dialog")
 
-local C = LibStub("Contracts-1.0")
-
+local C = addon.C
 local UI = addon.UI
 
 local Panel = addon:GetObject("Panel")

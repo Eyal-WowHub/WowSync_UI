@@ -31,8 +31,7 @@ local _, addon = ...
 
 local List = addon:NewObject("List")
 
-local C = LibStub("Contracts-1.0")
-
+local C = addon.C
 local UI = addon.UI
 
 local ScrollList = addon:GetObject("ScrollList")

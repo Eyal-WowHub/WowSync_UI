@@ -24,7 +24,7 @@ local _, addon = ...
 
 local Button = addon:NewObject("Button")
 
-local C = LibStub("Contracts-1.0")
+local C = addon.C
 
 -- How long the confirmation flash rises and fades.
 local FLASH_SECONDS = 0.9

@@ -18,7 +18,7 @@ local _, addon = ...
 
 local DragTracker = addon:NewObject("DragTracker")
 
-local C = LibStub("Contracts-1.0")
+local C = addon.C
 
 function DragTracker:Attach(region, opts)
     C:IsTable(region, 2)

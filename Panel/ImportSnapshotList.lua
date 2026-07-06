@@ -26,8 +26,7 @@ local _, addon = ...
 
 local ImportSnapshotList = addon:NewObject("ImportSnapshotList")
 
-local C = LibStub("Contracts-1.0")
-
+local C = addon.C
 local SnapshotDetailBuilder = addon.SnapshotDetailBuilder
 
 local ExpandableContent = addon:GetObject("ExpandableContent")

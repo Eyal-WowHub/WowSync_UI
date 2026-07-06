@@ -20,8 +20,7 @@ local _, addon = ...
 
 local UndoList = addon:NewObject("UndoList")
 
-local C = LibStub("Contracts-1.0")
-
+local C = addon.C
 local L = addon.L
 local UI = addon.UI
 

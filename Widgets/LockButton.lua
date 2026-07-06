@@ -16,8 +16,7 @@ local _, addon = ...
 
 local LockButton = addon:NewObject("LockButton")
 
-local C = LibStub("Contracts-1.0")
-
+local C = addon.C
 local L = addon.L
 
 local Methods = {}

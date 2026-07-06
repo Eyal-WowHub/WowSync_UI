@@ -22,8 +22,7 @@ local _, addon = ...
 
 local ImportRow = addon:NewObject("ImportRow")
 
-local C = LibStub("Contracts-1.0")
-
+local C = addon.C
 local L = addon.L
 
 local ListRow = addon:GetObject("ListRow")

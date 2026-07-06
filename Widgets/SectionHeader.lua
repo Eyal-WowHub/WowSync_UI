@@ -15,7 +15,7 @@ local _, addon = ...
 
 local SectionHeader = addon:NewObject("SectionHeader")
 
-local C = LibStub("Contracts-1.0")
+local C = addon.C
 
 -- WoW's Settings section headers use the large highlight (white) font.
 local SECTION_HEADER_FONT = "GameFontHighlightLarge"

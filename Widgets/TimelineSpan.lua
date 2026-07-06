@@ -20,7 +20,7 @@ local _, addon = ...
 
 local TimelineSpan = addon:NewObject("TimelineSpan")
 
-local C = LibStub("Contracts-1.0")
+local C = addon.C
 
 -- X position of the rail within the span; the row's content inset clears it.
 local RAIL_X = 14

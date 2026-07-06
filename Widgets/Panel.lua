@@ -43,7 +43,7 @@ local _, addon = ...
 
 local Panel = addon:NewObject("Panel")
 
-local C = LibStub("Contracts-1.0")
+local C = addon.C
 
 local TitleBar = addon:GetObject("TitleBar")
 

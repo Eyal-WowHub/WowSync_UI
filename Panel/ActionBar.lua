@@ -22,8 +22,7 @@ local _, addon = ...
 
 local ActionBar = addon:NewObject("ActionBar")
 
-local C = LibStub("Contracts-1.0")
-
+local C = addon.C
 local L = addon.L
 
 local Button = addon:GetObject("Button")

@@ -21,7 +21,7 @@ local _, addon = ...
 
 local TitleBar = addon:NewObject("TitleBar")
 
-local C = LibStub("Contracts-1.0")
+local C = addon.C
 
 local LockButton = addon:GetObject("LockButton")
 

@@ -22,8 +22,7 @@ local _, addon = ...
 
 local ProfilesTabFrame = addon:NewObject("ProfilesTabFrame")
 
-local C = LibStub("Contracts-1.0")
-
+local C = addon.C
 local L = addon.L
 local UI = addon.UI
 

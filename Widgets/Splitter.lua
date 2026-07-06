@@ -22,8 +22,7 @@ local _, addon = ...
 
 local Splitter = addon:NewObject("Splitter")
 
-local C = LibStub("Contracts-1.0")
-
+local C = addon.C
 local UI = addon.UI
 
 local DragTracker = addon:GetObject("DragTracker")
