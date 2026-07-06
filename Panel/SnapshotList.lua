@@ -98,7 +98,7 @@ function Methods:Constructor(config)
         end,
         OpenMenu = function(snapshot, anchor)
             if snapshot and panel._onContext then
-                panel._onContext(snapshot, SnapshotRow:FormatSubject(snapshot:GetTimestamp()), anchor, snapshot:IsHead())
+                panel._onContext(snapshot, SnapshotRow:FormatSubject(snapshot:GetTimestamp()), anchor, snapshot:IsLive())
             end
         end,
     }
@@ -169,7 +169,7 @@ local function LoadEntries(panel)
     for _, handle in ipairs(ProfileManager:GetTimeline(panel._currentProfile)) do
         tinsert(panel._entries, {
             snapshot = handle,
-            isHead = handle:IsHead(),
+            isHead = handle:IsLive(),
         })
     end
 end
@@ -180,7 +180,7 @@ end
 -- expanded summary's verdict while staying cheap enough to switch profiles
 -- without a hitch. The head is the live setup itself, so it never tags.
 function Methods:HasChanges(snapshot)
-    if not snapshot or snapshot:IsHead() then
+    if not snapshot or snapshot:IsLive() then
         return false
     end
 
@@ -202,7 +202,7 @@ function Methods:SetProfile(profileName)
     wipe(self._changeFlags)
 
     -- Default selection: the head when present, else the latest saved snapshot.
-    self._selected = profileName and (ProfileManager:GetHead(profileName) or ProfileManager:Latest(profileName))
+    self._selected = profileName and (ProfileManager:GetLiveSnapshot(profileName) or ProfileManager:Latest(profileName))
     self._expanded = nil
     self._expandedDetail = nil
     Rebuild(self)

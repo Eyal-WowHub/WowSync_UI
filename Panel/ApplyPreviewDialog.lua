@@ -126,7 +126,7 @@ function Methods:Open(opts)
     self._onConfirm = opts.onConfirm
     self._currentMode = opts.mode or "exact"
     self._currentSubject = opts.subject
-        or (opts.snapshot:IsHead() and L["Current"] or SnapshotRow:FormatSubject(opts.snapshot:GetTimestamp()))
+        or (opts.snapshot:IsLive() and L["Current"] or SnapshotRow:FormatSubject(opts.snapshot:GetTimestamp()))
     self:SetTitle(L["Apply snapshot"])
     self._subjectLabel:SetText(self._currentSubject)
 

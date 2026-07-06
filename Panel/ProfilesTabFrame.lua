@@ -245,7 +245,7 @@ local function CanApplySnapshot(snapshot)
     -- Meaningful only when the snapshot differs from the logged-in character's
     -- live setup; its own head (and its latest save when nothing changed) already
     -- match. Nil head (nothing captured) never matches, so apply stays offered.
-    local head = ProfileManager:GetHead()
+    local head = ProfileManager:GetLiveSnapshot()
     return not (head and snapshot:CompareTo(head))
 end
 
@@ -344,7 +344,7 @@ end
 -- that subset to a share string, and opens the copy dialog. The note defaults to
 -- the snapshot's own note so a re-share keeps it unless the player edits it.
 local function ShareSnapshot(panel, snapshot)
-    local isHead = snapshot:IsHead()
+    local isHead = snapshot:IsLive()
     local subject, charKey, selector
     if isHead then
         subject = panel._currentProfileName .. " — " .. L["Current"]
@@ -366,7 +366,7 @@ local function ShareSnapshot(panel, snapshot)
             local opts = { modules = moduleSet, notes = note or "" }
             local share, reason
             if isHead then
-                share, reason = ExportManager:ExportHead(charKey, opts)
+                share, reason = ExportManager:ExportLiveSnapshot(charKey, opts)
             else
                 share, reason = ExportManager:ExportSnapshot(panel._currentProfileName, selector, opts)
             end
@@ -584,9 +584,9 @@ function Methods:Constructor(config)
     syncHover:Hide()
     self._syncHover = syncHover
 
-    -- The core fires this whenever a character's live setup changes (the watcher
+    -- The core fires this whenever a module's live data updates (the watcher
     -- mirroring edits into Current); refresh the badge to match.
-    WowSync:RegisterEvent("WOWSYNC_CURRENT_CHANGED", function()
+    WowSync:RegisterEvent("WOWSYNC_MODULE_DATA_UPDATED", function()
         ScheduleSyncRefresh(panel)
     end)
 
@@ -615,7 +615,7 @@ function Methods:Constructor(config)
     -- you are viewing your own profile and have captured data. Track the
     -- capture state live; SetProfile drives the viewed-profile half.
     RefreshSaveState(self)
-    WowSync:RegisterEvent("WOWSYNC_CURRENT_CHANGED", function()
+    WowSync:RegisterEvent("WOWSYNC_MODULE_DATA_UPDATED", function()
         RefreshSaveState(panel)
     end)
 
@@ -657,7 +657,7 @@ function Methods:SetProfile(profileName)
         return
     end
 
-    local headHandle = ProfileManager:GetHead(profileName)
+    local headHandle = ProfileManager:GetLiveSnapshot(profileName)
     local latestHandle = ProfileManager:Latest(profileName)
 
     -- A listed character always has a head and/or saved history; guard anyway.
@@ -689,7 +689,7 @@ end
 function Methods:RequestSave()
     local charKey = SnapshotManager:GetCurrentCharKey()
 
-    local headHandle = ProfileManager:GetHead(charKey)
+    local headHandle = ProfileManager:GetLiveSnapshot(charKey)
     if not headHandle then
         Console:Print(L["That character has nothing captured yet."])
         return
