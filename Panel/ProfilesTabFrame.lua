@@ -43,6 +43,7 @@ local Debugger = WowSync:Import("Debugger")
 local ExportManager = WowSync:Import("ExportManager")
 local ProfileManager = WowSync:Import("ProfileManager")
 local SnapshotManager = WowSync:Import("SnapshotManager")
+local UndoManager = WowSync:Import("UndoManager")
 
 -- Status text colours { r, g, b, a } for in-sync/saved and out-of-sync states.
 local SUCCESS_TEXT_COLOR = { 0.3, 0.85, 0.3, 1 }
@@ -143,7 +144,7 @@ end
 
 -- Reflect the current undo point in whichever view is visible
 local function ApplyUndoState(panel)
-    local hasUndo = SnapshotManager:CanUndo()
+    local hasUndo = UndoManager:CanUndo()
     if panel._content:IsShown() then
         panel._actionBar:SetUndoEnabled(hasUndo)
         RefreshSaveState(panel)
@@ -176,11 +177,11 @@ local function DoUndo(panel)
         return
     end
 
-    local undoPoint = SnapshotManager:GetNextUndoPoint()
+    local undoPoint = UndoManager:GetNextUndoPoint()
     if Debugger:IsEnabled() then
         Debugger:RecordUI({ Action = "undo", Subject = undoPoint and undoPoint.Subject })
     end
-    local undoResult = SnapshotManager:UndoLastApply()
+    local undoResult = UndoManager:UndoLastApply()
     if undoResult then
         Console:Print(L["Undid the last apply (X)."]:format(undoPoint and undoPoint.Subject or L["Unknown"]))
         for _, name in ipairs(undoResult:Applied()) do
@@ -277,7 +278,7 @@ end
 
 -- Open the diff viewer on what undoing the most recent apply would restore.
 local function PreviewUndoChanges(undoPoint)
-    local preview = SnapshotManager:PreviewUndo()
+    local preview = UndoManager:PreviewUndo()
     if preview then
         GameDiffPreview:Show({
             title = undoPoint.Subject,
@@ -288,7 +289,7 @@ local function PreviewUndoChanges(undoPoint)
 end
 
 local function RequestUndo(panel)
-    local undoPoint = SnapshotManager:GetNextUndoPoint()
+    local undoPoint = UndoManager:GetNextUndoPoint()
     if undoPoint then
         PopupDialogs:ConfirmUndo(undoPoint.Subject, function()
             DoUndo(panel)
@@ -308,7 +309,7 @@ local function DoUndoSteps(panel, count, undoPoint)
     if Debugger:IsEnabled() then
         Debugger:RecordUI({ Action = "undo-steps", Count = count })
     end
-    local undoResult = SnapshotManager:UndoApplies(count)
+    local undoResult = UndoManager:UndoApplies(count)
     if undoResult then
         if count > 1 then
             Console:Print(L["Undid X changes."]:format(count))

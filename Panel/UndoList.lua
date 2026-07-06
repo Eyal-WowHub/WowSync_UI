@@ -27,7 +27,7 @@ local UI = addon.UI
 local ScrollList = addon:GetObject("ScrollList")
 local SectionHeader = addon:GetObject("SectionHeader")
 
-local SnapshotManager = WowSync:Import("SnapshotManager")
+local UndoManager = WowSync:Import("UndoManager")
 
 -- Height of an undo history row and the gap between rows.
 local UNDO_ROW_HEIGHT = 34
@@ -96,7 +96,7 @@ end
 -- Repopulate from the live undo points (newest first) and show the list only
 -- when there is something to undo. Returns whether any entries exist.
 function Methods:Refresh()
-    local undoPoints = SnapshotManager:GetUndoPoints()
+    local undoPoints = UndoManager:GetUndoPoints()
 
     local dataProvider = CreateDataProvider()
     for i, undoPoint in ipairs(undoPoints) do
