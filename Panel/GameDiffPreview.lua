@@ -34,7 +34,7 @@ local UI = addon.UI
 local Dialog = addon:GetObject("Dialog")
 local ScrollList = addon:GetObject("ScrollList")
 
-local SnapshotManager = WowSync:Import("SnapshotManager")
+local Module = WowSync:Import("Module")
 
 -- Row heights per element kind; the list mixes module headers, section
 -- subheaders, and entry rows in one virtualised stream.
@@ -116,7 +116,8 @@ end
 -- never remove, so their removals are not previewed even in Exact mode.
 local function ModuleSupportsExact(name)
     local applyModes = WowSync.Models and WowSync.Models.SnapshotApplyMode
-    local modes = SnapshotManager:GetModuleApplyMode(name)
+    local module = Module:FromRegisteredModule(name)
+    local modes = module and module:ApplyMode()
     return applyModes and applyModes.CanExact(modes) or false
 end
 
@@ -148,7 +149,8 @@ local function Populate(panel, dataProvider, preview, filterName, mode)
             local showRemoved = exactMode and ModuleSupportsExact(name)
             if HasVisibleChanges(moduleDiff, showRemoved) then
                 anyShown = true
-                local moduleIcon = SnapshotManager:GetModuleDefaultIcon(name)
+                local module = Module:FromRegisteredModule(name)
+                local moduleIcon = module and module:DefaultIcon()
                 dataProvider:Insert({ kind = "module", name = name })
 
                 for _, section in ipairs(SECTIONS) do

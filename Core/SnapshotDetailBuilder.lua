@@ -13,13 +13,14 @@ addon.SnapshotDetailBuilder = SnapshotDetailBuilder
             -> { hasNote, note, modules = { { name, added, changed, removed }, … } }
 ]]
 
-local SnapshotManager = WowSync:Import("SnapshotManager")
+local Module = WowSync:Import("Module")
 
 -- Whether a module deletes entries on apply (Exact-capable). Merge-only modules
 -- never remove, so their removals are not counted in the change summary.
 local function ModuleSupportsExact(name)
     local applyModes = WowSync.Models and WowSync.Models.SnapshotApplyMode
-    local modes = SnapshotManager:GetModuleApplyMode(name)
+    local module = Module:FromRegisteredModule(name)
+    local modes = module and module:ApplyMode()
     return applyModes and applyModes.CanExact(modes) or false
 end
 

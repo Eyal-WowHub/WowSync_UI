@@ -27,7 +27,7 @@ local UI = addon.UI
 local ModuleRow = addon:GetObject("ModuleRow")
 
 local ModuleRegistry = WowSync:Import("ModuleRegistry")
-local SnapshotManager = WowSync:Import("SnapshotManager")
+local Module = WowSync:Import("Module")
 
 -- Placement of the per-row Merge/Exact toggle: inset from the list's right edge,
 -- and a vertical nudge to centre the button in the row.
@@ -39,7 +39,8 @@ local Methods = {}
 -- The Merge/Exact support a module declares, as two booleans.
 local function SupportedModes(name)
     local applyModes = WowSync.Models and WowSync.Models.SnapshotApplyMode
-    local modes = SnapshotManager:GetModuleApplyMode(name)
+    local module = Module:FromRegisteredModule(name)
+    local modes = module and module:ApplyMode()
     return applyModes and applyModes.CanMerge(modes), applyModes and applyModes.CanExact(modes)
 end
 
