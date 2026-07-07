@@ -741,7 +741,7 @@ function Methods:RequestSave()
             end
 
             if evicted then
-                PopupDialogs:ConfirmSaveAtLimit(SnapshotManager:GetSnapshotLimit(),
+                PopupDialogs:ConfirmSaveAtLimit(ProfileManager:GetMaxSnapshots(),
                     SnapshotRow:FormatSubject(evicted:GetTimestamp()), commit)
             else
                 commit()
