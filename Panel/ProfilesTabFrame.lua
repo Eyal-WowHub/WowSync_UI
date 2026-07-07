@@ -253,7 +253,7 @@ local function CanApplySnapshot(snapshot)
     -- live setup; its own head (and its latest save when nothing changed) already
     -- match. Nil head (nothing captured) never matches, so apply stays offered.
     local head = ProfileManager:GetLiveSnapshot(ProfileManager:GetCurrentProfile())
-    return not (head and snapshot:CompareTo(head))
+    return not (head and snapshot:Equals(head))
 end
 
 -- Open the preview dialog for a snapshot (defaulting to the selected one) in the
