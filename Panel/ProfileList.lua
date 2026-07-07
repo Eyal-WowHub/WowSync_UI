@@ -48,7 +48,7 @@ local function SplitNameRealm(key)
 end
 
 local function GetDeleteLabel(profileName)
-    local latestSnapshot = profileName and ProfileManager:Latest(profileName)
+    local latestSnapshot = profileName and ProfileManager:GetLatestSnapshot(profileName)
     return (latestSnapshot and latestSnapshot:GetCharacterInfo().Character) or profileName
 end
 
@@ -158,10 +158,9 @@ function Methods:Refresh()
             name = name,
             classID = character.ClassID,
             timestamp = character.LastSeen,
-            isCurrent = character.IsCurrent,
         })
         group.lastSeen = math.max(group.lastSeen, character.LastSeen or 0)
-        if character.IsCurrent then
+        if character.IsCharacterConnected then
             group.hasCurrent = true
             self._currentProfileName = character.Key
         end
@@ -184,7 +183,6 @@ function Methods:Refresh()
                 classID = entry.classID,
                 character = entry.name,
                 timestamp = entry.timestamp,
-                isCurrent = entry.isCurrent,
             })
         end
     end

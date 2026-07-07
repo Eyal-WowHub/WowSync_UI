@@ -89,7 +89,7 @@ local function RefreshSyncStatus(panel)
     -- Diff against the already-captured Current (kept fresh by the watcher while
     -- the window is open) rather than re-scanning the live setup, so selecting a
     -- profile stays responsive.
-    local latest = ProfileManager:Latest(panel._currentProfileName)
+    local latest = ProfileManager:GetLatestSnapshot(panel._currentProfileName)
     local preview = latest and SnapshotManager:Preview(latest, nil, true)
     if not preview then
         wipe(panel._syncDetail)
@@ -658,7 +658,7 @@ function Methods:SetProfile(profileName)
     end
 
     local headHandle = ProfileManager:GetLiveSnapshot(profileName)
-    local latestHandle = ProfileManager:Latest(profileName)
+    local latestHandle = ProfileManager:GetLatestSnapshot(profileName)
 
     -- A listed character always has a head and/or saved history; guard anyway.
     if not headHandle and not latestHandle then

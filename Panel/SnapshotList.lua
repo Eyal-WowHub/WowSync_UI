@@ -201,7 +201,7 @@ function Methods:SetProfile(profileName)
     wipe(self._changeFlags)
 
     -- Default selection: the head when present, else the latest saved snapshot.
-    self._selected = profileName and (ProfileManager:GetLiveSnapshot(profileName) or ProfileManager:Latest(profileName))
+    self._selected = profileName and (ProfileManager:GetLiveSnapshot(profileName) or ProfileManager:GetLatestSnapshot(profileName))
     self._expanded = nil
     self._expandedDetail = nil
     Rebuild(self)
