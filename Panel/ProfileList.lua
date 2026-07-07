@@ -48,7 +48,8 @@ local function SplitNameRealm(key)
 end
 
 local function GetDeleteLabel(profileName)
-    local latestSnapshot = profileName and ProfileManager:GetLatestSnapshot(profileName)
+    local profile = profileName and ProfileManager:GetProfile(profileName)
+    local latestSnapshot = profile and profile:GetLatestSnapshot()
     return (latestSnapshot and latestSnapshot:GetCharacterInfo().Character) or profileName
 end
 

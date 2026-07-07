@@ -89,7 +89,8 @@ local function RefreshSyncStatus(panel)
     -- Diff against the already-captured Current (kept fresh by the watcher while
     -- the window is open) rather than re-scanning the live setup, so selecting a
     -- profile stays responsive.
-    local latest = ProfileManager:GetLatestSnapshot(panel._currentProfileName)
+    local profile = panel._currentProfileName and ProfileManager:GetProfile(panel._currentProfileName)
+    local latest = profile and profile:GetLatestSnapshot()
     local preview = latest and SnapshotManager:Preview(latest, nil, true)
     if not preview then
         wipe(panel._syncDetail)
@@ -245,7 +246,7 @@ local function CanApplySnapshot(snapshot)
     -- Meaningful only when the snapshot differs from the logged-in character's
     -- live setup; its own head (and its latest save when nothing changed) already
     -- match. Nil head (nothing captured) never matches, so apply stays offered.
-    local head = ProfileManager:GetLiveSnapshot()
+    local head = ProfileManager:GetLiveSnapshot(ProfileManager:GetCurrentProfile())
     return not (head and snapshot:CompareTo(head))
 end
 
@@ -657,8 +658,9 @@ function Methods:SetProfile(profileName)
         return
     end
 
-    local headHandle = ProfileManager:GetLiveSnapshot(profileName)
-    local latestHandle = ProfileManager:GetLatestSnapshot(profileName)
+    local profile = ProfileManager:GetProfile(profileName)
+    local headHandle = profile and ProfileManager:GetLiveSnapshot(profile)
+    local latestHandle = profile and profile:GetLatestSnapshot()
 
     -- A listed character always has a head and/or saved history; guard anyway.
     if not headHandle and not latestHandle then
@@ -689,7 +691,8 @@ end
 function Methods:RequestSave()
     local charKey = SnapshotManager:GetCurrentCharKey()
 
-    local headHandle = ProfileManager:GetLiveSnapshot(charKey)
+    local profile = ProfileManager:GetProfile(charKey)
+    local headHandle = profile and ProfileManager:GetLiveSnapshot(profile)
     if not headHandle then
         Console:Print(L["That character has nothing captured yet."])
         return
@@ -699,7 +702,7 @@ function Methods:RequestSave()
         title = L["Save snapshot"],
         confirmText = L["Save"],
         onConfirm = function(moduleSet, note)
-            local evicted = ProfileManager:PendingEviction(charKey)
+            local evicted = ProfileManager:PendingEviction(profile)
 
             local function commit()
                 local function OnSaveComplete(snapshot, reason)

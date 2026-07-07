@@ -165,7 +165,9 @@ end
 local function LoadEntries(panel)
     wipe(panel._entries)
     if not panel._currentProfile then return end
-    for _, handle in ipairs(ProfileManager:GetTimeline(panel._currentProfile)) do
+    local profile = ProfileManager:GetProfile(panel._currentProfile)
+    if not profile then return end
+    for _, handle in ipairs(ProfileManager:GetTimeline(profile)) do
         tinsert(panel._entries, {
             snapshot = handle,
             isHead = handle:IsLive(),
@@ -201,7 +203,8 @@ function Methods:SetProfile(profileName)
     wipe(self._changeFlags)
 
     -- Default selection: the head when present, else the latest saved snapshot.
-    self._selected = profileName and (ProfileManager:GetLiveSnapshot(profileName) or ProfileManager:GetLatestSnapshot(profileName))
+    local profile = profileName and ProfileManager:GetProfile(profileName)
+    self._selected = profile and (ProfileManager:GetLiveSnapshot(profile) or profile:GetLatestSnapshot())
     self._expanded = nil
     self._expandedDetail = nil
     Rebuild(self)
