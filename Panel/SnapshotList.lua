@@ -75,7 +75,7 @@ function Methods:Constructor(config)
     panel._selected = nil          -- the selected snapshot handle (identity, not its hash)
     panel._expanded = nil          -- the one open row (accordion), independent of selection
     panel._expandedDetail = nil    -- cached diff/note for the expanded row
-    panel._changeFlags = {}        -- snapshot -> has-changes-vs-live flag (memoised)
+    panel._changeFlags = setmetatable({}, { __mode = "k" })  -- snapshot -> changed-vs-live flag (memoised, weak so dropped snapshots clear)
     panel._onSelectionChanged = config.onSelect
     panel._onContext = config.onContext   -- right-click handler (snapshot, subject, anchor)
 
@@ -176,10 +176,9 @@ local function LoadEntries(panel)
 end
 
 -- Whether a saved snapshot differs from the live setup, memoised per snapshot so
--- the flag is computed once per data load rather than on every relayout. Diffs
--- against the already-captured Current (no live re-scan), so it matches the
--- expanded summary's verdict while staying cheap enough to switch profiles
--- without a hitch. The head is the live setup itself, so it never tags.
+-- the flag is computed once rather than on every relayout. Compares stored
+-- per-module hashes (no payload decode, no live re-scan), so switching profiles
+-- stays cheap. The head is the live setup itself, so it never tags.
 function Methods:HasChanges(snapshot)
     if not snapshot or snapshot:IsLive() then
         return false
@@ -187,7 +186,7 @@ function Methods:HasChanges(snapshot)
 
     local cached = self._changeFlags[snapshot]
     if cached == nil then
-        cached = SnapshotDetailBuilder.HasChanges(SnapshotManager:Preview(snapshot, nil, true))
+        cached = not SnapshotManager:IsLiveSnapshotSynchronizedTo(snapshot)
         self._changeFlags[snapshot] = cached
     end
     return cached
@@ -200,7 +199,6 @@ end
 function Methods:SetProfile(profileName)
     self._currentProfile = profileName
     LoadEntries(self)
-    wipe(self._changeFlags)
 
     -- Default selection: the head when present, else the latest saved snapshot.
     local profile = profileName and ProfileManager:GetProfile(profileName)
