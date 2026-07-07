@@ -34,6 +34,8 @@ local L = addon.L
 local SelectableRow = addon:GetObject("SelectableRow")
 local SnapshotRow = addon:GetObject("SnapshotRow")
 
+local HashColors = addon.HashColors
+
 local ChangeBadge = WowSync:Import("ChangeBadge")
 
 -- Left inset of a snapshot row's content, clearing the timeline gutter the
@@ -48,17 +50,7 @@ ImportSnapshotRow.ContentInset = ROW_INSET
 -- Characters of the content hash shown in the selector label.
 local HASH_PREFIX = 7
 
--- Rows sit on a dark, near-transparent background (and a translucent blue when
--- selected), so a per-hash hue must clear this perceived-luminance floor to stay
--- readable; darker hues are lifted toward white until they do.
-local HASH_MIN_LUMINANCE = 0.5
-
--- Saturation/value for the generated hues: vivid enough to tell groups apart,
--- not so neon they clash with the rest of the row text.
-local HASH_SATURATION = 0.55
-local HASH_VALUE = 1.0
-
--- Fallback timeline node colour for the rare snapshot with no hash to hue from.
+-- Fallback timeline node colour for the rare snapshot with no hash to colour from.
 local NODE_NEUTRAL = CreateColor(0.85, 0.85, 0.85, 1)
 
 -- Warm accent for a pinned snapshot's node and its "(pinned)" subject tag,
@@ -69,63 +61,13 @@ local NODE_PINNED = CreateColor(0.95, 0.6, 0.2, 1)
 -- no "differs from the live setup" colouring.
 local SUBJECT_COLOR = CreateColor(1, 1, 1, 1)
 
-local floor = math.floor
-local abs = math.abs
-
 local Methods = Mixin({}, SelectableRow.Methods)
-
--- Standard HSV->RGB (h in degrees, s/v in [0,1]); components come back in [0,1].
-local function HSVToRGB(h, s, v)
-    local c = v * s
-    local x = c * (1 - abs((h / 60) % 2 - 1))
-    local m = v - c
-    local r, g, b
-    if h < 60 then r, g, b = c, x, 0
-    elseif h < 120 then r, g, b = x, c, 0
-    elseif h < 180 then r, g, b = 0, c, x
-    elseif h < 240 then r, g, b = 0, x, c
-    elseif h < 300 then r, g, b = x, 0, c
-    else r, g, b = c, 0, x end
-    return r + m, g + m, b + m
-end
-
--- Rec. 601 perceived luminance, the yardstick for the contrast floor.
-local function Luminance(r, g, b)
-    return 0.299 * r + 0.587 * g + 0.114 * b
-end
-
--- A stable, high-contrast colour for a content hash: an imported snapshot and
--- every duplicate of it share one hue (same hash -> same derivation). The hue is
--- folded from the hash bytes; any hue too dark for the background is blended
--- toward white until it clears the contrast floor. Returned as RGB in [0,1].
-local function RGBForHash(hash)
-    local seed = 0
-    for i = 1, #hash do
-        seed = (seed * 31 + hash:byte(i)) % 360
-    end
-    local r, g, b = HSVToRGB(seed, HASH_SATURATION, HASH_VALUE)
-    local lum = Luminance(r, g, b)
-    if lum < HASH_MIN_LUMINANCE then
-        local t = (HASH_MIN_LUMINANCE - lum) / (1 - lum)
-        r = r + (1 - r) * t
-        g = g + (1 - g) * t
-        b = b + (1 - b) * t
-    end
-    return r, g, b
-end
-
--- The same colour as an escape code, for tinting the hash prefix in the selector.
-local function ColorForHash(hash)
-    local r, g, b = RGBForHash(hash)
-    return ("|cff%02x%02x%02x"):format(
-        floor(r * 255 + 0.5), floor(g * 255 + 0.5), floor(b * 255 + 0.5))
-end
 
 -- The user-facing selector for an imported snapshot: a short hash and index. The
 -- hash prefix is tinted with a stable per-hash color, so every snapshot carries
--- its hash's hue and any duplicates (same hash) read as one colored group.
+-- its hash's colour and any duplicates (same hash) read as one colored group.
 local function SelectorText(snapshot)
-    local hash = ColorForHash(snapshot.Hash) .. snapshot.Hash:sub(1, HASH_PREFIX) .. "|r"
+    local hash = HashColors.WrapHashInColorCode(snapshot.Hash) .. snapshot.Hash:sub(1, HASH_PREFIX) .. "|r"
     return ("%s#%d"):format(hash, snapshot.Index or 0)
 end
 
@@ -296,14 +238,14 @@ function Methods:Render(snapshot)
     local originName = self._ctx.OriginContainer and self._ctx.OriginContainer(snapshot)
     self.content:SetLines(ImportSnapshotRow:BuildLines(snapshot, expanded, detail, original, originName))
 
-    -- The node carries the snapshot's hash hue, so duplicates read as one
+    -- The node carries the snapshot's hash colour, so duplicates read as one
     -- coloured group down the timeline just as their selectors do. A pinned
     -- snapshot takes the warm accent instead, matching the profile timeline.
     local nodeColor
     if snapshot.Pinned then
         nodeColor = NODE_PINNED
     elseif snapshot.Hash then
-        nodeColor = CreateColor(RGBForHash(snapshot.Hash))
+        nodeColor = CreateColor(HashColors.GetRGB(snapshot.Hash))
     else
         nodeColor = NODE_NEUTRAL
     end

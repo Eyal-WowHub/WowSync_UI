@@ -19,6 +19,7 @@ Locales\enUS.lua
 Core\Constants.lua
 Core\Settings.lua
 Core\SnapshotDetailBuilder.lua
+Core\HashColors.lua
 
 Main.lua
 

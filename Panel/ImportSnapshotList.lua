@@ -28,6 +28,7 @@ local ImportSnapshotList = addon:NewObject("ImportSnapshotList")
 
 local C = addon.C
 local SnapshotDetailBuilder = addon.SnapshotDetailBuilder
+local HashColors = addon.HashColors
 
 local ExpandableContent = addon:GetObject("ExpandableContent")
 local ImportSnapshotRow = addon:GetObject("ImportSnapshotRow")
@@ -78,6 +79,7 @@ function Methods:Constructor(config)
     panel._expandedDetail = nil    -- cached diff/note for the expanded row
     panel._duplicates = {}         -- snapshot -> the older original it repeats, for repeat hashes
     panel._origin = {}             -- snapshot -> name of the container that imported its hash first
+    panel._hashRefs = {}           -- set of hashes this list holds a colour reference on
     panel._onSelect = config.onSelect
 
     local rowContext = {
@@ -148,6 +150,23 @@ function ImportSnapshotList:Build(region, opts)
     })
 end
 
+-- Reconcile the shared colour registry with the hashes this list now shows,
+-- claiming a colour reference for each newly present hash and releasing the
+-- ones that are gone, so a colour is freed once its last copy leaves the view.
+local function SyncHashColors(panel, present)
+    for hash in pairs(present) do
+        if not panel._hashRefs[hash] then
+            HashColors.Add(hash)
+        end
+    end
+    for hash in pairs(panel._hashRefs) do
+        if not present[hash] then
+            HashColors.Remove(hash)
+        end
+    end
+    panel._hashRefs = present
+end
+
 -- Rebuild the data provider from the current container, newest capture first
 -- (GetSnapshots is import-ordered). Re-setting the provider reruns the
 -- extent calculator, so it is also how an expand/collapse relayout is triggered.
@@ -155,6 +174,7 @@ local function Rebuild(panel)
     local dataProvider = CreateDataProvider()
     local duplicates = {}
     local origin = {}
+    local present = {}
     if panel._currentImportID then
         local snapshots = ImportManager:GetSnapshots(panel._currentImportID)
         -- A hash's "owner" is the container that imported it first. When this
@@ -168,6 +188,9 @@ local function Rebuild(panel)
         for index = 1, #snapshots do
             local snapshot = snapshots[index]
             local hash = snapshot.Hash
+            if hash then
+                present[hash] = true
+            end
             local owner = hash and owners[hash]
             if owner and owner.ID ~= panel._currentImportID then
                 origin[snapshot] = owner.Name
@@ -204,6 +227,7 @@ local function Rebuild(panel)
     end
     panel._duplicates = duplicates
     panel._origin = origin
+    SyncHashColors(panel, present)
     panel._scrollBox:SetDataProvider(dataProvider, ScrollBoxConstants.RetainScrollPosition)
 end
 
@@ -252,6 +276,7 @@ function Methods:Clear()
     self._expandedDetail = nil
     self._duplicates = {}
     self._origin = {}
+    SyncHashColors(self, {})
     if self._scrollBox then
         self._scrollBox:SetDataProvider(CreateDataProvider())
     end
