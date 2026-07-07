@@ -40,7 +40,7 @@ local function UpdateRow(row, elementData)
     row.undoPoint = elementData.undoPoint
 
     row.subjectText:SetText(elementData.undoPoint.Subject or L["Unknown"])
-    row.modulesText:SetText(table.concat(elementData.undoPoint.ModuleNames or {}, ", "))
+    row.modulesText:SetText(elementData.modulesText)
 end
 
 function Methods:Constructor(config)
@@ -100,7 +100,11 @@ function Methods:Refresh()
 
     local dataProvider = CreateDataProvider()
     for i, undoPoint in ipairs(undoPoints) do
-        dataProvider:Insert({ index = i, undoPoint = undoPoint })
+        dataProvider:Insert({
+            index = i,
+            undoPoint = undoPoint,
+            modulesText = table.concat(undoPoint.ModuleNames or {}, ", "),
+        })
     end
     self._scrollBox:SetDataProvider(dataProvider, ScrollBoxConstants.DiscardScrollPosition)
 
