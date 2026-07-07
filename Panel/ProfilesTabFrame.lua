@@ -78,7 +78,7 @@ end
 -- Refresh the live "unsaved changes" badge for the selected profile: compare the
 -- logged-in character's Current against the profile's latest snapshot. Hidden
 -- when no profile is shown or the profile has no snapshot to compare against.
-local function RefreshSyncStatus(panel)
+local function RefreshUnsavedChangesStatus(panel)
     if not panel._currentProfileName or not panel._content:IsVisible() then
         wipe(panel._syncDetail)
         if panel._syncHover then panel._syncHover:Hide() end
@@ -116,13 +116,14 @@ local function RefreshSyncStatus(panel)
 end
 
 -- Coalesce bursts of live Current changes (the watcher flushes several modules
--- at once) into a single badge refresh.
-local function ScheduleSyncRefresh(panel)
+-- at once) into a single refresh of the unsaved-changes badge and the timeline's
+-- per-row change tags.
+local function RefreshCoalescedLiveChangesStatus(panel)
     panel._syncRefreshToken = panel._syncRefreshToken + 1
     local token = panel._syncRefreshToken
     C_Timer.After(0.1, function()
         if token == panel._syncRefreshToken then
-            RefreshSyncStatus(panel)
+            RefreshUnsavedChangesStatus(panel)
             -- Keep the per-snapshot change tags in step with the live badge.
             if panel._snapshotList and panel._content:IsVisible() then
                 panel._snapshotList:Refresh()
@@ -138,24 +139,26 @@ local function IsViewingOwnProfile(panel)
         and panel._currentProfileName == SnapshotManager:GetCurrentCharKey()
 end
 
-local function RefreshSaveState(panel)
+local function RefreshSaveButtonState(panel)
     panel._actionBar:SetSaveEnabled(
         IsViewingOwnProfile(panel) and SnapshotManager:HasCapturedGameData())
 end
 
--- Reflect the current undo point in whichever view is visible
-local function ApplyUndoState(panel)
+-- Refresh the panel's control state after a change: the undo and save buttons
+-- and the unsaved-changes badge while a profile is shown, or the empty-state
+-- undo history when none is.
+local function RefreshPanelState(panel)
     local hasUndo = UndoManager:CanUndo()
     if panel._content:IsShown() then
         panel._actionBar:SetUndoEnabled(hasUndo)
-        RefreshSaveState(panel)
+        RefreshSaveButtonState(panel)
     else
         -- Empty state: show the full undo history, or the placeholder when the
         -- stack is empty.
         local hasEntries = panel._undoList:Refresh()
         panel._emptyLabel:SetShown(not hasEntries)
     end
-    RefreshSyncStatus(panel)
+    RefreshUnsavedChangesStatus(panel)
 end
 
 -- Show a one-line summary of the last apply inside the panel
@@ -189,7 +192,8 @@ local function DoUndo(panel)
             Console:Print(L["  X: restored"]:format(name))
         end
     end
-    ApplyUndoState(panel)
+    panel._snapshotList:Refresh()  -- re-diff the timeline against the new live setup
+    RefreshPanelState(panel)
 end
 
 local function ApplySnapshot(panel, snapshot, moduleSet, mode, overrides)
@@ -232,7 +236,8 @@ local function ApplySnapshot(panel, snapshot, moduleSet, mode, overrides)
         Console:Print(L["Nothing to apply."])
     end
 
-    ApplyUndoState(panel)
+    panel._snapshotList:Refresh()  -- re-diff the timeline against the new live setup
+    RefreshPanelState(panel)
 end
 
 -- Apply is a no-op when the chosen entry already matches the logged-in
@@ -321,7 +326,8 @@ local function DoUndoSteps(panel, count, undoPoint)
             Console:Print(L["  X: restored"]:format(name))
         end
     end
-    ApplyUndoState(panel)
+    panel._snapshotList:Refresh()  -- re-diff the timeline against the new live setup
+    RefreshPanelState(panel)
 end
 
 -- Clicking an undo-history row rolls back every apply down to and including it.
@@ -588,14 +594,14 @@ function Methods:Constructor(config)
     -- The core fires this whenever a module's live data updates (the watcher
     -- mirroring edits into Current); refresh the badge to match.
     WowSync:RegisterEvent("WOWSYNC_MODULE_DATA_UPDATED", function()
-        ScheduleSyncRefresh(panel)
+        RefreshCoalescedLiveChangesStatus(panel)
     end)
 
     -- While the panel is hidden the badge ignores live changes (see
-    -- RefreshSyncStatus); recompute when it becomes visible again, which covers
-    -- reopening the window and switching back to the Profiles tab.
+    -- RefreshUnsavedChangesStatus); recompute when it becomes visible again,
+    -- which covers reopening the window and switching back to the Profiles tab.
     content:HookScript("OnShow", function()
-        RefreshSyncStatus(panel)
+        RefreshUnsavedChangesStatus(panel)
     end)
 
     -- Composed children
@@ -615,9 +621,9 @@ function Methods:Constructor(config)
     -- Save only targets the logged-in character, so it stays disabled unless
     -- you are viewing your own profile and have captured data. Track the
     -- capture state live; SetProfile drives the viewed-profile half.
-    RefreshSaveState(self)
+    RefreshSaveButtonState(self)
     WowSync:RegisterEvent("WOWSYNC_MODULE_DATA_UPDATED", function()
-        RefreshSaveState(panel)
+        RefreshSaveButtonState(panel)
     end)
 
     -- Animate the Save button for the duration of any save (including the
@@ -631,7 +637,7 @@ function Methods:Constructor(config)
 
     -- Initialise the empty state (undo history or placeholder) so it is correct
     -- the moment the panel first appears, before any profile is selected.
-    ApplyUndoState(self)
+    RefreshPanelState(self)
 end
 
 function ProfilesTabFrame:Build(region)
@@ -654,7 +660,7 @@ function Methods:SetProfile(profileName)
     if not profileName then
         self._content:Hide()
         self._emptyLabel:Show()
-        ApplyUndoState(self)
+        RefreshPanelState(self)
         return
     end
 
@@ -666,7 +672,7 @@ function Methods:SetProfile(profileName)
     if not headHandle and not latestHandle then
         self._content:Hide()
         self._emptyLabel:Show()
-        ApplyUndoState(self)
+        RefreshPanelState(self)
         return
     end
 
@@ -681,7 +687,7 @@ function Methods:SetProfile(profileName)
 
     self._snapshotList:SetProfile(profileName)
 
-    ApplyUndoState(self)
+    RefreshPanelState(self)
 end
 
 -- Freeze the logged-in character's live setup into a new saved snapshot. Save
