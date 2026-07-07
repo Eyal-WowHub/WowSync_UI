@@ -38,6 +38,7 @@ local SnapshotRow = addon:GetObject("SnapshotRow")
 local UndoList = addon:GetObject("UndoList")
 
 local ChangeBadge = WowSync:Import("ChangeBadge")
+local CharacterManager = WowSync:Import("CharacterManager")
 local Console = WowSync:Import("Console")
 local Debugger = WowSync:Import("Debugger")
 local ExportManager = WowSync:Import("ExportManager")
@@ -136,7 +137,7 @@ end
 -- offered only while viewing your own profile (and only with captured data).
 local function IsViewingOwnProfile(panel)
     return panel._currentProfileName ~= nil
-        and panel._currentProfileName == SnapshotManager:GetCurrentCharKey()
+        and panel._currentProfileName == CharacterManager:GetConnectedCharacterKey()
 end
 
 local function RefreshSaveButtonState(panel)
@@ -695,7 +696,7 @@ end
 -- selectable. On success the head collapses into the new latest snapshot and
 -- onSaved fires so the list can refresh and re-select the character.
 function Methods:RequestSave()
-    local charKey = SnapshotManager:GetCurrentCharKey()
+    local charKey = CharacterManager:GetConnectedCharacterKey()
 
     local profile = ProfileManager:GetProfile(charKey)
     local headHandle = profile and ProfileManager:GetLiveSnapshot(profile)
