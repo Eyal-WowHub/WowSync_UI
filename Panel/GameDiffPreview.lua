@@ -38,6 +38,7 @@ local Module = WowSync:Import("Module")
 
 -- Row heights per element kind; the list mixes module headers, section
 -- subheaders, and entry rows in one virtualised stream.
+local GROUP_HEADER_HEIGHT = 26
 local MODULE_HEADER_HEIGHT = 24
 local SECTION_HEADER_HEIGHT = 18
 local ITEM_HEIGHT = 20
@@ -45,6 +46,7 @@ local EMPTY_HEIGHT = 28
 
 -- Left inset of each element kind, and the entry icon size. Entries indent past
 -- the icon column so labels line up whether or not an entry carries an icon.
+local GROUP_INSET = 6
 local MODULE_INSET = 6
 local SECTION_INSET = 16
 local ITEM_INSET = 20
@@ -71,6 +73,7 @@ local ADDED_COLOR = CreateColor(0.37, 0.81, 0.37)
 local CHANGED_COLOR = CreateColor(0.85, 0.78, 0.29)
 local REMOVED_COLOR = CreateColor(0.85, 0.42, 0.42)
 local MODULE_HEADER_COLOR = CreateColor(0.95, 0.95, 0.95)
+local GROUP_HEADER_COLOR = CreateColor(0.25, 0.65, 0.97)
 
 -- The change kinds in display order; "removed" is shown only in Exact mode.
 local SECTIONS = {
@@ -135,8 +138,51 @@ local function ItemHeight(panel, item)
     return ITEM_TOP_PAD + LABEL_HEIGHT + DESC_GAP + descHeight + ITEM_BOTTOM_PAD
 end
 
--- Flatten the preview into the list's element stream: a header per changed
--- module, then a subheader and one row per entry for each non-empty section.
+-- Insert a module's non-empty Added/Updated/Removed sections and their entry
+-- rows into the element stream.
+local function InsertModuleEntries(panel, dataProvider, moduleDiff, moduleIcon, showRemoved)
+    for _, section in ipairs(SECTIONS) do
+        if section.key ~= "removed" or showRemoved then
+            local entries = moduleDiff[section.key] or {}
+            if #entries > 0 then
+                dataProvider:Insert({ kind = "section", section = section, count = #entries })
+                for _, entry in ipairs(entries) do
+                    local label, icon, description = NormalizeEntry(entry)
+                    local item = {
+                        kind = "item",
+                        label = label,
+                        icon = icon or moduleIcon,
+                        description = description,
+                    }
+                    item.height = ItemHeight(panel, item)
+                    dataProvider:Insert(item)
+                end
+            end
+        end
+    end
+end
+
+-- Insert one plugin group: a "Plugin: <name>" header followed by each of its
+-- modules rendered like a top-level module. Returns whether anything was shown.
+local function InsertPluginGroup(panel, dataProvider, group, exactMode)
+    local shown = false
+    for _, subModule in ipairs(group.modules) do
+        local showRemoved = exactMode and subModule.canExact
+        if HasVisibleChanges(subModule, showRemoved) then
+            if not shown then
+                dataProvider:Insert({ kind = "group", name = L["Plugin: X"]:format(group.name) })
+                shown = true
+            end
+            dataProvider:Insert({ kind = "module", name = subModule.name })
+            InsertModuleEntries(panel, dataProvider, subModule, nil, showRemoved)
+        end
+    end
+    return shown
+end
+
+-- Flatten the preview into the list's element stream: for each module, a header
+-- then its sections and entries. The Plugin umbrella's diff is grouped, so it
+-- expands into a "Plugin: <name>" header per plugin with its modules beneath.
 local function Populate(panel, dataProvider, preview, filterName, mode)
     local exactMode = (mode == "exact")
     local anyShown = false
@@ -144,33 +190,22 @@ local function Populate(panel, dataProvider, preview, filterName, mode)
     for _, name in ipairs(ModuleNamesIn(preview)) do
         if not filterName or filterName == name then
             local moduleDiff = preview.perModule[name]
-            -- Removals are real only when this module applies in Exact, so a
-            -- merge-only module never shows a Removed section.
-            local showRemoved = exactMode and ModuleSupportsExact(name)
-            if HasVisibleChanges(moduleDiff, showRemoved) then
-                anyShown = true
-                local module = Module:FromRegisteredModule(name)
-                local moduleIcon = module and module:DefaultIcon()
-                dataProvider:Insert({ kind = "module", name = name })
-
-                for _, section in ipairs(SECTIONS) do
-                    if section.key ~= "removed" or showRemoved then
-                        local entries = moduleDiff[section.key] or {}
-                        if #entries > 0 then
-                            dataProvider:Insert({ kind = "section", section = section, count = #entries })
-                            for _, entry in ipairs(entries) do
-                                local label, icon, description = NormalizeEntry(entry)
-                                local item = {
-                                    kind = "item",
-                                    label = label,
-                                    icon = icon or moduleIcon,
-                                    description = description,
-                                }
-                                item.height = ItemHeight(panel, item)
-                                dataProvider:Insert(item)
-                            end
-                        end
+            if moduleDiff.groups then
+                for _, group in ipairs(moduleDiff.groups) do
+                    if InsertPluginGroup(panel, dataProvider, group, exactMode) then
+                        anyShown = true
                     end
+                end
+            else
+                -- Removals are real only when this module applies in Exact, so a
+                -- merge-only module never shows a Removed section.
+                local showRemoved = exactMode and ModuleSupportsExact(name)
+                if HasVisibleChanges(moduleDiff, showRemoved) then
+                    anyShown = true
+                    local module = Module:FromRegisteredModule(name)
+                    local moduleIcon = module and module:DefaultIcon()
+                    dataProvider:Insert({ kind = "module", name = name })
+                    InsertModuleEntries(panel, dataProvider, moduleDiff, moduleIcon, showRemoved)
                 end
             end
         end
@@ -218,7 +253,13 @@ local function UpdateRow(row, data)
     row.text:ClearAllPoints()
     row.text:SetPoint("RIGHT", row, "RIGHT", -TEXT_RIGHT_INSET, 0)
 
-    if data.kind == "module" then
+    if data.kind == "group" then
+        row.text:SetFontObject("GameFontNormal")
+        row.text:SetText(data.name)
+        row.text:SetTextColor(GROUP_HEADER_COLOR:GetRGB())
+        row.text:SetPoint("LEFT", row, "LEFT", GROUP_INSET, 0)
+        row.separator:Show()
+    elseif data.kind == "module" then
         row.text:SetFontObject("GameFontNormal")
         row.text:SetText(data.name)
         row.text:SetTextColor(MODULE_HEADER_COLOR:GetRGB())
@@ -296,7 +337,9 @@ function Methods:Constructor(config)
             sb:SetPoint("BOTTOMRIGHT", -SCROLLBOX_RIGHT_INSET, 14)
         end,
         extent = function(_, data)
-            if data.kind == "module" then
+            if data.kind == "group" then
+                return GROUP_HEADER_HEIGHT
+            elseif data.kind == "module" then
                 return MODULE_HEADER_HEIGHT
             elseif data.kind == "section" then
                 return SECTION_HEADER_HEIGHT

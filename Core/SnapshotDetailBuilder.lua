@@ -14,6 +14,7 @@ addon.SnapshotDetailBuilder = SnapshotDetailBuilder
 ]]
 
 local Module = WowSync:Import("Module")
+local L = addon.L
 
 -- Whether a module deletes entries on apply (Exact-capable). Merge-only modules
 -- never remove, so their removals are not counted in the change summary.
@@ -45,16 +46,37 @@ function SnapshotDetailBuilder.Build(note, preview)
 
     for _, name in ipairs(moduleNames) do
         local moduleDiff = preview.perModule[name]
-        local added = #(moduleDiff.added or {})
-        local changed = #(moduleDiff.changed or {})
-        local removed = ModuleSupportsExact(name) and #(moduleDiff.removed or {}) or 0
-        if added + changed + removed > 0 then
-            tinsert(detail.modules, {
-                name = name,
-                added = added,
-                changed = changed,
-                removed = removed,
-            })
+        if moduleDiff.groups then
+            -- The Plugin umbrella's diff is grouped by plugin; summarise each
+            -- plugin as its own "Plugin: <name>" row with pooled counts.
+            for _, group in ipairs(moduleDiff.groups) do
+                local added, changed, removed = 0, 0, 0
+                for _, module in ipairs(group.modules) do
+                    added = added + #(module.added or {})
+                    changed = changed + #(module.changed or {})
+                    removed = removed + (module.canExact and #(module.removed or {}) or 0)
+                end
+                if added + changed + removed > 0 then
+                    tinsert(detail.modules, {
+                        name = L["Plugin: X"]:format(group.name),
+                        added = added,
+                        changed = changed,
+                        removed = removed,
+                    })
+                end
+            end
+        else
+            local added = #(moduleDiff.added or {})
+            local changed = #(moduleDiff.changed or {})
+            local removed = ModuleSupportsExact(name) and #(moduleDiff.removed or {}) or 0
+            if added + changed + removed > 0 then
+                tinsert(detail.modules, {
+                    name = name,
+                    added = added,
+                    changed = changed,
+                    removed = removed,
+                })
+            end
         end
     end
 

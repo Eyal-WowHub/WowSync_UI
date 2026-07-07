@@ -67,11 +67,27 @@ local function CollectModuleChanges(panel, preview)
 
     for _, name in ipairs(names) do
         local moduleDiff = preview.perModule[name]
-        local added = #(moduleDiff.added or {})
-        local changed = #(moduleDiff.changed or {})
-        local removed = #(moduleDiff.removed or {})
-        if added + changed + removed > 0 then
-            tinsert(panel._syncDetail, { name = name, added = added, changed = changed, removed = removed })
+        if moduleDiff.groups then
+            -- The Plugin umbrella's diff is grouped by plugin; list each plugin as
+            -- its own "Plugin: <name>" entry with pooled counts.
+            for _, group in ipairs(moduleDiff.groups) do
+                local added, changed, removed = 0, 0, 0
+                for _, module in ipairs(group.modules) do
+                    added = added + #(module.added or {})
+                    changed = changed + #(module.changed or {})
+                    removed = removed + #(module.removed or {})
+                end
+                if added + changed + removed > 0 then
+                    tinsert(panel._syncDetail, { name = L["Plugin: X"]:format(group.name), added = added, changed = changed, removed = removed })
+                end
+            end
+        else
+            local added = #(moduleDiff.added or {})
+            local changed = #(moduleDiff.changed or {})
+            local removed = #(moduleDiff.removed or {})
+            if added + changed + removed > 0 then
+                tinsert(panel._syncDetail, { name = name, added = added, changed = changed, removed = removed })
+            end
         end
     end
 end

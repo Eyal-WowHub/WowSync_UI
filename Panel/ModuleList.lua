@@ -60,11 +60,28 @@ end
 -- never overstates the change.
 local function ComputeCounts(moduleDiff, rowMode, canExact)
     if not moduleDiff then return nil end
-    local showRemovals = (rowMode == "exact") and canExact
+    local exactRow = (rowMode == "exact")
+
+    -- The Plugin umbrella's diff is grouped by plugin then module; sum across it,
+    -- gating each module's removals on its own Exact support.
+    if moduleDiff.groups then
+        local added, changed, removed = 0, 0, 0
+        for _, group in ipairs(moduleDiff.groups) do
+            for _, module in ipairs(group.modules) do
+                added = added + #(module.added or {})
+                changed = changed + #(module.changed or {})
+                if exactRow and module.canExact then
+                    removed = removed + #(module.removed or {})
+                end
+            end
+        end
+        return { added = added, changed = changed, removed = removed }
+    end
+
     return {
         added = #(moduleDiff.added or {}),
         changed = #(moduleDiff.changed or {}),
-        removed = showRemovals and #(moduleDiff.removed or {}) or 0,
+        removed = (exactRow and canExact) and #(moduleDiff.removed or {}) or 0,
     }
 end
 
