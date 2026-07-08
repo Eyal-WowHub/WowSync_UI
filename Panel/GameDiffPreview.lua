@@ -40,7 +40,7 @@ local Module = WowSync:Import("Module")
 
 -- Row heights per element kind; the list mixes module headers, section
 -- subheaders, and entry rows in one virtualised stream.
-local PLUGIN_HEADER_HEIGHT = 26
+local PLUGIN_HEADER_HEIGHT = 34
 local MODULE_HEADER_HEIGHT = 24
 local SECTION_HEADER_HEIGHT = 18
 local ITEM_HEIGHT = 20
@@ -55,6 +55,10 @@ local ITEM_INSET = 20
 local ICON_SIZE = 16
 local ICON_TEXT_GAP = 4
 local TEXT_RIGHT_INSET = 6
+
+-- Extra left shift applied to a plugin's submodule headers, sections, and
+-- entries so they read as nested beneath their plugin's section header.
+local SUBMODULE_INDENT = 12
 
 -- Scroll region insets, used both to place the list and to derive the wrap
 -- width available to an entry's description line.
@@ -147,20 +151,22 @@ local function ItemHeight(panel, item)
     end
     local iconOffset = item.icon and (ICON_SIZE + ICON_TEXT_GAP) or 0
     local measureText = panel._measureText
-    measureText:SetWidth(ROW_WIDTH - (ITEM_INSET + iconOffset) - TEXT_RIGHT_INSET)
+    measureText:SetWidth(ROW_WIDTH - (ITEM_INSET + (item.indent or 0) + iconOffset) - TEXT_RIGHT_INSET)
     measureText:SetText(item.description)
     local descHeight = math.ceil(measureText:GetStringHeight())
     return ITEM_TOP_PAD + LABEL_HEIGHT + DESC_GAP + descHeight + ITEM_BOTTOM_PAD
 end
 
 -- Insert a module's non-empty Added/Updated/Removed sections and their entry
--- rows into the element stream.
-local function InsertModuleEntries(panel, dataProvider, moduleDiff, moduleIcon, showRemoved)
+-- rows into the element stream. indent shifts the sections and entries right so
+-- a plugin's submodules read as nested beneath their plugin header.
+local function InsertModuleEntries(panel, dataProvider, moduleDiff, moduleIcon, showRemoved, indent)
+    indent = indent or 0
     for _, section in ipairs(SECTIONS) do
         if section.key ~= "removed" or showRemoved then
             local entries = moduleDiff[section.key] or {}
             if #entries > 0 then
-                dataProvider:Insert({ kind = "section", section = section, count = #entries })
+                dataProvider:Insert({ kind = "section", section = section, count = #entries, indent = indent })
                 for _, entry in ipairs(entries) do
                     local label, icon, description = NormalizeEntry(entry)
                     local item = {
@@ -168,6 +174,7 @@ local function InsertModuleEntries(panel, dataProvider, moduleDiff, moduleIcon, 
                         label = label,
                         icon = icon or moduleIcon,
                         description = description,
+                        indent = indent,
                     }
                     item.height = ItemHeight(panel, item)
                     dataProvider:Insert(item)
@@ -188,9 +195,9 @@ local function PluginHasVisible(plugin, exactMode)
     return false
 end
 
--- Insert one plugin as a collapsible "Plugin: <name>" header; while expanded,
--- each changed submodule follows as its own collapsible module header with
--- entries beneath. Returns whether the plugin header was shown.
+-- Insert one plugin as a collapsible section header named for the plugin; while
+-- expanded, each changed submodule follows as its own collapsible module header
+-- with entries beneath. Returns whether the plugin header was shown.
 local function InsertPlugin(panel, dataProvider, plugin, exactMode)
     if not PluginHasVisible(plugin, exactMode) then
         return false
@@ -200,7 +207,7 @@ local function InsertPlugin(panel, dataProvider, plugin, exactMode)
     local expanded = not panel._collapsed[pluginKey]
     dataProvider:Insert({
         kind = "plugin",
-        name = L["Plugin: X"]:format(plugin.name),
+        name = plugin.name,
         collapseKey = pluginKey,
         expanded = expanded,
     })
@@ -216,9 +223,10 @@ local function InsertPlugin(panel, dataProvider, plugin, exactMode)
                     name = subModule.name,
                     collapseKey = subKey,
                     expanded = subExpanded,
+                    indent = SUBMODULE_INDENT,
                 })
                 if subExpanded then
-                    InsertModuleEntries(panel, dataProvider, subModule, nil, showRemoved)
+                    InsertModuleEntries(panel, dataProvider, subModule, nil, showRemoved, SUBMODULE_INDENT)
                 end
             end
         end
@@ -229,8 +237,8 @@ end
 
 -- Flatten the preview into the list's element stream: for each module, a
 -- collapsible header then its sections and entries. The Plugin umbrella's diff
--- carries submodules, so it expands into a collapsible "Plugin: <name>" header
--- per plugin with its submodules beneath. Returns whether anything was shown.
+-- carries submodules, so it expands into a collapsible section header per
+-- plugin with its submodules beneath. Returns whether anything was shown.
 local function Populate(panel, dataProvider, preview, filterName, mode)
     local exactMode = (mode == "exact")
     local anyShown = false
@@ -307,14 +315,6 @@ local function BuildRow(row)
     bg:SetColorTexture(0, 0, 0, 0)
     row.bg = bg
 
-    local separator = row:CreateTexture(nil, "ARTWORK")
-    separator:SetColorTexture(unpack(UI.Backdrop.Separator))
-    separator:SetHeight(1)
-    separator:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", MODULE_INSET, 0)
-    separator:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -6, 0)
-    separator:Hide()
-    row.separator = separator
-
     local icon = row:CreateTexture(nil, "ARTWORK")
     icon:SetSize(ICON_SIZE, ICON_SIZE)
     icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
@@ -360,7 +360,6 @@ end
 -- carry a disclosure marker and toggle their section's collapsed state on click.
 local function UpdateRow(row, data, panel)
     row.icon:Hide()
-    row.separator:Hide()
     row.desc:Hide()
     row.bg:SetColorTexture(0, 0, 0, 0)
     row._panel = panel
@@ -370,61 +369,62 @@ local function UpdateRow(row, data, panel)
     row.text:SetPoint("RIGHT", row, "RIGHT", -TEXT_RIGHT_INSET, 0)
 
     if data.kind == "plugin" then
-        row.text:SetFontObject("GameFontNormal")
+        -- A Settings-style section header (large heading) so each plugin reads as
+        -- its own block, matching WoW's Options panel.
+        row.text:SetFontObject("GameFontHighlightLarge")
         row.text:SetText(SnapshotRow:ExpandMarker(data.expanded) .. data.name)
         row.text:SetTextColor(PLUGIN_HEADER_COLOR:GetRGB())
         row.text:SetPoint("LEFT", row, "LEFT", PLUGIN_INSET, 0)
-        row.separator:Show()
         row._collapseKey = data.collapseKey
         row:EnableMouse(true)
     elseif data.kind == "module" then
         row.text:SetFontObject("GameFontNormal")
         row.text:SetText(SnapshotRow:ExpandMarker(data.expanded) .. data.name)
         row.text:SetTextColor(MODULE_HEADER_COLOR:GetRGB())
-        row.text:SetPoint("LEFT", row, "LEFT", MODULE_INSET, 0)
-        row.separator:Show()
+        row.text:SetPoint("LEFT", row, "LEFT", MODULE_INSET + (data.indent or 0), 0)
         row._collapseKey = data.collapseKey
         row:EnableMouse(true)
     elseif data.kind == "section" then
         row.text:SetFontObject("GameFontNormalSmall")
         row.text:SetText(data.section.label:format(data.count))
         row.text:SetTextColor(data.section.color:GetRGB())
-        row.text:SetPoint("LEFT", row, "LEFT", SECTION_INSET, 0)
+        row.text:SetPoint("LEFT", row, "LEFT", SECTION_INSET + (data.indent or 0), 0)
     elseif data.kind == "item" then
         row.text:SetFontObject("GameFontHighlightSmall")
         row.text:SetText(data.label)
         row.text:SetTextColor(1, 1, 1)
 
         local iconOffset = data.icon and (ICON_SIZE + ICON_TEXT_GAP) or 0
+        local itemInset = ITEM_INSET + (data.indent or 0)
         local hasDesc = data.description and data.description ~= ""
 
         if hasDesc then
             -- Top-align the label (and icon) so the wrapped description can sit
             -- beneath them instead of fighting the row's vertical centring.
             row.text:ClearAllPoints()
-            row.text:SetPoint("TOPLEFT", row, "TOPLEFT", ITEM_INSET + iconOffset, -ITEM_TOP_PAD)
+            row.text:SetPoint("TOPLEFT", row, "TOPLEFT", itemInset + iconOffset, -ITEM_TOP_PAD)
             row.text:SetPoint("TOPRIGHT", row, "TOPRIGHT", -TEXT_RIGHT_INSET, -ITEM_TOP_PAD)
 
             if data.icon then
                 row.icon:SetTexture(data.icon)
                 row.icon:ClearAllPoints()
-                row.icon:SetPoint("TOPLEFT", row, "TOPLEFT", ITEM_INSET, -ITEM_TOP_PAD)
+                row.icon:SetPoint("TOPLEFT", row, "TOPLEFT", itemInset, -ITEM_TOP_PAD)
                 row.icon:Show()
             end
 
             row.desc:ClearAllPoints()
-            row.desc:SetPoint("TOPLEFT", row, "TOPLEFT", ITEM_INSET + iconOffset, -(ITEM_TOP_PAD + LABEL_HEIGHT + DESC_GAP))
+            row.desc:SetPoint("TOPLEFT", row, "TOPLEFT", itemInset + iconOffset, -(ITEM_TOP_PAD + LABEL_HEIGHT + DESC_GAP))
             row.desc:SetPoint("RIGHT", row, "RIGHT", -TEXT_RIGHT_INSET, 0)
             row.desc:SetText(data.description)
             row.desc:Show()
         elseif data.icon then
             row.icon:SetTexture(data.icon)
             row.icon:ClearAllPoints()
-            row.icon:SetPoint("LEFT", row, "LEFT", ITEM_INSET, 0)
+            row.icon:SetPoint("LEFT", row, "LEFT", itemInset, 0)
             row.icon:Show()
             row.text:SetPoint("LEFT", row.icon, "RIGHT", ICON_TEXT_GAP, 0)
         else
-            row.text:SetPoint("LEFT", row, "LEFT", ITEM_INSET, 0)
+            row.text:SetPoint("LEFT", row, "LEFT", itemInset, 0)
         end
     else
         row.text:SetFontObject("GameFontDisableSmall")
