@@ -388,14 +388,14 @@ local function ShareSnapshot(panel, snapshot)
             -- empty string (not nil) so clearing the prefilled note actually
             -- drops it, instead of the export falling back to the saved note.
             local opts = { modules = moduleSet, notes = note or "" }
-            local share, reason
+            local share, reason, hash
             if isHead then
-                share, reason = ExportManager:ExportLiveSnapshot(charKey, opts)
+                share, reason, hash = ExportManager:ExportLiveSnapshot(charKey, opts)
             else
-                share, reason = ExportManager:ExportSavedSnapshot(panel._currentProfileName, selector, opts)
+                share, reason, hash = ExportManager:ExportSavedSnapshot(panel._currentProfileName, selector, opts)
             end
             if share then
-                ShareDialog:Show({ text = share, subject = subject })
+                ShareDialog:Show({ text = share, subject = subject, hash = hash })
             else
                 Console:Print(reason or L["Couldn't export that snapshot."])
             end

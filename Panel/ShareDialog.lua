@@ -38,6 +38,13 @@ function Methods:Constructor(config)
     hint:SetPoint("TOPLEFT", 14, -58)
     hint:SetText(L["Press Ctrl+C to copy this string, then share it."])
 
+    -- The export's length and its hash-of-hashes fingerprint, so the sharer can
+    -- state how big the string is and a checkable identity of its contents.
+    local stats = self:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    stats:SetPoint("TOPRIGHT", -14, -58)
+    stats:SetJustifyH("RIGHT")
+    self._statsLabel = stats
+
     -- Read-only, pre-selected share string. Edits revert and the box re-selects,
     -- so the export can be copied but not altered.
     local scroll = CreateFrame("ScrollFrame", nil, self, "InputScrollFrameTemplate")
@@ -66,10 +73,20 @@ end
 function Methods:Open(opts)
     self._shareText = opts.text
     self._subjectLabel:SetText(opts.subject or "")
+    self:SetStats(opts.text, opts.hash)
     self._copyBox:SetText(opts.text)
     self:Show()
     self._copyBox:SetFocus()
     self._copyBox:HighlightText()
+end
+
+-- Show the export's character count and, when available, its fingerprint.
+function Methods:SetStats(text, hash)
+    local line = L["X characters"]:format(BreakUpLargeNumbers(text and #text or 0))
+    if hash then
+        line = "#" .. hash .. "        " .. line
+    end
+    self._statsLabel:SetText(line)
 end
 
 -- Build the dialog on first use, adopting the shared Dialog shell so the body
