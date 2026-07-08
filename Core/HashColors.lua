@@ -19,7 +19,7 @@ addon.HashColors = HashColors
         HashColors.Add(hash)      -- claim a reference (assigns a colour on the first)
         HashColors.Remove(hash)   -- release a reference (frees the slot on the last)
         HashColors.GetRGB(hash)   -> r, g, b        colour for display
-        HashColors.WrapHashInColorCode(hash) -> "|cffRRGGBB"  escape code for tinting text
+        HashColors.GetRGBString(hash) -> "|cffRRGGBB"  escape code for tinting text
 ]]
 
 local floor = math.floor
@@ -167,8 +167,7 @@ function HashColors.GetRGB(hash)
 end
 
 -- The escape code that tints text in a hash's colour.
-function HashColors.WrapHashInColorCode(hash)
+function HashColors.GetRGBString(hash)
     local r, g, b = HashColors.GetRGB(hash)
-    return ("|cff%02x%02x%02x"):format(
-        floor(r * 255 + 0.5), floor(g * 255 + 0.5), floor(b * 255 + 0.5))
+    return ("|cff%02x%02x%02x"):format(floor(r * 255 + 0.5), floor(g * 255 + 0.5), floor(b * 255 + 0.5))
 end

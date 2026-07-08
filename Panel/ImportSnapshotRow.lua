@@ -64,7 +64,7 @@ local Methods = Mixin({}, SelectableRow.Methods)
 -- hash is tinted with a stable per-hash color, so every snapshot carries its
 -- hash's colour and any duplicates (same hash) read as one colored group.
 local function SelectorText(snapshot)
-    local hash = HashColors.WrapHashInColorCode(snapshot.Hash) .. "#" .. snapshot.Hash .. "|r"
+    local hash = HashColors.GetRGBString(snapshot.Hash) .. "#" .. snapshot.Hash .. "|r"
     return ("%s#%d"):format(hash, snapshot.Index or 0)
 end
 
