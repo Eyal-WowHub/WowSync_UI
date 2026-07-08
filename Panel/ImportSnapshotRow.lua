@@ -47,9 +47,6 @@ local ROW_INSET = 30
 -- step.
 ImportSnapshotRow.ContentInset = ROW_INSET
 
--- Characters of the content hash shown in the selector label.
-local HASH_PREFIX = 7
-
 -- Fallback timeline node colour for the rare snapshot with no hash to colour from.
 local NODE_NEUTRAL = CreateColor(0.85, 0.85, 0.85, 1)
 
@@ -63,16 +60,16 @@ local SUBJECT_COLOR = CreateColor(1, 1, 1, 1)
 
 local Methods = Mixin({}, SelectableRow.Methods)
 
--- The user-facing selector for an imported snapshot: a short hash and index. The
--- hash prefix is tinted with a stable per-hash color, so every snapshot carries
--- its hash's colour and any duplicates (same hash) read as one colored group.
+-- The user-facing selector for an imported snapshot: its full hash and index. The
+-- hash is tinted with a stable per-hash color, so every snapshot carries its
+-- hash's colour and any duplicates (same hash) read as one colored group.
 local function SelectorText(snapshot)
-    local hash = HashColors.WrapHashInColorCode(snapshot.Hash) .. snapshot.Hash:sub(1, HASH_PREFIX) .. "|r"
+    local hash = HashColors.WrapHashInColorCode(snapshot.Hash) .. "#" .. snapshot.Hash .. "|r"
     return ("%s#%d"):format(hash, snapshot.Index or 0)
 end
 
 -- A compact back-reference to the snapshot a duplicate repeats: its index, which
--- the original's selector shows (the hash prefix is identical for both).
+-- the original's selector shows (the hash is identical for both).
 local function DuplicateRef(original)
     return ("#%d"):format(original.Index or 0)
 end
