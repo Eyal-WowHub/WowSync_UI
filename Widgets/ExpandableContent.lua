@@ -147,8 +147,8 @@ function ExpandableContent:Measure(lines, width)
     end
 
     -- A non-positive width (before the scroll box is sized) can't drive wrapping,
-    -- so measure those lines as a single line -- the same fallback the note
-    -- preview used, and a transient the scroll box corrects on its next pass.
+    -- so measure those lines as a single line -- a transient the scroll box
+    -- corrects on its next pass.
     local wrapOK = width and width > 0
 
     local total = 0

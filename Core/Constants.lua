@@ -3,10 +3,7 @@ local _, addon = ...
 local NOTES_COLOR = CreateColor(0.62, 0.80, 1.00, 1)            -- a user-written note, soft blue
 local NOTES_HEADER_COLOR = CreateColor(0.52, 0.62, 0.78, 1)     -- a detail section header
 
--- Constants kept here for one of two reasons: they are shared by more than one
--- component, or they are preferences the user may safely adjust. Values that are
--- internal to a single component live as named locals in that component's file.
--- Grouped by concept.
+-- Shared and user-tunable UI constants, grouped by concept.
 addon.UI = {
     -- Default window size, used to seed the saved layout and as the centred
     -- starting size. A user-tunable preference; the layout engine clamps it into

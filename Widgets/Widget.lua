@@ -23,28 +23,17 @@ local _, addon = ...
     width, height, shown -- plus whatever else the widget's Constructor reads.
 ]]
 
--- The base methods mixed onto every widget frame. Deliberately a plain table and
--- NOT an addon:NewObject: NewWidget Mixin-copies these keys straight onto each
--- frame, so an Addon-1.0 object here would copy its per-object state (a shared
--- __ObjectContext) and event/name methods onto -- and over -- every frame too.
--- We also considered making Widget a proper object (base methods in a private
--- Methods table, Mixin'd instead of the object itself) -- see below. Kept the
--- plain table: it's simpler, and object-ness buys Widget nothing today (no
--- events, lifecycle, or storage).
---[[
-    local Widget = addon:NewObject("Widget")
-    local Methods = {}
-    function Methods:SetShownIf(...) ... end
-    function Widget:New(config, def) ... Mixin(frame, Methods, def.methods or {}) ... end
-]]
+-- The base methods mixed onto every widget frame. A plain table rather than an
+-- addon:NewObject, because NewWidget Mixin-copies these keys straight onto each
+-- frame and an object would drag its per-object state (context, event/name
+-- methods) onto every frame too.
 local Widget = {}
 
 function Widget:SetShownIf(condition)
     self:SetShown(condition and true or false)
 end
 
--- Apply the common layout keys every widget repeats, in the original order:
--- size, then anchor, then initial visibility.
+-- Applies the common layout keys: size, then anchor, then initial visibility.
 function Widget:ApplyLayout(config)
     if config.width and config.height then
         self:SetSize(config.width, config.height)
