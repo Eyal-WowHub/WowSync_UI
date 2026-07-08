@@ -68,6 +68,8 @@ L["All modules"] = "All modules"
 L["Added (X)"] = "Added (%d)"
 L["Updated (X)"] = "Updated (%d)"
 L["Removed (X)"] = "Removed (%d)"
+L["Collapse all"] = "Collapse all"
+L["Expand all"] = "Expand all"
 L["No changes to preview."] = "No changes to preview."
 L["Nothing saved yet to compare against."] = "Nothing saved yet to compare against."
 

@@ -33,6 +33,8 @@ local UI = addon.UI
 
 local Dialog = addon:GetObject("Dialog")
 local ScrollList = addon:GetObject("ScrollList")
+local Button = addon:GetObject("Button")
+local SnapshotRow = addon:GetObject("SnapshotRow")
 
 local Module = WowSync:Import("Module")
 
@@ -60,6 +62,15 @@ local SCROLLBOX_LEFT_INSET = 14
 local SCROLLBOX_RIGHT_INSET = 28
 local ROW_WIDTH = UI.Preview.Width - SCROLLBOX_LEFT_INSET - SCROLLBOX_RIGHT_INSET
 
+-- The list starts below a slim toolbar whose two buttons collapse or expand
+-- every section at once, anchored to the top-right of the window.
+local SCROLLBOX_TOP_INSET = -58
+local TOOLBAR_TOP = -30
+local TOOLBAR_BUTTON_WIDTH = 96
+local TOOLBAR_BUTTON_HEIGHT = 22
+local TOOLBAR_RIGHT_INSET = 14
+local TOOLBAR_BUTTON_GAP = 6
+
 -- Vertical layout of an entry row that carries a description: the label sits at
 -- the top, the wrapped grey description follows beneath it.
 local ITEM_TOP_PAD = 3
@@ -83,6 +94,10 @@ local SECTIONS = {
 }
 
 local Methods = {}
+
+-- Forward declaration: the header click handlers and the toolbar both rebuild
+-- the list, while Rebuild itself is defined once the render helpers exist.
+local Rebuild
 
 -- The label, optional icon, and optional description of a diff entry, which may
 -- be a bare string or a { label, icon, description } table.
@@ -162,27 +177,60 @@ local function InsertModuleEntries(panel, dataProvider, moduleDiff, moduleIcon, 
     end
 end
 
--- Insert one plugin: a "Plugin: <name>" header followed by each of its changed
--- submodules, rendered like a top-level module. Returns whether anything was shown.
-local function InsertPlugin(panel, dataProvider, plugin, exactMode)
-    local shown = false
+-- True when a plugin has at least one submodule with changes the mode would show.
+local function PluginHasVisible(plugin, exactMode)
     for _, subModule in ipairs(plugin.subModules) do
         local showRemoved = exactMode and subModule.canExact
         if HasVisibleChanges(subModule, showRemoved) then
-            if not shown then
-                dataProvider:Insert({ kind = "plugin", name = L["Plugin: X"]:format(plugin.name) })
-                shown = true
-            end
-            dataProvider:Insert({ kind = "module", name = subModule.name })
-            InsertModuleEntries(panel, dataProvider, subModule, nil, showRemoved)
+            return true
         end
     end
-    return shown
+    return false
 end
 
--- Flatten the preview into the list's element stream: for each module, a header
--- then its sections and entries. The Plugin umbrella's diff carries submodules, so
--- it expands into a "Plugin: <name>" header per plugin with its submodules beneath.
+-- Insert one plugin as a collapsible "Plugin: <name>" header; while expanded,
+-- each changed submodule follows as its own collapsible module header with
+-- entries beneath. Returns whether the plugin header was shown.
+local function InsertPlugin(panel, dataProvider, plugin, exactMode)
+    if not PluginHasVisible(plugin, exactMode) then
+        return false
+    end
+
+    local pluginKey = "plugin:" .. plugin.name
+    local expanded = not panel._collapsed[pluginKey]
+    dataProvider:Insert({
+        kind = "plugin",
+        name = L["Plugin: X"]:format(plugin.name),
+        collapseKey = pluginKey,
+        expanded = expanded,
+    })
+
+    if expanded then
+        for _, subModule in ipairs(plugin.subModules) do
+            local showRemoved = exactMode and subModule.canExact
+            if HasVisibleChanges(subModule, showRemoved) then
+                local subKey = pluginKey .. "/" .. subModule.name
+                local subExpanded = not panel._collapsed[subKey]
+                dataProvider:Insert({
+                    kind = "module",
+                    name = subModule.name,
+                    collapseKey = subKey,
+                    expanded = subExpanded,
+                })
+                if subExpanded then
+                    InsertModuleEntries(panel, dataProvider, subModule, nil, showRemoved)
+                end
+            end
+        end
+    end
+
+    return true
+end
+
+-- Flatten the preview into the list's element stream: for each module, a
+-- collapsible header then its sections and entries. The Plugin umbrella's diff
+-- carries submodules, so it expands into a collapsible "Plugin: <name>" header
+-- per plugin with its submodules beneath. Returns whether anything was shown.
 local function Populate(panel, dataProvider, preview, filterName, mode)
     local exactMode = (mode == "exact")
     local anyShown = false
@@ -202,10 +250,19 @@ local function Populate(panel, dataProvider, preview, filterName, mode)
                 local showRemoved = exactMode and ModuleSupportsExact(name)
                 if HasVisibleChanges(moduleDiff, showRemoved) then
                     anyShown = true
-                    local module = Module:FromRegisteredModule(name)
-                    local moduleIcon = module and module:DefaultIcon()
-                    dataProvider:Insert({ kind = "module", name = name })
-                    InsertModuleEntries(panel, dataProvider, moduleDiff, moduleIcon, showRemoved)
+                    local moduleKey = "module:" .. name
+                    local expanded = not panel._collapsed[moduleKey]
+                    dataProvider:Insert({
+                        kind = "module",
+                        name = name,
+                        collapseKey = moduleKey,
+                        expanded = expanded,
+                    })
+                    if expanded then
+                        local module = Module:FromRegisteredModule(name)
+                        local moduleIcon = module and module:DefaultIcon()
+                        InsertModuleEntries(panel, dataProvider, moduleDiff, moduleIcon, showRemoved)
+                    end
                 end
             end
         end
@@ -214,10 +271,42 @@ local function Populate(panel, dataProvider, preview, filterName, mode)
     if not anyShown then
         dataProvider:Insert({ kind = "empty" })
     end
+
+    return anyShown
+end
+
+-- Visit every top-level collapsible header key the current preview would show
+-- (each plain module and each plugin), in list order. A plugin's submodules
+-- collapse independently and are not swept here, so Collapse All folds the view
+-- down to just its top-level section headers.
+local function ForEachTopHeaderKey(preview, filterName, mode, fn)
+    local exactMode = (mode == "exact")
+    for _, name in ipairs(ModuleNamesIn(preview)) do
+        if not filterName or filterName == name then
+            local moduleDiff = preview.perModule[name]
+            if moduleDiff.plugins then
+                for _, plugin in ipairs(moduleDiff.plugins) do
+                    if PluginHasVisible(plugin, exactMode) then
+                        fn("plugin:" .. plugin.name)
+                    end
+                end
+            else
+                local showRemoved = exactMode and ModuleSupportsExact(name)
+                if HasVisibleChanges(moduleDiff, showRemoved) then
+                    fn("module:" .. name)
+                end
+            end
+        end
+    end
 end
 
 -- Create the reusable widgets a pooled row needs for any element kind.
 local function BuildRow(row)
+    local bg = row:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints()
+    bg:SetColorTexture(0, 0, 0, 0)
+    row.bg = bg
+
     local separator = row:CreateTexture(nil, "ARTWORK")
     separator:SetColorTexture(unpack(UI.Backdrop.Separator))
     separator:SetHeight(1)
@@ -243,28 +332,59 @@ local function BuildRow(row)
     desc:SetTextColor(0.6, 0.6, 0.6)
     desc:Hide()
     row.desc = desc
+
+    -- Header rows toggle their section on click, with hover feedback; the
+    -- scripts stay inert on other rows, which carry no collapse key and keep the
+    -- mouse disabled. Wiring once here (reading the row's live key) avoids
+    -- rebuilding closures on every render.
+    row:SetScript("OnEnter", function(self)
+        if self._collapseKey then
+            self.bg:SetColorTexture(UI.Row.Hover:GetRGBA())
+        end
+    end)
+    row:SetScript("OnLeave", function(self)
+        if self._collapseKey then
+            self.bg:SetColorTexture(0, 0, 0, 0)
+        end
+    end)
+    row:SetScript("OnMouseUp", function(self)
+        local key = self._collapseKey
+        if not key then return end
+        local panel = self._panel
+        panel._collapsed[key] = not panel._collapsed[key] or nil
+        Rebuild(panel)
+    end)
 end
 
--- Render a pooled row for its element kind.
-local function UpdateRow(row, data)
+-- Render a pooled row for its element kind. Header rows (plugin and module)
+-- carry a disclosure marker and toggle their section's collapsed state on click.
+local function UpdateRow(row, data, panel)
     row.icon:Hide()
     row.separator:Hide()
     row.desc:Hide()
+    row.bg:SetColorTexture(0, 0, 0, 0)
+    row._panel = panel
+    row._collapseKey = nil
+    row:EnableMouse(false)
     row.text:ClearAllPoints()
     row.text:SetPoint("RIGHT", row, "RIGHT", -TEXT_RIGHT_INSET, 0)
 
     if data.kind == "plugin" then
         row.text:SetFontObject("GameFontNormal")
-        row.text:SetText(data.name)
+        row.text:SetText(SnapshotRow:ExpandMarker(data.expanded) .. data.name)
         row.text:SetTextColor(PLUGIN_HEADER_COLOR:GetRGB())
         row.text:SetPoint("LEFT", row, "LEFT", PLUGIN_INSET, 0)
         row.separator:Show()
+        row._collapseKey = data.collapseKey
+        row:EnableMouse(true)
     elseif data.kind == "module" then
         row.text:SetFontObject("GameFontNormal")
-        row.text:SetText(data.name)
+        row.text:SetText(SnapshotRow:ExpandMarker(data.expanded) .. data.name)
         row.text:SetTextColor(MODULE_HEADER_COLOR:GetRGB())
         row.text:SetPoint("LEFT", row, "LEFT", MODULE_INSET, 0)
         row.separator:Show()
+        row._collapseKey = data.collapseKey
+        row:EnableMouse(true)
     elseif data.kind == "section" then
         row.text:SetFontObject("GameFontNormalSmall")
         row.text:SetText(data.section.label:format(data.count))
@@ -314,14 +434,19 @@ local function UpdateRow(row, data)
     end
 end
 
--- Rebuild the element stream from the current preview, filter, and mode.
-local function Rebuild(panel)
+-- Rebuild the element stream from the current preview, filter, and mode, and
+-- show the Collapse/Expand toolbar only when there is something to collapse.
+function Rebuild(panel)
     local dataProvider = CreateDataProvider()
-    Populate(panel, dataProvider, panel._currentPreview, panel._moduleFilter, panel._currentMode)
+    local anyShown = Populate(panel, dataProvider, panel._currentPreview, panel._moduleFilter, panel._currentMode)
     panel._scrollBox:SetDataProvider(dataProvider)
+    panel._collapseAllButton:SetShown(anyShown)
+    panel._expandAllButton:SetShown(anyShown)
 end
 
 function Methods:Constructor(config)
+    self._collapsed = {}
+
     -- Hidden font string used to measure wrapped description heights up front,
     -- so the virtualised list can size each entry row before it is shown.
     local measureText = self:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
@@ -333,7 +458,7 @@ function Methods:Constructor(config)
     self._scrollBox = ScrollList:Build({
         parent = self,
         anchor = function(sb)
-            sb:SetPoint("TOPLEFT", SCROLLBOX_LEFT_INSET, -40)
+            sb:SetPoint("TOPLEFT", SCROLLBOX_LEFT_INSET, SCROLLBOX_TOP_INSET)
             sb:SetPoint("BOTTOMRIGHT", -SCROLLBOX_RIGHT_INSET, 14)
         end,
         extent = function(_, data)
@@ -350,14 +475,52 @@ function Methods:Constructor(config)
         end,
         padding = UI.List.ItemPadding,
         build = BuildRow,
-        update = UpdateRow,
+        update = function(row, data) UpdateRow(row, data, self) end,
     })
+
+    self._collapseAllButton = Button:Build({
+        parent = self,
+        width = TOOLBAR_BUTTON_WIDTH,
+        height = TOOLBAR_BUTTON_HEIGHT,
+        text = L["Collapse all"],
+        anchor = function(button)
+            button:SetPoint("TOPRIGHT", self, "TOPRIGHT",
+                -(TOOLBAR_RIGHT_INSET + TOOLBAR_BUTTON_WIDTH + TOOLBAR_BUTTON_GAP), TOOLBAR_TOP)
+        end,
+        onClick = function() self:CollapseAll() end,
+    })
+
+    self._expandAllButton = Button:Build({
+        parent = self,
+        width = TOOLBAR_BUTTON_WIDTH,
+        height = TOOLBAR_BUTTON_HEIGHT,
+        text = L["Expand all"],
+        anchor = function(button)
+            button:SetPoint("TOPRIGHT", self, "TOPRIGHT", -TOOLBAR_RIGHT_INSET, TOOLBAR_TOP)
+        end,
+        onClick = function() self:ExpandAll() end,
+    })
+end
+
+-- Collapse every top-level section (each module and plugin) to its header.
+function Methods:CollapseAll()
+    ForEachTopHeaderKey(self._currentPreview, self._moduleFilter, self._currentMode, function(key)
+        self._collapsed[key] = true
+    end)
+    Rebuild(self)
+end
+
+-- Expand everything, clearing every remembered collapsed section.
+function Methods:ExpandAll()
+    wipe(self._collapsed)
+    Rebuild(self)
 end
 
 function Methods:Open(opts)
     self._currentPreview = opts.preview
     self._currentMode = opts.mode or "exact"
     self._moduleFilter = opts.moduleFilter
+    wipe(self._collapsed)
 
     self:SetTitle(opts.title or L["Preview changes"])
     Rebuild(self)
