@@ -51,8 +51,9 @@ end
 -- ShowLock). The bar IS this frame; SetTitle/SetLocked drive it afterwards.
 function Methods:Constructor(config)
     -- Vertically centred, matching the lock and close buttons (which anchor to the
-    -- bar's vertical centre) so the three sit on one line.
-    self._title = self:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    -- bar's vertical centre) so the three sit on one line. Uses the standard
+    -- window-title font size, matching Blizzard's AddOn List and Options windows.
+    self._title = self:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     self._title:SetPoint("CENTER", 10, 0)
     self._title:SetText(config.title or "")
 
