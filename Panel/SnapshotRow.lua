@@ -12,7 +12,7 @@ local _, addon = ...
     list-level selection and expansion state is reached through an injected
     context.
 
-    elementData = { snapshot = <handle>, isHead = bool }
+    elementData = { snapshot = Snapshot, isHead = bool }
 
     ctx = {
         GetSelected() -> snapshot or nil,
@@ -34,6 +34,8 @@ local L = addon.L
 local SelectableRow = addon:GetObject("SelectableRow")
 
 local ChangeBadge = WowSync:Import("ChangeBadge")
+
+local HashColors = addon.HashColors
 
 local Methods = Mixin({}, SelectableRow.Methods)
 
@@ -147,6 +149,21 @@ function Methods:Constructor(config)
     end)
 end
 
+-- The hash-and-index selector, tinted with the hash's stable colour so identical
+-- setups read as one coloured group, matching the import timeline. Saved
+-- snapshots read "#<hash>#<index>"; the live head has no saved index, so it
+-- reads just "#<hash>".
+local function SelectorText(snapshot)
+    local hashValue = snapshot:HashValue()
+    if not hashValue then return nil end
+    local selector = HashColors.GetRGBString(hashValue) .. "#" .. hashValue .. "|r"
+    local index = snapshot:GetIndex()
+    if index then
+        selector = selector .. "#" .. index
+    end
+    return selector
+end
+
 -- Build the ordered content lines for a snapshot, shared by Render (to draw
 -- them) and SnapshotList (to reserve the row height from the same description).
 -- detail supplies the expanded change summary; nil while collapsed. hasChanges
@@ -168,12 +185,19 @@ function SnapshotRow:BuildLines(snapshot, isHead, expanded, detail, hasChanges)
     -- expanded -- the only cue to its state.
     subject = SnapshotRow:ExpandMarker(expanded) .. subject
 
+    -- Every row carries its hash selector on the right of the subject line,
+    -- tinted by hash like the import timeline (the live head shows its hash
+    -- without a saved index).
+    local selector = SelectorText(snapshot)
+
     -- The subject reads blue for the live head, red when the snapshot differs
     -- from the live setup, and the default white when it is in sync.
     local lines = {
         {
             left = subject,
+            right = selector,
             leftStyle = "Subject",
+            rightStyle = "Label",
             leftColor = isHead and TIMELINE_NODE_LATEST_COLOR or SnapshotRow:ChangesColor(hasChanges),
         },
     }

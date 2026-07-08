@@ -34,6 +34,8 @@ local ExpandableContent = addon:GetObject("ExpandableContent")
 local ScrollList = addon:GetObject("ScrollList")
 local SnapshotRow = addon:GetObject("SnapshotRow")
 
+local HashColors = addon.HashColors
+
 local ProfileManager = WowSync:Import("ProfileManager")
 local SnapshotManager = WowSync:Import("SnapshotManager")
 
@@ -70,12 +72,13 @@ end
 function Methods:Constructor(config)
     local panel = self
 
-    panel._entries = {}            -- ordered display rows { snapshot = <handle>, isHead = bool }
+    panel._entries = {}            -- ordered display rows { snapshot = Snapshot, isHead = bool }
     panel._currentProfile = nil    -- profile name, for diffing against the live setup
-    panel._selected = nil          -- the selected snapshot handle (identity, not its hash)
+    panel._selected = nil          -- the selected snapshot (identity, not its hash)
     panel._expanded = nil          -- the one open row (accordion), independent of selection
     panel._expandedDetail = nil    -- cached diff/note for the expanded row
     panel._changeFlags = setmetatable({}, { __mode = "k" })  -- snapshot -> changed-vs-live flag (memoised, weak so dropped snapshots clear)
+    panel._hashRefs = {}           -- set of hashes this list holds a colour reference on
     panel._onSelectionChanged = config.onSelect
     panel._onContext = config.onContext   -- right-click handler (snapshot, subject, anchor)
 
@@ -149,14 +152,37 @@ function SnapshotList:Build(region, opts)
     })
 end
 
+-- Reconcile the shared colour registry with the hashes this list now shows,
+-- claiming a reference for each newly present hash and releasing the ones that
+-- are gone, so a colour is freed once its last copy leaves the view.
+local function SyncHashColors(panel, present)
+    for hash in pairs(present) do
+        if not panel._hashRefs[hash] then
+            HashColors.Add(hash)
+        end
+    end
+    for hash in pairs(panel._hashRefs) do
+        if not present[hash] then
+            HashColors.Remove(hash)
+        end
+    end
+    panel._hashRefs = present
+end
+
 -- Rebuild the data provider from the cached entries. Re-setting the provider is
 -- what reruns the extent calculator and the row initializers, so it is also how
 -- an expand/collapse relayout is triggered.
 local function Rebuild(panel)
     local dataProvider = CreateDataProvider()
+    local present = {}
     for _, entry in ipairs(panel._entries) do
         dataProvider:Insert(entry)
+        local hash = entry.snapshot:HashValue()
+        if hash then
+            present[hash] = true
+        end
     end
+    SyncHashColors(panel, present)
     panel._scrollBox:SetDataProvider(dataProvider, ScrollBoxConstants.RetainScrollPosition)
 end
 
@@ -167,10 +193,10 @@ local function LoadEntries(panel)
     if not panel._currentProfile then return end
     local profile = ProfileManager:GetProfile(panel._currentProfile)
     if not profile then return end
-    for _, handle in ipairs(ProfileManager:GetTimeline(profile)) do
+    for _, snapshot in ipairs(ProfileManager:GetTimeline(profile)) do
         tinsert(panel._entries, {
-            snapshot = handle,
-            isHead = handle:IsLive(),
+            snapshot = snapshot,
+            isHead = snapshot:IsLive(),
         })
     end
 end
@@ -251,6 +277,7 @@ end
 function Methods:Clear()
     wipe(self._entries)
     wipe(self._changeFlags)
+    SyncHashColors(self, {})
     self._currentProfile = nil
     self._selected = nil
     self._expanded = nil
