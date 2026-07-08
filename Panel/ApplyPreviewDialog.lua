@@ -19,7 +19,8 @@ local _, addon = ...
         preview     = <preview>,                 -- precomputed diff; defaults to a
                                                  -- live preview of the snapshot
         onConfirm   = function(moduleSet, overrides) end,
-                                                 -- moduleSet: { [name] = true }
+                                                 -- moduleSet: nested selection
+                                                 --   { [name]=true | [Plugin]={ [plugin]={ [sub]=true } } }
                                                  -- overrides: { [name] = mode }
     })
 ]]
@@ -37,6 +38,11 @@ local ModuleList = addon:GetObject("ModuleList")
 local SnapshotRow = addon:GetObject("SnapshotRow")
 
 local SnapshotManager = WowSync:Import("SnapshotManager")
+
+-- The module list scrolls once it would grow taller than this; the dialog is
+-- capped to this viewport plus its fixed chrome so a big module set never pushes
+-- the window off-screen.
+local MAX_LIST_HEIGHT = 300
 
 local Methods = {}
 
@@ -81,13 +87,16 @@ function Methods:Constructor(config)
     self._moduleList = ModuleList:Build(listSlot, {
         onChanged = function() RefreshToggle(panel) end,
         -- Clicking a module's change badge opens the read-only diff browser
-        -- filtered to that module, in the row's current mode.
-        onPreviewModule = function(name, mode)
+        -- filtered to that module (and, for a plugin submodule, to that plugin's
+        -- submodule), in the row's current mode.
+        onPreviewModule = function(name, mode, plugin, subModule)
             GameDiffPreview:Show({
                 title = panel._currentSubject,
                 preview = panel._currentPreview,
                 mode = mode or panel._currentMode,
                 moduleFilter = name,
+                pluginFilter = plugin,
+                subModuleFilter = subModule,
             })
         end,
     })
@@ -137,7 +146,7 @@ function Methods:Open(opts)
     -- list region is pinned between fixed top and bottom chrome, so the gap
     -- between the dialog and the list is constant; add the rows' exact height.
     local chrome = self:GetHeight() - self._listSlot:GetHeight()
-    self:SetHeight(chrome + self._moduleList:GetContentHeight())
+    self:SetHeight(chrome + math.min(self._moduleList:GetContentHeight(), MAX_LIST_HEIGHT))
 
     self:Show()
 end

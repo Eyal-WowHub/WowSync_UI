@@ -9,9 +9,9 @@ local _, addon = ...
     itself — the owning character, the title and what happens with the result are
     decided by the caller, not here.
 
-    Unlike the apply preview, this dialog owns its own (non-pooled) checkbox
-    rows rather than the shared ModuleList object, because that list is a
-    singleton already used by ApplyPreviewDialog.
+    The module list itself is the shared ModuleList widget (also used by the apply
+    preview), so plugin/submodule selection lives in one place; this dialog only
+    owns its note box, Select All toggle and confirm/cancel chrome.
 
     addon:GetObject("ModuleSelectionDialog"):Show({
         title       = L["Save snapshot"], -- window/header title
@@ -19,6 +19,7 @@ local _, addon = ...
         moduleNames = { name, ... },      -- restrict the offered modules (optional)
         note        = "prefill",          -- initial note text (optional)
         onConfirm   = function(moduleSet, note) end,
+                                          -- moduleSet: nested { [name]=true | [Plugin]={ [plugin]={ [sub]=true } } }
     })
 ]]
 
@@ -30,109 +31,31 @@ local UI = addon.UI
 
 local Button = addon:GetObject("Button")
 local Dialog = addon:GetObject("Dialog")
-local ModuleRow = addon:GetObject("ModuleRow")
+local ModuleList = addon:GetObject("ModuleList")
 
-local ModuleRegistry = WowSync:Import("ModuleRegistry")
+-- The module list scrolls once it would grow taller than this; the dialog is
+-- capped to this viewport plus its fixed chrome so a big module set never pushes
+-- the window off-screen.
+local MAX_LIST_HEIGHT = 300
 
 local Methods = {}
 
-local function IsActive(panel, moduleName)
-    for _, activeName in ipairs(panel._activeNames) do
-        if activeName == moduleName then return true end
-    end
-    return false
-end
-
--- True only when there is at least one offered row and every offered row is
--- checked.
-local function AreAllChecked(panel)
-    if #panel._activeNames == 0 then return false end
-    for _, name in ipairs(panel._activeNames) do
-        if not panel._checkboxes[name]:GetChecked() then
-            return false
-        end
-    end
-    return true
-end
-
-local function RefreshToggle(panel)
-    if not panel._toggleButton then return end
-    panel._toggleButton:SetText(AreAllChecked(panel) and L["Deselect All"] or L["Select All"])
-end
-
--- True when at least one offered row is checked.
-local function AreAnyChecked(panel)
-    for _, name in ipairs(panel._activeNames) do
-        if panel._checkboxes[name]:GetChecked() then
-            return true
-        end
-    end
-    return false
-end
-
--- Keep the confirm button disabled until at least one module is selected, so
--- the action can never run on an empty set.
-local function RefreshConfirm(panel)
-    if not panel._confirmButton then return end
-    panel._confirmButton:SetEnabled(AreAnyChecked(panel))
-end
-
--- React to any change in the offered rows: both the select-all label and the
--- confirm button's enabled state depend on the current checks.
+-- Keep the select-all label and the confirm button in step with the current
+-- selection: confirm stays disabled until at least one module is chosen.
 local function RefreshState(panel)
-    RefreshToggle(panel)
-    RefreshConfirm(panel)
-end
-
-local function SetAllChecked(panel, checked)
-    for _, name in ipairs(panel._activeNames) do
-        panel._checkboxes[name]:SetChecked(checked)
+    if panel._toggleButton then
+        panel._toggleButton:SetText(panel._list:AreAllSelectableChecked() and L["Deselect All"] or L["Select All"])
+    end
+    if panel._confirmButton then
+        panel._confirmButton:SetEnabled(panel._list:HasSelection())
     end
 end
 
--- Build one checkbox per registered module. The registered set is fixed at
--- runtime, so the checkboxes are created once; which of them are offered (and their
--- checked state) is decided per Show.
-local function BuildRows(panel, listParent)
-    local moduleNames = {}
-    for name in ModuleRegistry:Iterate() do
-        tinsert(moduleNames, name)
-    end
-    table.sort(moduleNames)
-
-    for _, name in ipairs(moduleNames) do
-        local checkbox = ModuleRow:Build(listParent)
-        checkbox:HookScript("OnClick", function() RefreshState(panel) end)
-        panel._checkboxes[name] = checkbox
-        checkbox:Hide()
-    end
-end
-
--- Stack the offered module checkboxes top-to-bottom and hide the rest.
-local function LayoutActiveRows(panel)
-    local yOffset = 0
-    for _, name in ipairs(panel._activeNames) do
-        local checkbox = panel._checkboxes[name]
-        checkbox:ClearAllPoints()
-        checkbox:SetPoint("TOPLEFT", 0, -yOffset)
-        checkbox:Update(name, true, nil, nil)
-        checkbox:Show()
-        yOffset = yOffset + UI.ModuleRow.Height + UI.ModuleRow.Padding
-    end
-
-    for name, checkbox in pairs(panel._checkboxes) do
-        if not IsActive(panel, name) then
-            checkbox:Hide()
-        end
-    end
-end
-
--- Build the dialog body and its module checkbox region onto the adopted shell.
+-- Build the dialog body: note box, Select All toggle, the shared module list, and
+-- the confirm/cancel buttons.
 function Methods:Constructor(config)
     local panel = self
 
-    panel._checkboxes = {}    -- moduleName -> checkbox (one per registered module, created once)
-    panel._activeNames = {}   -- module names currently offered/shown
     panel._onConfirm = nil
 
     -- Optional note attached to the snapshot for this action.
@@ -160,7 +83,7 @@ function Methods:Constructor(config)
         width = 100,
         height = 20,
         onClick = function()
-            SetAllChecked(panel, not AreAllChecked(panel))
+            panel._list:SetAllChecked(not panel._list:AreAllSelectableChecked())
             RefreshState(panel)
         end,
     })
@@ -171,7 +94,10 @@ function Methods:Constructor(config)
     listSlot:SetPoint("TOPRIGHT", self, "TOPRIGHT", -14, 0)
     listSlot:SetPoint("BOTTOM", self, "BOTTOM", 0, 44)
     self._listSlot = listSlot
-    BuildRows(panel, listSlot)
+
+    self._list = ModuleList:Build(listSlot, {
+        onChanged = function() RefreshState(panel) end,
+    })
 
     local confirmButton = Button:Build({
         parent = self,
@@ -181,14 +107,9 @@ function Methods:Constructor(config)
         width = 110,
         height = 22,
         onClick = function()
-            local moduleSet = {}
-            for _, name in ipairs(panel._activeNames) do
-                if panel._checkboxes[name]:GetChecked() then
-                    moduleSet[name] = true
-                end
-            end
-            -- The confirm button is disabled while the set is empty, so this is
-            -- only ever reached with at least one module chosen.
+            local moduleSet = panel._list:GetSelected()
+            -- The confirm button is disabled while the selection is empty, so this
+            -- is only ever reached with at least one module chosen.
             if not next(moduleSet) then return end
 
             local note = strtrim(panel._noteBox:GetText())
@@ -221,25 +142,9 @@ function Methods:Constructor(config)
     })
 end
 
--- Offer a module set, apply the caller's labels and note, lay out the rows, and
--- show the dialog.
+-- Offer a module set, apply the caller's labels and note, and show the dialog.
 function Methods:Open(opts)
     self._onConfirm = opts.onConfirm
-
-    -- Decide which modules to offer: a given subset, or every registered module.
-    wipe(self._activeNames)
-    if opts.moduleNames then
-        for _, name in ipairs(opts.moduleNames) do
-            if self._checkboxes[name] then
-                tinsert(self._activeNames, name)
-            end
-        end
-    else
-        for name in pairs(self._checkboxes) do
-            tinsert(self._activeNames, name)
-        end
-    end
-    table.sort(self._activeNames)
 
     self:SetTitle(opts.title or L["Save snapshot"])
     self._confirmButton:SetLabel(opts.confirmText or L["Save"])
@@ -247,14 +152,14 @@ function Methods:Open(opts)
     self._noteBox:SetText(opts.note or "")
     self._noteBox:ClearFocus()
 
-    LayoutActiveRows(self)
+    self._list:SetModuleNames(opts.moduleNames)
     RefreshState(self)
 
     -- Grow the dialog to fit the offered rows so none hide behind the buttons.
-    -- The list region is pinned between fixed top and bottom chrome, so the
-    -- difference between the dialog and the list is a constant; add the exact
-    -- height the stacked rows need on top of it.
-    local rowsHeight = #self._activeNames * (UI.ModuleRow.Height + UI.ModuleRow.Padding)
+    -- The list region is pinned between fixed top and bottom chrome, so the gap
+    -- between the dialog and the list is constant; add exactly the height the
+    -- rows need on top of it.
+    local rowsHeight = math.min(self._list:GetContentHeight(), MAX_LIST_HEIGHT)
     local chrome = self:GetHeight() - self._listSlot:GetHeight()
     self:SetHeight(chrome + rowsHeight)
 

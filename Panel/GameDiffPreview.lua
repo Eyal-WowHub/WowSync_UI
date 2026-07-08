@@ -22,6 +22,8 @@ local _, addon = ...
         preview      = { perModule = {...} },  -- from SnapshotManager:Preview
         mode         = "exact" | "merge",      -- gates the Removed section
         moduleFilter = name | nil,             -- nil shows every module
+        pluginFilter = name | nil,             -- narrow the Plugin umbrella to one plugin
+        subModuleFilter = name | nil,          -- narrow that plugin to one submodule
     })
 ]]
 
@@ -184,12 +186,15 @@ local function InsertModuleEntries(panel, dataProvider, moduleDiff, moduleIcon, 
     end
 end
 
--- True when a plugin has at least one submodule with changes the mode would show.
-local function PluginHasVisible(plugin, exactMode)
+-- True when a plugin has at least one submodule (optionally only the filtered
+-- one) with changes the mode would show.
+local function PluginHasVisible(plugin, exactMode, subModuleFilter)
     for _, subModule in ipairs(plugin.subModules) do
-        local showRemoved = exactMode and subModule.canExact
-        if HasVisibleChanges(subModule, showRemoved) then
-            return true
+        if not subModuleFilter or subModule.name == subModuleFilter then
+            local showRemoved = exactMode and subModule.canExact
+            if HasVisibleChanges(subModule, showRemoved) then
+                return true
+            end
         end
     end
     return false
@@ -198,8 +203,8 @@ end
 -- Insert one plugin as a collapsible section header named for the plugin; while
 -- expanded, each changed submodule follows as its own collapsible module header
 -- with entries beneath. Returns whether the plugin header was shown.
-local function InsertPlugin(panel, dataProvider, plugin, exactMode)
-    if not PluginHasVisible(plugin, exactMode) then
+local function InsertPlugin(panel, dataProvider, plugin, exactMode, subModuleFilter)
+    if not PluginHasVisible(plugin, exactMode, subModuleFilter) then
         return false
     end
 
@@ -214,19 +219,21 @@ local function InsertPlugin(panel, dataProvider, plugin, exactMode)
 
     if expanded then
         for _, subModule in ipairs(plugin.subModules) do
-            local showRemoved = exactMode and subModule.canExact
-            if HasVisibleChanges(subModule, showRemoved) then
-                local subKey = pluginKey .. "/" .. subModule.name
-                local subExpanded = not panel._collapsed[subKey]
-                dataProvider:Insert({
-                    kind = "module",
-                    name = subModule.name,
-                    collapseKey = subKey,
-                    expanded = subExpanded,
-                    indent = SUBMODULE_INDENT,
-                })
-                if subExpanded then
-                    InsertModuleEntries(panel, dataProvider, subModule, nil, showRemoved, SUBMODULE_INDENT)
+            if not subModuleFilter or subModule.name == subModuleFilter then
+                local showRemoved = exactMode and subModule.canExact
+                if HasVisibleChanges(subModule, showRemoved) then
+                    local subKey = pluginKey .. "/" .. subModule.name
+                    local subExpanded = not panel._collapsed[subKey]
+                    dataProvider:Insert({
+                        kind = "module",
+                        name = subModule.name,
+                        collapseKey = subKey,
+                        expanded = subExpanded,
+                        indent = SUBMODULE_INDENT,
+                    })
+                    if subExpanded then
+                        InsertModuleEntries(panel, dataProvider, subModule, nil, showRemoved, SUBMODULE_INDENT)
+                    end
                 end
             end
         end
@@ -239,7 +246,7 @@ end
 -- collapsible header then its sections and entries. The Plugin umbrella's diff
 -- carries submodules, so it expands into a collapsible section header per
 -- plugin with its submodules beneath. Returns whether anything was shown.
-local function Populate(panel, dataProvider, preview, filterName, mode)
+local function Populate(panel, dataProvider, preview, filterName, mode, pluginFilter, subModuleFilter)
     local exactMode = (mode == "exact")
     local anyShown = false
 
@@ -248,7 +255,8 @@ local function Populate(panel, dataProvider, preview, filterName, mode)
             local moduleDiff = preview.perModule[name]
             if moduleDiff.plugins then
                 for _, plugin in ipairs(moduleDiff.plugins) do
-                    if InsertPlugin(panel, dataProvider, plugin, exactMode) then
+                    if (not pluginFilter or plugin.name == pluginFilter)
+                        and InsertPlugin(panel, dataProvider, plugin, exactMode, subModuleFilter) then
                         anyShown = true
                     end
                 end
@@ -287,14 +295,15 @@ end
 -- (each plain module and each plugin), in list order. A plugin's submodules
 -- collapse independently and are not swept here, so Collapse All folds the view
 -- down to just its top-level section headers.
-local function ForEachTopHeaderKey(preview, filterName, mode, fn)
+local function ForEachTopHeaderKey(preview, filterName, mode, fn, pluginFilter, subModuleFilter)
     local exactMode = (mode == "exact")
     for _, name in ipairs(ModuleNamesIn(preview)) do
         if not filterName or filterName == name then
             local moduleDiff = preview.perModule[name]
             if moduleDiff.plugins then
                 for _, plugin in ipairs(moduleDiff.plugins) do
-                    if PluginHasVisible(plugin, exactMode) then
+                    if (not pluginFilter or plugin.name == pluginFilter)
+                        and PluginHasVisible(plugin, exactMode, subModuleFilter) then
                         fn("plugin:" .. plugin.name)
                     end
                 end
@@ -438,7 +447,7 @@ end
 -- show the Collapse/Expand toolbar only when there is something to collapse.
 function Rebuild(panel)
     local dataProvider = CreateDataProvider()
-    local anyShown = Populate(panel, dataProvider, panel._currentPreview, panel._moduleFilter, panel._currentMode)
+    local anyShown = Populate(panel, dataProvider, panel._currentPreview, panel._moduleFilter, panel._currentMode, panel._pluginFilter, panel._subModuleFilter)
     panel._scrollBox:SetDataProvider(dataProvider)
     panel._collapseAllButton:SetShown(anyShown)
     panel._expandAllButton:SetShown(anyShown)
@@ -506,7 +515,7 @@ end
 function Methods:CollapseAll()
     ForEachTopHeaderKey(self._currentPreview, self._moduleFilter, self._currentMode, function(key)
         self._collapsed[key] = true
-    end)
+    end, self._pluginFilter, self._subModuleFilter)
     Rebuild(self)
 end
 
@@ -520,6 +529,8 @@ function Methods:Open(opts)
     self._currentPreview = opts.preview
     self._currentMode = opts.mode or "exact"
     self._moduleFilter = opts.moduleFilter
+    self._pluginFilter = opts.pluginFilter
+    self._subModuleFilter = opts.subModuleFilter
     wipe(self._collapsed)
 
     self:SetTitle(opts.title or L["Preview changes"])

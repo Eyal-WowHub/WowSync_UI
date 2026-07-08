@@ -3,19 +3,26 @@ local _, addon = ...
 --[[
     ModuleList object.
 
-    Fills an injected region with a vertical list of module checkboxes for a
-    profile. Rows are pooled and reused across profile selections (no frame
-    churn). Composes ModuleRow for each row.
+    The shared, reusable list of selectable modules: an injected region filled with
+    a vertical stack of module checkboxes. Both the apply preview and the
+    save/share dialog use it, so module selection lives in one place. The Plugin
+    umbrella expands into a per-plugin header followed by its submodule checkboxes
+    (mirroring the diff preview), and the selection is returned as a nested
+    moduleSet. Rows are pooled and reused across rebuilds (no frame churn).
 
     addon:GetObject("ModuleList"):Build(region, {
-        onChanged = fn,                 -- called when a row's check/mode changes
-        onPreviewModule = fn(name, mode),  -- clicking a change badge opens its preview
+        onChanged = fn,                    -- a row's check/mode changed
+        onPreviewModule = fn(module, mode, plugin, subModule),  -- badge opens its diff
     })
         -> module-list frame {
-            SetSnapshot(snapshot, preview, mode),   -- (re)build rows; preview adds counts
-            GetSelected() -> { [name] = true },
-            GetStrategy() -> moduleSet, overrides,  -- chosen modules + per-module mode
+            SetSnapshot(snapshot, preview, mode),  -- apply rows: badge + Merge/Exact toggle
+            SetModuleNames(moduleNames),           -- plain rows: checkbox only (save/share)
+            GetSelected() -> moduleSet,            -- nested { [name]=true | { [plugin]={ [sub]=true } } }
+            GetStrategy() -> moduleSet, overrides, -- adds per-module apply modes
+            HasSelection() -> boolean,             -- any row checked (no allocation)
             SetAllChecked(checked),
+            AreAllSelectableChecked() -> boolean,
+            GetContentHeight() -> number,
         }
 ]]
 
@@ -28,11 +35,28 @@ local ModuleRow = addon:GetObject("ModuleRow")
 
 local ModuleRegistry = WowSync:Import("ModuleRegistry")
 local Module = WowSync:Import("Module")
+local PluginManager = WowSync:Import("PluginManager")
+
+-- The umbrella module whose row expands into per-plugin headers and submodule
+-- checkboxes, so plugins are selectable the way they read in the diff preview.
+local PLUGIN_MODULE = "Plugin"
 
 -- Placement of the per-row Merge/Exact toggle: inset from the list's right edge,
 -- and a vertical nudge to centre the button in the row.
 local MODE_BUTTON_INSET = 2
 local MODE_BUTTON_VOFFSET = 3
+
+-- Left inset of a submodule row, so it reads as nested beneath its plugin header.
+local SUBMODULE_INDENT = 16
+-- A plugin header renders like GameDiffPreview's: the plugin name alone in a
+-- large blue heading. Its height, left inset, and tint match that surface.
+local HEADER_HEIGHT = 34
+local HEADER_INSET = 6
+local HEADER_COLOR = CreateColor(0.25, 0.65, 0.97)
+
+-- Right-edge gutter kept free for the scrollbar, so rows and their Merge/Exact
+-- toggles never sit beneath it.
+local SCROLLBAR_RESERVE = 20
 
 local Methods = {}
 
@@ -55,33 +79,16 @@ local function ResolveInitialMode(canMerge, canExact, defaultMode)
     return "merge"
 end
 
--- Per-module change figure for a row in its current mode. Removals only count
--- when the row applies in Exact and the module supports it, so the preview
--- never overstates the change.
-local function ComputeCounts(moduleDiff, rowMode, canExact)
-    if not moduleDiff then return nil end
-    local exactRow = (rowMode == "exact")
-
-    -- The Plugin umbrella's diff carries submodules per plugin; sum across it,
-    -- gating each submodule's removals on its own Exact support.
-    if moduleDiff.plugins then
-        local added, changed, removed = 0, 0, 0
-        for _, plugin in ipairs(moduleDiff.plugins) do
-            for _, subModule in ipairs(plugin.subModules) do
-                added = added + #(subModule.added or {})
-                changed = changed + #(subModule.changed or {})
-                if exactRow and subModule.canExact then
-                    removed = removed + #(subModule.removed or {})
-                end
-            end
-        end
-        return { added = added, changed = changed, removed = removed }
-    end
-
+-- Per-row change figure from a diff (with added/changed/removed lists) in the
+-- row's current mode. Removals only count in Exact when the module supports it,
+-- so the preview never overstates the change.
+local function ComputeCounts(diff, rowMode, canExact)
+    if not diff then return nil end
+    local showRemovals = (rowMode == "exact") and canExact
     return {
-        added = #(moduleDiff.added or {}),
-        changed = #(moduleDiff.changed or {}),
-        removed = (exactRow and canExact) and #(moduleDiff.removed or {}) or 0,
+        added = #(diff.added or {}),
+        changed = #(diff.changed or {}),
+        removed = showRemovals and #(diff.removed or {}) or 0,
     }
 end
 
@@ -123,8 +130,9 @@ local function Acquire(panel)
     end)
     if panel._onPreviewModule then
         checkbox:SetPreview(function()
-            if checkbox._mode then
-                panel._onPreviewModule(checkbox._mode.name, checkbox._mode.mode)
+            local target = checkbox._target
+            if target then
+                panel._onPreviewModule(target.module, checkbox._mode and checkbox._mode.mode, target.plugin, target.subModule)
             end
         end)
     else
@@ -142,11 +150,128 @@ local function ReleaseAll(panel)
         checkbox.inUse = false
     end
     wipe(panel._checkboxes)
+
+    for i = 1, panel._headerCount do
+        panel._headers[i]:Hide()
+    end
+    panel._headerCount = 0
+end
+
+-- A pooled plugin-header label (non-interactive), reused across rebuilds. The
+-- name is centred within the header's full height so it sits with even spacing
+-- above and below, matching GameDiffPreview's plugin headers.
+local function AcquireHeader(panel)
+    panel._headerCount = panel._headerCount + 1
+    local header = panel._headers[panel._headerCount]
+    if not header then
+        header = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
+        header:SetJustifyH("LEFT")
+        header:SetJustifyV("MIDDLE")
+        header:SetHeight(HEADER_HEIGHT)
+        header:SetTextColor(HEADER_COLOR:GetRGB())
+        panel._headers[panel._headerCount] = header
+    end
+    header:Show()
+    return header
+end
+
+-- Place a plugin header at yOffset and return the advanced offset.
+local function AddHeader(panel, label, yOffset)
+    local header = AcquireHeader(panel)
+    header:SetText(label)
+    header:ClearAllPoints()
+    header:SetPoint("TOPLEFT", HEADER_INSET, -yOffset)
+    return yOffset + HEADER_HEIGHT
+end
+
+-- Place one selectable checkbox row for `target` (keyed by `key`) at the given
+-- indent, and return the advanced offset. rowSpec = { label, canApply, reason,
+-- counts, modeInfo }; modeInfo (apply rows only) = { mode, canToggle, canExact, diff }.
+local function AddRow(panel, key, target, rowSpec, indent, yOffset)
+    local checkbox = Acquire(panel)
+    checkbox._target = target
+    checkbox._mode = rowSpec.modeInfo
+
+    checkbox:ClearAllPoints()
+    checkbox:SetPoint("TOPLEFT", indent, -yOffset)
+    checkbox:Update(rowSpec.label, rowSpec.canApply, rowSpec.reason, rowSpec.counts, rowSpec.modeInfo and {
+        mode = rowSpec.modeInfo.mode,
+        canToggle = rowSpec.modeInfo.canToggle,
+        visible = rowSpec.canApply,
+    } or { visible = false })
+
+    if rowSpec.modeInfo then
+        checkbox.modeButton:ClearAllPoints()
+        checkbox.modeButton:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -MODE_BUTTON_INSET, -yOffset - MODE_BUTTON_VOFFSET)
+    end
+
+    checkbox:Show()
+    panel._checkboxes[key] = checkbox
+
+    return yOffset + UI.ModuleRow.Height + UI.ModuleRow.Padding
+end
+
+-- Per-submodule diff lookup from the Plugin module's diff:
+-- lookup[plugin][subModule] = the submodule diff entry (only changed ones exist).
+local function SubModuleDiffLookup(pluginDiff)
+    local lookup = {}
+    if pluginDiff and pluginDiff.plugins then
+        for _, plugin in ipairs(pluginDiff.plugins) do
+            local byName = {}
+            for _, subModule in ipairs(plugin.subModules) do
+                byName[subModule.name] = subModule
+            end
+            lookup[plugin.name] = byName
+        end
+    end
+    return lookup
+end
+
+-- Expand the Plugin umbrella into a per-plugin header (the plugin's name) plus a
+-- checkbox per submodule, for every installed plugin. pluginDiff (apply rows
+-- only) supplies per-submodule counts; nil for plain lists. Returns the advanced
+-- offset.
+local function AddPluginRows(panel, pluginDiff, defaultMode, yOffset)
+    local diffLookup = SubModuleDiffLookup(pluginDiff)
+    for _, entry in ipairs(PluginManager:GetSubModuleLayout()) do
+        yOffset = AddHeader(panel, entry.plugin, yOffset)
+        for _, subName in ipairs(entry.subModules) do
+            local subDiff = diffLookup[entry.plugin] and diffLookup[entry.plugin][subName]
+            yOffset = AddRow(panel, PLUGIN_MODULE .. "\0" .. entry.plugin .. "\0" .. subName, {
+                module = PLUGIN_MODULE,
+                plugin = entry.plugin,
+                subModule = subName,
+            }, {
+                label = subName,
+                canApply = true,
+                counts = subDiff and ComputeCounts(subDiff, defaultMode, subDiff.canExact) or nil,
+            }, SUBMODULE_INDENT, yOffset)
+        end
+    end
+    return yOffset
+end
+
+-- Size the scroll child to the laid-out rows (height from the rows, width from
+-- the viewport minus the scrollbar gutter) and reset it to the top, so a long
+-- list scrolls within the fixed viewport instead of growing the dialog. The
+-- width also tracks the viewport via OnSizeChanged for the first-layout pass,
+-- when GetWidth() is not yet reliable.
+local function ApplyContentSize(panel)
+    local scrollFrame = panel._scrollFrame
+    local width = scrollFrame:GetWidth()
+    if width and width > 0 then
+        panel:SetWidth(math.max(width - SCROLLBAR_RESERVE, 1))
+    end
+    panel:SetHeight(math.max(panel._contentHeight, 1))
+    scrollFrame:SetVerticalScroll(0)
+    scrollFrame:UpdateScrollChildRect()
 end
 
 function Methods:Constructor(config)
-    self._checkboxes = {}   -- moduleName -> active checkbox
+    self._checkboxes = {}   -- selection key -> active checkbox
     self._pool = {}
+    self._headers = {}      -- pooled plugin-header labels
+    self._headerCount = 0
     self._contentHeight = 0
     self._onChanged = config.onChanged
     self._onPreviewModule = config.onPreviewModule
@@ -160,10 +285,23 @@ function ModuleList:Build(region, opts)
     C:Ensures(opts.onChanged == nil or type(opts.onChanged) == "function", "Build: 'opts.onChanged' must be a function")
     C:Ensures(opts.onPreviewModule == nil or type(opts.onPreviewModule) == "function", "Build: 'opts.onPreviewModule' must be a function")
 
-    return addon:NewWidget({
-        parent = region,
+    -- A scroll viewport over the pooled rows, driven by the same MinimalScrollBar
+    -- the diff preview uses so both surfaces scroll identically. The bar sits
+    -- inside the region's right edge; the list keeps rendering into one content
+    -- frame (its widget), which becomes the scroll child, so a long module set
+    -- scrolls rather than growing the dialog past the screen.
+    local scrollFrame = CreateFrame("ScrollFrame", nil, region)
+    scrollFrame:SetAllPoints(region)
+    scrollFrame:EnableMouseWheel(true)
+
+    local scrollBar = CreateFrame("EventFrame", nil, region, "MinimalScrollBar")
+    scrollBar:SetPoint("TOPRIGHT", scrollFrame, "TOPRIGHT", -2, -2)
+    scrollBar:SetPoint("BOTTOMRIGHT", scrollFrame, "BOTTOMRIGHT", -2, 2)
+
+    local content = addon:NewWidget({
+        parent = scrollFrame,
         anchor = function(self)
-            self:SetAllPoints(region)
+            self:SetPoint("TOPLEFT")
         end,
         onChanged = opts.onChanged,
         onPreviewModule = opts.onPreviewModule,
@@ -171,6 +309,24 @@ function ModuleList:Build(region, opts)
         frameType = "Frame",
         methods = Methods,
     })
+
+    content:SetSize(1, 1)
+    content._scrollFrame = scrollFrame
+    scrollFrame:SetScrollChild(content)
+    scrollBar:SetFrameLevel(content:GetFrameLevel() + 10)
+
+    ScrollUtil.InitScrollFrameWithScrollBar(scrollFrame, scrollBar)
+    scrollBar:SetHideIfUnscrollable(true)
+
+    -- Keep the scroll child as wide as the viewport (minus the scrollbar gutter)
+    -- whenever the region resolves or resizes, so rows fill the width even on the
+    -- first layout pass, before GetWidth() is reliable.
+    scrollFrame:SetScript("OnSizeChanged", function(frame, width)
+        content:SetWidth(math.max(width - SCROLLBAR_RESERVE, 1))
+        frame:UpdateScrollChildRect()
+    end)
+
+    return content
 end
 
 function Methods:SetSnapshot(snapshot, preview, mode)
@@ -187,77 +343,138 @@ function Methods:SetSnapshot(snapshot, preview, mode)
     local moduleNames = snapshot and snapshot:GetModuleNames() or {}
 
     local yOffset = 0
+    local hasPlugin = false
     for _, name in ipairs(moduleNames) do
-        local module = ModuleRegistry:Get(name)
-        if module then
-            local canApply, reason = module:CanApply(sourceMetadata)
-            local canMerge, canExact = SupportedModes(name)
-            local rowMode = ResolveInitialMode(canMerge, canExact, defaultMode)
-            local canToggle = canMerge and canExact
+        if name == PLUGIN_MODULE then
+            hasPlugin = true
+        else
+            local module = ModuleRegistry:Get(name)
+            if module then
+                local canApply, reason = module:CanApply(sourceMetadata)
+                local canMerge, canExact = SupportedModes(name)
+                local rowMode = ResolveInitialMode(canMerge, canExact, defaultMode)
+                local moduleDiff = moduleDiffs and moduleDiffs[name]
 
-            local moduleDiff = moduleDiffs and moduleDiffs[name]
-            local counts = ComputeCounts(moduleDiff, rowMode, canExact)
-
-            local checkbox = Acquire(panel)
-            checkbox._mode = {
-                name = name,
-                mode = rowMode,
-                canToggle = canToggle,
-                canExact = canExact,
-                diff = moduleDiff,
-            }
-            checkbox:ClearAllPoints()
-            checkbox:SetPoint("TOPLEFT", 0, -yOffset)
-            checkbox:Update(name, canApply, reason, counts, {
-                mode = rowMode,
-                canToggle = canToggle,
-                visible = canApply,
-            })
-
-            checkbox.modeButton:ClearAllPoints()
-            checkbox.modeButton:SetPoint("TOPRIGHT", panel, "TOPRIGHT",
-                -MODE_BUTTON_INSET, -yOffset - MODE_BUTTON_VOFFSET)
-
-            checkbox:Show()
-
-            panel._checkboxes[name] = checkbox
-            yOffset = yOffset + UI.ModuleRow.Height + UI.ModuleRow.Padding
+                yOffset = AddRow(panel, name, { module = name }, {
+                    label = name,
+                    canApply = canApply,
+                    reason = reason,
+                    counts = ComputeCounts(moduleDiff, rowMode, canExact),
+                    modeInfo = {
+                        mode = rowMode,
+                        canToggle = canMerge and canExact,
+                        canExact = canExact,
+                        diff = moduleDiff,
+                    },
+                }, 0, yOffset)
+            end
         end
     end
 
+    -- Plugins always render below the built-in modules, as their own group.
+    if hasPlugin then
+        yOffset = AddPluginRows(panel, moduleDiffs and moduleDiffs[PLUGIN_MODULE], defaultMode, yOffset)
+    end
+
     panel._contentHeight = yOffset
+    ApplyContentSize(panel)
 end
 
--- The total stacked height of the rows from the last SetSnapshot, so an owner
--- can size itself to seat every module row.
+-- Build plain checkbox rows (no change badge, no Merge/Exact toggle) for the
+-- given module names, or every registered module when omitted — used by the
+-- save/share dialog. The Plugin umbrella still expands into its submodule rows.
+function Methods:SetModuleNames(moduleNames)
+    local panel = self
+
+    ReleaseAll(panel)
+
+    local names = {}
+    if moduleNames then
+        for _, name in ipairs(moduleNames) do
+            names[#names + 1] = name
+        end
+    else
+        for name in ModuleRegistry:Iterate() do
+            names[#names + 1] = name
+        end
+    end
+    table.sort(names)
+
+    local yOffset = 0
+    local hasPlugin = false
+    for _, name in ipairs(names) do
+        if name == PLUGIN_MODULE then
+            hasPlugin = true
+        else
+            yOffset = AddRow(panel, name, { module = name }, {
+                label = name,
+                canApply = true,
+            }, 0, yOffset)
+        end
+    end
+
+    -- Plugins always render below the built-in modules, as their own group.
+    if hasPlugin then
+        yOffset = AddPluginRows(panel, nil, "merge", yOffset)
+    end
+
+    panel._contentHeight = yOffset
+    ApplyContentSize(panel)
+end
+
+-- The total stacked height of the rows from the last SetSnapshot/SetModuleNames,
+-- so an owner can size itself to seat every module row.
 function Methods:GetContentHeight()
     return self._contentHeight or 0
 end
 
-function Methods:GetSelected()
-    local selected = {}
-    for name, checkbox in pairs(self._checkboxes) do
-        if checkbox:GetChecked() then
-            selected[name] = true
-        end
-    end
-    return selected
-end
-
--- The chosen modules and their per-module apply mode, ready for use as
--- strategy.overrides. Only checked rows are included.
-function Methods:GetStrategy()
+-- Build the current selection as a (possibly nested) moduleSet plus per-module
+-- apply-mode overrides. A submodule checkbox contributes a nested entry
+-- moduleSet[Plugin][plugin][subModule] = true; a top-level checkbox contributes
+-- moduleSet[name] = true and its mode override. Only checked rows count.
+local function BuildSelection(panel)
     local moduleSet, overrides = {}, {}
-    for name, checkbox in pairs(self._checkboxes) do
+    for _, checkbox in pairs(panel._checkboxes) do
         if checkbox:GetChecked() then
-            moduleSet[name] = true
-            local state = checkbox._mode
-            if state then
-                overrides[name] = state.mode
+            local target = checkbox._target
+            if target.subModule then
+                local selection = moduleSet[target.module]
+                if type(selection) ~= "table" then
+                    selection = {}
+                    moduleSet[target.module] = selection
+                end
+                selection[target.plugin] = selection[target.plugin] or {}
+                selection[target.plugin][target.subModule] = true
+            else
+                moduleSet[target.module] = true
+                if checkbox._mode then
+                    overrides[target.module] = checkbox._mode.mode
+                end
             end
         end
     end
     return moduleSet, overrides
+end
+
+-- The chosen selection as a (nested) moduleSet.
+function Methods:GetSelected()
+    return (BuildSelection(self))
+end
+
+-- The chosen selection plus per-module apply modes (strategy.overrides).
+function Methods:GetStrategy()
+    return BuildSelection(self)
+end
+
+-- True when at least one selectable row is checked, without building the
+-- selection table -- cheap enough to gate a button on every row toggle.
+function Methods:HasSelection()
+    for _, checkbox in pairs(self._checkboxes) do
+        if checkbox:GetChecked() then
+            return true
+        end
+    end
+    return false
 end
 
 function Methods:SetAllChecked(checked)
