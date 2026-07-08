@@ -38,7 +38,7 @@ local Module = WowSync:Import("Module")
 
 -- Row heights per element kind; the list mixes module headers, section
 -- subheaders, and entry rows in one virtualised stream.
-local GROUP_HEADER_HEIGHT = 26
+local PLUGIN_HEADER_HEIGHT = 26
 local MODULE_HEADER_HEIGHT = 24
 local SECTION_HEADER_HEIGHT = 18
 local ITEM_HEIGHT = 20
@@ -46,7 +46,7 @@ local EMPTY_HEIGHT = 28
 
 -- Left inset of each element kind, and the entry icon size. Entries indent past
 -- the icon column so labels line up whether or not an entry carries an icon.
-local GROUP_INSET = 6
+local PLUGIN_INSET = 6
 local MODULE_INSET = 6
 local SECTION_INSET = 16
 local ITEM_INSET = 20
@@ -73,7 +73,7 @@ local ADDED_COLOR = CreateColor(0.37, 0.81, 0.37)
 local CHANGED_COLOR = CreateColor(0.85, 0.78, 0.29)
 local REMOVED_COLOR = CreateColor(0.85, 0.42, 0.42)
 local MODULE_HEADER_COLOR = CreateColor(0.95, 0.95, 0.95)
-local GROUP_HEADER_COLOR = CreateColor(0.25, 0.65, 0.97)
+local PLUGIN_HEADER_COLOR = CreateColor(0.25, 0.65, 0.97)
 
 -- The change kinds in display order; "removed" is shown only in Exact mode.
 local SECTIONS = {
@@ -162,15 +162,15 @@ local function InsertModuleEntries(panel, dataProvider, moduleDiff, moduleIcon, 
     end
 end
 
--- Insert one plugin group: a "Plugin: <name>" header followed by each of its
--- modules rendered like a top-level module. Returns whether anything was shown.
-local function InsertPluginGroup(panel, dataProvider, group, exactMode)
+-- Insert one plugin: a "Plugin: <name>" header followed by each of its changed
+-- submodules, rendered like a top-level module. Returns whether anything was shown.
+local function InsertPlugin(panel, dataProvider, plugin, exactMode)
     local shown = false
-    for _, subModule in ipairs(group.modules) do
+    for _, subModule in ipairs(plugin.subModules) do
         local showRemoved = exactMode and subModule.canExact
         if HasVisibleChanges(subModule, showRemoved) then
             if not shown then
-                dataProvider:Insert({ kind = "group", name = L["Plugin: X"]:format(group.name) })
+                dataProvider:Insert({ kind = "plugin", name = L["Plugin: X"]:format(plugin.name) })
                 shown = true
             end
             dataProvider:Insert({ kind = "module", name = subModule.name })
@@ -181,8 +181,8 @@ local function InsertPluginGroup(panel, dataProvider, group, exactMode)
 end
 
 -- Flatten the preview into the list's element stream: for each module, a header
--- then its sections and entries. The Plugin umbrella's diff is grouped, so it
--- expands into a "Plugin: <name>" header per plugin with its modules beneath.
+-- then its sections and entries. The Plugin umbrella's diff carries submodules, so
+-- it expands into a "Plugin: <name>" header per plugin with its submodules beneath.
 local function Populate(panel, dataProvider, preview, filterName, mode)
     local exactMode = (mode == "exact")
     local anyShown = false
@@ -190,9 +190,9 @@ local function Populate(panel, dataProvider, preview, filterName, mode)
     for _, name in ipairs(ModuleNamesIn(preview)) do
         if not filterName or filterName == name then
             local moduleDiff = preview.perModule[name]
-            if moduleDiff.groups then
-                for _, group in ipairs(moduleDiff.groups) do
-                    if InsertPluginGroup(panel, dataProvider, group, exactMode) then
+            if moduleDiff.plugins then
+                for _, plugin in ipairs(moduleDiff.plugins) do
+                    if InsertPlugin(panel, dataProvider, plugin, exactMode) then
                         anyShown = true
                     end
                 end
@@ -253,11 +253,11 @@ local function UpdateRow(row, data)
     row.text:ClearAllPoints()
     row.text:SetPoint("RIGHT", row, "RIGHT", -TEXT_RIGHT_INSET, 0)
 
-    if data.kind == "group" then
+    if data.kind == "plugin" then
         row.text:SetFontObject("GameFontNormal")
         row.text:SetText(data.name)
-        row.text:SetTextColor(GROUP_HEADER_COLOR:GetRGB())
-        row.text:SetPoint("LEFT", row, "LEFT", GROUP_INSET, 0)
+        row.text:SetTextColor(PLUGIN_HEADER_COLOR:GetRGB())
+        row.text:SetPoint("LEFT", row, "LEFT", PLUGIN_INSET, 0)
         row.separator:Show()
     elseif data.kind == "module" then
         row.text:SetFontObject("GameFontNormal")
@@ -337,8 +337,8 @@ function Methods:Constructor(config)
             sb:SetPoint("BOTTOMRIGHT", -SCROLLBOX_RIGHT_INSET, 14)
         end,
         extent = function(_, data)
-            if data.kind == "group" then
-                return GROUP_HEADER_HEIGHT
+            if data.kind == "plugin" then
+                return PLUGIN_HEADER_HEIGHT
             elseif data.kind == "module" then
                 return MODULE_HEADER_HEIGHT
             elseif data.kind == "section" then
