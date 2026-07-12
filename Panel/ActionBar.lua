@@ -15,6 +15,8 @@ local _, addon = ...
             SetApplyEnabled(enabled),
             SetUndoEnabled(enabled),
             SetSaveEnabled(enabled),
+            BeginApplying(),
+            EndApplying(),
             BeginSaving(),
             EndSaving(storedSnapshot),
         }
@@ -31,6 +33,10 @@ local SnapshotManager = WowSync:Import("SnapshotManager")
 
 -- Keep the spinner up at least this long so a fast save is still perceptible.
 local SAVE_SPINNER_MIN_SECONDS = 0.5
+
+-- Same idea for apply: an apply that settles almost instantly still shows a
+-- perceptible spinner.
+local APPLY_SPINNER_MIN_SECONDS = 0.5
 
 local Methods = {}
 
@@ -81,10 +87,46 @@ function Methods:Constructor(config)
     self._undoButton = undoButton
     self._saveButton = saveButton
     self._savingStartedAt = nil
+    self._applyingStartedAt = nil
+    -- True while the matching button shows its spinner, so a re-gate from the
+    -- panel cannot re-enable it mid-flourish.
+    self._saveBusy = false
+    self._applyBusy = false
 end
 
 function Methods:SetApplyEnabled(enabled)
+    if self._applyBusy then return end
     self._applyButton:SetEnabled(enabled)
+end
+
+-- Enter the applying state: spin and lock the Apply button until the apply --
+-- including any asynchronous module work -- reports completion.
+function Methods:BeginApplying()
+    self._applyBusy = true
+    self._applyingStartedAt = GetTime()
+    self._applyButton:SetBusy(true)
+end
+
+-- Leave the applying state once the spinner has shown for its minimum time, then
+-- play the confirmation flourish. The caller restores the button's enabled
+-- state, which depends on the newly selected snapshot.
+function Methods:EndApplying(onRestored)
+    local bar = self
+    local startedAt = self._applyingStartedAt
+    local elapsed = GetTime() - (startedAt or 0)
+    local remaining = math.max(0, APPLY_SPINNER_MIN_SECONDS - elapsed)
+
+    C_Timer.After(remaining, function()
+        -- A newer apply began while this one was waiting out its minimum spin
+        -- time; let that cycle own the button instead of restoring it here.
+        if bar._applyingStartedAt ~= startedAt then
+            return
+        end
+        bar._applyBusy = false
+        bar._applyButton:SetBusy(false)
+        if onRestored then onRestored() end
+        bar._applyButton:Flash(L["Applied"])
+    end)
 end
 
 function Methods:SetUndoEnabled(enabled)
@@ -92,12 +134,14 @@ function Methods:SetUndoEnabled(enabled)
 end
 
 function Methods:SetSaveEnabled(enabled)
+    if self._saveBusy then return end
     self._saveButton:SetEnabled(enabled)
 end
 
 -- Enter the saving state: hide the label, spin, and lock the button until the
 -- save finishes.
 function Methods:BeginSaving()
+    self._saveBusy = true
     self._savingStartedAt = GetTime()
     self._saveButton:SetBusy(true)
 end
@@ -117,6 +161,7 @@ function Methods:EndSaving(storedSnapshot)
         if bar._savingStartedAt ~= startedAt then
             return
         end
+        bar._saveBusy = false
         bar._saveButton:SetBusy(false)
         bar:SetSaveEnabled(SnapshotManager:HasCapturedGameData())
         if storedSnapshot then

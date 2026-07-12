@@ -6,6 +6,7 @@ addon.L = L
 L["Profiles"] = "Profiles"
 L["Save"] = "Save"
 L["Saved"] = "Saved"
+L["Applied"] = "Applied"
 L["Plugin: X"] = "Plugin: %s"
 L["Save now"] = "Save now"
 L["Share…"] = "Share…"

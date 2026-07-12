@@ -158,7 +158,8 @@ end
 
 local function RefreshSaveButtonState(panel)
     panel._actionBar:SetSaveEnabled(
-        IsViewingOwnProfile(panel) and SnapshotManager:HasCapturedGameData())
+        not panel._actionInFlight
+        and IsViewingOwnProfile(panel) and SnapshotManager:HasCapturedGameData())
 end
 
 -- Refresh the panel's control state after a change: the undo and save buttons
@@ -167,7 +168,7 @@ end
 local function RefreshPanelState(panel)
     local hasUndo = UndoManager:CanUndo()
     if panel._content:IsShown() then
-        panel._actionBar:SetUndoEnabled(hasUndo)
+        panel._actionBar:SetUndoEnabled(not panel._actionInFlight and hasUndo)
         RefreshSaveButtonState(panel)
     else
         -- Empty state: show the full undo history, or the placeholder when the
@@ -209,8 +210,8 @@ local function DoUndo(panel)
             Console:Print(L["  X: restored"]:format(name))
         end
     end
-    panel._snapshotList:Refresh()  -- re-diff the timeline against the new live setup
-    RefreshPanelState(panel)
+    -- The timeline re-diff and button re-gate are driven by the
+    -- SnapshotActionMonitor events.
 end
 
 local function ApplySnapshot(panel, snapshot, moduleSet, mode, overrides)
@@ -252,9 +253,9 @@ local function ApplySnapshot(panel, snapshot, moduleSet, mode, overrides)
     else
         Console:Print(L["Nothing to apply."])
     end
-
-    panel._snapshotList:Refresh()  -- re-diff the timeline against the new live setup
-    RefreshPanelState(panel)
+    -- The timeline re-diff, button re-gate and Apply spinner are driven by the
+    -- SnapshotActionMonitor events; an apply's async tail settles after this
+    -- returns.
 end
 
 -- Apply is a no-op when the chosen entry already matches the logged-in
@@ -343,8 +344,8 @@ local function DoUndoSteps(panel, count, undoPoint)
             Console:Print(L["  X: restored"]:format(name))
         end
     end
-    panel._snapshotList:Refresh()  -- re-diff the timeline against the new live setup
-    RefreshPanelState(panel)
+    -- The timeline re-diff and button re-gate are driven by the
+    -- SnapshotActionMonitor events.
 end
 
 -- Clicking an undo-history row rolls back every apply down to and including it.
@@ -509,6 +510,14 @@ function Methods:Constructor(config)
     -- { name, added, changed, removed }, in stable name order for the tooltip.
     panel._syncDetail = {}
     panel._syncRefreshToken = 0
+    -- True while a snapshot action (save/apply/undo, including an async module's
+    -- tail) is in progress, so the action buttons stay disabled; the kind names
+    -- which action opened it, to end the matching spinner.
+    panel._actionInFlight = false
+    panel._actionKind = nil
+    -- True once the in-flight apply has actually changed the live setup. A no-op
+    -- apply never sets this, so it runs neither the spinner nor the flourish.
+    panel._applyChanged = false
 
     self:SetBackdrop({
         bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
@@ -555,11 +564,14 @@ function Methods:Constructor(config)
     listSlot:SetPoint("RIGHT", content, "RIGHT", -8, 0)
     listSlot:SetPoint("BOTTOM", content, "BOTTOM", 0, 60)
     self._snapshotList = SnapshotList:Build(listSlot, {
-        -- Switching snapshots clears any stale apply status and re-gates the
-        -- Apply button against the newly selected entry.
+        -- Switching snapshots clears any stale apply status and re-gates the Apply
+        -- button against the newly selected entry -- unless a snapshot action is in
+        -- progress, which owns every button until it completes.
         onSelect = function(snapshot)
             panel._statusLabel:Hide()
-            panel._actionBar:SetApplyEnabled(CanApplySnapshot(snapshot))
+            if not panel._actionInFlight then
+                panel._actionBar:SetApplyEnabled(CanApplySnapshot(snapshot))
+            end
         end,
         onContext = function(snapshot, subject, anchor, isHead)
             OpenSnapshotMenu(panel, snapshot, subject, anchor, isHead)
@@ -650,6 +662,47 @@ function Methods:Constructor(config)
     end)
     WowSync:RegisterEvent("WOWSYNC_SNAPSHOT_SAVE_FINISHED", function(_, _, storedSnapshot)
         panel._actionBar:EndSaving(storedSnapshot)
+    end)
+
+    -- A snapshot action began: lock every action button for its duration
+    -- (SnapshotActionMonitor spans save/apply/undo and any async module tail).
+    -- The Apply spinner is not started here -- it waits for the apply to prove it
+    -- changed something (WOWSYNC_SNAPSHOT_APPLY_CHANGED below).
+    WowSync:RegisterEvent("WOWSYNC_SNAPSHOT_ACTION_STARTED", function(_, _, kind)
+        panel._actionInFlight = true
+        panel._actionKind = kind
+        panel._applyChanged = false
+        panel._actionBar:SetApplyEnabled(false)
+        panel._actionBar:SetUndoEnabled(false)
+        panel._actionBar:SetSaveEnabled(false)
+    end)
+
+    -- The apply actually changed the live setup: start the Apply flourish now and
+    -- remember it so ACTION_FINISHED plays the confirmation. A no-op apply never
+    -- fires this, so it neither spins nor flashes "Applied".
+    WowSync:RegisterEvent("WOWSYNC_SNAPSHOT_APPLY_CHANGED", function()
+        panel._applyChanged = true
+        panel._actionBar:BeginApplying()
+    end)
+
+    -- The action finished (including any async tail): settle the timeline and badge
+    -- and re-gate the buttons. An apply that changed something ends through its own
+    -- flourish; the save spinner is ended by WOWSYNC_SNAPSHOT_SAVE_FINISHED.
+    WowSync:RegisterEvent("WOWSYNC_SNAPSHOT_ACTION_FINISHED", function()
+        local kind = panel._actionKind
+        local applyChanged = panel._applyChanged
+        panel._actionInFlight = false
+        panel._actionKind = nil
+        panel._applyChanged = false
+        panel._snapshotList:Refresh()
+        RefreshPanelState(panel)
+        if kind == "apply" and applyChanged then
+            panel._actionBar:EndApplying(function()
+                panel._actionBar:SetApplyEnabled(CanApplySnapshot(panel._snapshotList:GetSelected()))
+            end)
+        else
+            panel._actionBar:SetApplyEnabled(CanApplySnapshot(panel._snapshotList:GetSelected()))
+        end
     end)
 
     -- Initialise the empty state (undo history or placeholder) so it is correct
