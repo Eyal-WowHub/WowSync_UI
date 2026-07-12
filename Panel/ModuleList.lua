@@ -41,10 +41,10 @@ local PluginManager = WowSync:Import("PluginManager")
 -- checkboxes, so plugins are selectable the way they read in the diff preview.
 local PLUGIN_MODULE = "Plugin"
 
--- Placement of the per-row Merge/Exact toggle: inset from the list's right edge,
--- and a vertical nudge to centre the button in the row.
-local MODE_BUTTON_INSET = 2
-local MODE_BUTTON_VOFFSET = 3
+-- Placement of the per-row Merge/Exact switch: inset from the list's right edge,
+-- and a vertical nudge to centre it in the row.
+local MODE_SWITCH_INSET = 2
+local MODE_SWITCH_VOFFSET = 3
 
 -- Left inset of a submodule row, so it reads as nested beneath its plugin header.
 local SUBMODULE_INDENT = 16
@@ -55,7 +55,7 @@ local HEADER_INSET = 6
 local HEADER_COLOR = CreateColor(0.25, 0.65, 0.97)
 
 -- Right-edge gutter kept free for the scrollbar, so rows and their Merge/Exact
--- toggles never sit beneath it.
+-- switches never sit beneath it.
 local SCROLLBAR_RESERVE = 20
 
 local Methods = {}
@@ -92,13 +92,13 @@ local function ComputeCounts(diff, rowMode, canExact)
     }
 end
 
--- Flip a togglable row between Merge and Exact, refreshing its counts and toggle
--- label and notifying the list owner so dependent UI can update.
-local function ToggleRowMode(panel, checkbox)
+-- Set a togglable row to the chosen mode, refreshing its counts and switch and
+-- notifying the list owner so dependent UI can update.
+local function SelectRowMode(panel, checkbox, mode)
     local state = checkbox._mode
-    if not state or not state.canToggle then return end
+    if not state or not state.canToggle or state.mode == mode then return end
 
-    state.mode = (state.mode == "exact") and "merge" or "exact"
+    state.mode = mode
     checkbox:RenderCounts(ComputeCounts(state.diff, state.mode, state.canExact))
     checkbox:RenderMode({
         mode = state.mode,
@@ -125,8 +125,8 @@ local function Acquire(panel)
     checkbox:HookScript("OnClick", function()
         if panel._onChanged then panel._onChanged() end
     end)
-    checkbox.modeButton:SetScript("OnClick", function()
-        ToggleRowMode(panel, checkbox)
+    checkbox.modeSwitch:SetOnSelect(function(mode)
+        SelectRowMode(panel, checkbox, mode)
     end)
     if panel._onPreviewModule then
         checkbox:SetPreview(function()
@@ -146,7 +146,7 @@ end
 local function ReleaseAll(panel)
     for _, checkbox in pairs(panel._checkboxes) do
         checkbox:Hide()
-        checkbox.modeButton:Hide()
+        checkbox.modeSwitch:Hide()
         checkbox.inUse = false
     end
     wipe(panel._checkboxes)
@@ -201,8 +201,8 @@ local function AddRow(panel, key, target, rowSpec, indent, yOffset)
     } or { visible = false })
 
     if rowSpec.modeInfo then
-        checkbox.modeButton:ClearAllPoints()
-        checkbox.modeButton:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -MODE_BUTTON_INSET, -yOffset - MODE_BUTTON_VOFFSET)
+        checkbox.modeSwitch:ClearAllPoints()
+        checkbox.modeSwitch:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -MODE_SWITCH_INSET, -yOffset - MODE_SWITCH_VOFFSET)
     end
 
     checkbox:Show()
@@ -342,32 +342,45 @@ function Methods:SetSnapshot(snapshot, preview, mode)
     -- currently registered (a snapshot may carry a module no longer installed).
     local moduleNames = snapshot and snapshot:GetModuleNames() or {}
 
-    local yOffset = 0
+    -- Registered built-in modules from the snapshot, split so the ones offering a
+    -- Merge/Exact choice list before the single-mode ones (a clearer read), each
+    -- group keeping the snapshot's stable order. The Plugin umbrella is separate.
+    local dualMode, singleMode = {}, {}
     local hasPlugin = false
     for _, name in ipairs(moduleNames) do
         if name == PLUGIN_MODULE then
             hasPlugin = true
-        else
-            local module = ModuleRegistry:Get(name)
-            if module then
-                local canApply, reason = module:CanApply(sourceMetadata)
-                local canMerge, canExact = SupportedModes(name)
-                local rowMode = ResolveInitialMode(canMerge, canExact, defaultMode)
-                local moduleDiff = moduleDiffs and moduleDiffs[name]
-
-                yOffset = AddRow(panel, name, { module = name }, {
-                    label = name,
-                    canApply = canApply,
-                    reason = reason,
-                    counts = ComputeCounts(moduleDiff, rowMode, canExact),
-                    modeInfo = {
-                        mode = rowMode,
-                        canToggle = canMerge and canExact,
-                        canExact = canExact,
-                        diff = moduleDiff,
-                    },
-                }, 0, yOffset)
+        elseif ModuleRegistry:Get(name) then
+            local canMerge, canExact = SupportedModes(name)
+            if canMerge and canExact then
+                dualMode[#dualMode + 1] = name
+            else
+                singleMode[#singleMode + 1] = name
             end
+        end
+    end
+
+    local yOffset = 0
+    for _, group in ipairs({ dualMode, singleMode }) do
+        for _, name in ipairs(group) do
+            local module = ModuleRegistry:Get(name)
+            local canApply, reason = module:CanApply(sourceMetadata)
+            local canMerge, canExact = SupportedModes(name)
+            local rowMode = ResolveInitialMode(canMerge, canExact, defaultMode)
+            local moduleDiff = moduleDiffs and moduleDiffs[name]
+
+            yOffset = AddRow(panel, name, { module = name }, {
+                label = name,
+                canApply = canApply,
+                reason = reason,
+                counts = ComputeCounts(moduleDiff, rowMode, canExact),
+                modeInfo = {
+                    mode = rowMode,
+                    canToggle = canMerge and canExact,
+                    canExact = canExact,
+                    diff = moduleDiff,
+                },
+            }, 0, yOffset)
         end
     end
 

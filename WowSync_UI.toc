@@ -46,6 +46,7 @@ Widgets\ResizeGrip.lua
 Panel\PopupDialogs.lua
 Panel\ProfileRow.lua
 Panel\ProfileHeader.lua
+Panel\ApplyModeSwitch.lua
 Panel\ModuleRow.lua
 Panel\ActionBar.lua
 Panel\ModuleList.lua
