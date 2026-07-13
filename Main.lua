@@ -16,9 +16,3 @@ addon.C = WowSync:Import("Contracts")
 WowSync:RegisterEvent("WOWSYNC_UI_TOGGLED", function()
     addon:GetObject("MainFrame"):Toggle()
 end)
-
--- WowSync routes /ws import and /ws export here to open the matching share
--- dialog; action is "import" or "export".
-WowSync:RegisterEvent("WOWSYNC_UI_OPEN_SHARE_DIALOG", function(_, _, action)
-    addon:GetObject("MainFrame"):OpenShareDialog(action)
-end)

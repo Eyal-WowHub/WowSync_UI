@@ -819,16 +819,6 @@ function Methods:RequestSave()
     })
 end
 
--- Exports the selected snapshot to a copy dialog, or asks for a selection first.
-function Methods:ShareSelected()
-    local snapshot = self._snapshotList:GetSelected()
-    if not snapshot then
-        Console:Print(L["Select a snapshot to share first."])
-        return
-    end
-    ShareSnapshot(self, snapshot)
-end
-
 function Methods:OnSaved(callback)
     self._onSaved = callback
 end

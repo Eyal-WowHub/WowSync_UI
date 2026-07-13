@@ -10,7 +10,6 @@ local _, addon = ...
     the first Toggle().
 
     addon:GetObject("MainFrame"):Toggle()
-    addon:GetObject("MainFrame"):OpenShareDialog(action)
 ]]
 
 local MainFrame = addon:NewObject("MainFrame")
@@ -29,7 +28,7 @@ local Splitter = addon:GetObject("Splitter")
 local TabStrip = addon:GetObject("TabStrip")
 local TitleBar = addon:GetObject("TitleBar")
 
--- The single window instance, built lazily on the first Toggle/OpenShareDialog.
+-- The single window instance, built lazily on the first Toggle.
 local instance
 
 -- The left panel may never exceed this share of the pane width, so the right
@@ -351,26 +350,6 @@ function Methods:Toggle()
     end
 end
 
--- Open the window for a share action: "import" lands on the Imports tab and
--- opens the import dialog; any other action opens the profile share flow.
-function Methods:OpenShare(action)
-    if action == "import" then
-        self:ShowView("imports")
-    else
-        self:ShowView("profiles")
-    end
-
-    if not self:IsShown() then
-        self:Show()
-    end
-
-    if action == "import" then
-        self._importList:BeginImport()
-    else
-        self._profileDetails:ShareSelected()
-    end
-end
-
 -- Build the single window instance on first use; subsequent calls reuse it.
 local function Build()
     if instance then return end
@@ -384,11 +363,4 @@ end
 function MainFrame:Toggle()
     Build()
     instance:Toggle()
-end
-
--- Opens the window for a share action: "import" lands on the Imports tab and
--- opens the import dialog; any other action just opens the window.
-function MainFrame:OpenShareDialog(action)
-    Build()
-    instance:OpenShare(action)
 end
