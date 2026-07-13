@@ -37,9 +37,14 @@ end
 
 -- Enter/leave the busy state: a centered spinner replaces the label and the
 -- button locks. Leaving restores the label but not the enabled state -- "not
--- busy" does not imply "enabled", so the caller restores that.
+-- busy" does not imply "enabled", so the caller restores that. Idempotent: the
+-- label is captured and blanked only on the transition into busy, so a second
+-- SetBusy(true) while already busy cannot capture the blanked text and later
+-- restore it as the label.
 function Methods:SetBusy(isBusy)
     if isBusy then
+        if self._busy then return end
+        self._busy = true
         if not self._spinner then
             local spinner = CreateFrame("Frame", nil, self, "SpinnerTemplate")
             spinner:SetSize(18, 18)
@@ -52,7 +57,8 @@ function Methods:SetBusy(isBusy)
         self:SetEnabled(false)
         self:SetText("")
         self._spinner:Show()
-    elseif self._spinner then
+    elseif self._busy then
+        self._busy = false
         self._spinner:Hide()
         self:SetText(self._label or "")
     end
