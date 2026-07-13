@@ -178,12 +178,16 @@ function Methods:Constructor(config)
         panel._profileList:Refresh()
         -- Land on the logged-in character when the user hasn't picked one yet.
         panel._profileList:SelectCurrentWhenNone()
+        -- Announce that the window is now on screen.
+        WowSync:TriggerEvent("WOWSYNC_UI_OPENED")
     end)
 
     panel:SetScript("OnHide", function()
         WowSync:Import("GameWatcher"):Detach("WowSync_UI")
         -- Close any open dialogs with the window so they don't linger over the world.
         addon:Broadcast("WOWSYNC_UI_CLOSED")
+        -- Announce that the window has left the screen.
+        WowSync:TriggerEvent("WOWSYNC_UI_CLOSED")
     end)
 
     -- Tab strip (Profiles, Imports)
