@@ -1,7 +1,7 @@
 ## Interface: 120007
 
 ## Title: Wow|cff40a5f7Sync|r: UI
-## Notes: Visual profile manager for saving, previewing, applying, and undoing WowSync profiles.
+## Notes: Provides the UI to manage WowSync.
 ## IconTexture: Interface\AddOns\WowSync\Logo
 ## Version: @project-version@
 ## Author: Eyal Alon
